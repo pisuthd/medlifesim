@@ -1,8 +1,6 @@
-import { motion } from 'framer-motion'
 import { useDroppable } from '@dnd-kit/core'
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable'
@@ -43,10 +41,14 @@ function SortableDocument({ doc }: { doc: Document }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">📄</span>
+          <div className="w-10 h-10 rounded bg-primary-100 flex items-center justify-center">
+            <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
           <div>
             <p className="font-medium text-gray-800">{doc.name}</p>
-            <p className="text-sm text-gray-500">{doc.size} • {doc.type}</p>
+            <p className="text-sm text-gray-500">{doc.size} - {doc.type}</p>
           </div>
         </div>
         <span className="text-sm text-gray-400">{doc.uploadedAt.toLocaleDateString()}</span>
@@ -68,8 +70,12 @@ function DropZone({ isOver }: { isOver: boolean }) {
           : 'border-gray-300 bg-gray-50'
       }`}
     >
-      <span className="text-4xl mb-4 block">📁</span>
-      <p className="text-gray-600 font-medium">Drag & drop medical documents here</p>
+      <div className="w-12 h-12 mx-auto mb-4 rounded bg-primary-100 flex items-center justify-center">
+        <svg className="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </div>
+      <p className="text-gray-600 font-medium">Drag and drop medical documents here</p>
       <p className="text-gray-400 text-sm mt-1">PDF, TXT, or image files supported</p>
     </div>
   )

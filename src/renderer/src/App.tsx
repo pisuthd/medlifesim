@@ -49,7 +49,7 @@ function App() {
   }
 
   if (appState === 'profile' || !profile) {
-    return <ProfileSelector profiles={profiles} onSelect={handleProfileSelect} />
+    return <ProfileSelector profiles={profiles} onSelect={handleProfileSelect} onCreateProfile={handleProfileCreate} />
   }
 
   return (

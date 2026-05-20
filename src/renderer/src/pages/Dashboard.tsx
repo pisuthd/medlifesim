@@ -28,8 +28,8 @@ export default function Dashboard() {
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
         >
           <p className="text-gray-500 text-sm">Total Sessions</p>
-          <p className="text-3xl font-bold text-primary-600">12</p>
-          <p className="text-green-500 text-sm mt-1">↑ 3 this week</p>
+          <p className="text-3xl font-bold text-primary-600 mt-1">12</p>
+          <p className="text-green-500 text-sm mt-2">+3 this week</p>
         </motion.div>
 
         <motion.div
@@ -38,9 +38,9 @@ export default function Dashboard() {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
         >
-          <p className="text-gray-500 text-sm">Documents Uploaded</p>
-          <p className="text-3xl font-bold text-primary-600">5</p>
-          <p className="text-gray-400 text-sm mt-1">Medical notes</p>
+          <p className="text-gray-500 text-sm">Documents</p>
+          <p className="text-3xl font-bold text-primary-600 mt-1">5</p>
+          <p className="text-gray-400 text-sm mt-2">Medical notes</p>
         </motion.div>
 
         <motion.div
@@ -49,9 +49,9 @@ export default function Dashboard() {
           transition={{ delay: 0.2 }}
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
         >
-          <p className="text-gray-500 text-sm">Tools Enabled</p>
-          <p className="text-3xl font-bold text-primary-600">0</p>
-          <p className="text-gray-400 text-sm mt-1">Connect integrations</p>
+          <p className="text-gray-500 text-sm">Tools</p>
+          <p className="text-3xl font-bold text-primary-600 mt-1">0</p>
+          <p className="text-gray-400 text-sm mt-2">Enabled</p>
         </motion.div>
       </div>
 

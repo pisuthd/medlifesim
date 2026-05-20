@@ -8,12 +8,14 @@ interface Profile {
   name: string
   type: ProfileType
   age?: number
+  gender?: 'male' | 'female'
   createdAt: Date
 }
 
 interface ProfileSelectorProps {
   profiles: Profile[]
   onSelect: (profile: Profile) => void
+  onCreateProfile: (profileData: Omit<Profile, 'id' | 'createdAt'>) => void
 }
 
 function CreateProfileForm({ onComplete, onBack }: { 
@@ -24,12 +26,13 @@ function CreateProfileForm({ onComplete, onBack }: {
   const [profileType, setProfileType] = useState<ProfileType | null>(null)
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
+  const [gender, setGender] = useState<'male' | 'female' | ''>('')
 
   const profileTypes = [
-    { id: 'self', label: 'Check symptoms for yourself', icon: '👤' },
-    { id: 'family', label: 'Check symptoms for family member', icon: '👨‍👩‍👧' },
-    { id: 'doctor', label: 'You are a doctor', icon: '👨‍⚕️' },
-    { id: 'community', label: 'You are a community leader', icon: '🏘️' },
+    { id: 'self', label: 'Check symptoms for yourself' },
+    { id: 'family', label: 'Check symptoms for family member' },
+    { id: 'doctor', label: 'You are a doctor' },
+    { id: 'community', label: 'You are a community leader' },
   ]
 
   const handleTypeSelect = (type: ProfileType) => {
@@ -42,7 +45,8 @@ function CreateProfileForm({ onComplete, onBack }: {
     onComplete({
       name,
       type: profileType!,
-      age: profileType === 'self' || profileType === 'family' ? parseInt(age) || undefined : undefined,
+      age: profileType === 'self' ? (parseInt(age) || undefined) : undefined,
+      gender: profileType === 'self' ? (gender || undefined) : undefined,
     })
   }
 
@@ -59,7 +63,7 @@ function CreateProfileForm({ onComplete, onBack }: {
           </button>
           <h2 className="text-xl font-semibold text-gray-800">Who are you checking symptoms for?</h2>
           <div className="space-y-3">
-            {profileTypes.map((type) => (
+            {profileTypes.map((type, index) => (
               <motion.button
                 key={type.id}
                 whileHover={{ scale: 1.02 }}
@@ -67,7 +71,9 @@ function CreateProfileForm({ onComplete, onBack }: {
                 onClick={() => handleTypeSelect(type.id as ProfileType)}
                 className="w-full p-4 text-left bg-gray-50 hover:bg-primary-50 rounded-xl border-2 border-transparent hover:border-primary-400 transition-all flex items-center gap-4"
               >
-                <span className="text-3xl">{type.icon}</span>
+                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-medium">
+                  {index + 1}
+                </div>
                 <span className="text-gray-700 font-medium">{type.label}</span>
               </motion.button>
             ))}
@@ -91,22 +97,51 @@ function CreateProfileForm({ onComplete, onBack }: {
             />
           </div>
 
-          {(profileType === 'self' || profileType === 'family') && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-              <input
-                type="number"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                placeholder="Enter age"
-              />
-            </div>
+          {profileType === 'self' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="Enter age"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setGender('male')}
+                    className={`flex-1 py-2 rounded-lg border-2 transition-all ${
+                      gender === 'male' 
+                        ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Male
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender('female')}
+                    className={`flex-1 py-2 rounded-lg border-2 transition-all ${
+                      gender === 'female' 
+                        ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    Female
+                  </button>
+                </div>
+              </div>
+            </>
           )}
 
           <button
             onClick={handleSubmit}
-            disabled={!name.trim()}
+            disabled={!name.trim() || (profileType === 'self' && !gender)}
             className="w-full py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Create Profile
@@ -117,16 +152,12 @@ function CreateProfileForm({ onComplete, onBack }: {
   )
 }
 
-export default function ProfileSelector({ profiles, onSelect }: ProfileSelectorProps) {
+export default function ProfileSelector({ profiles, onSelect, onCreateProfile }: ProfileSelectorProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
 
   const handleCreateComplete = (profileData: Omit<Profile, 'id' | 'createdAt'>) => {
-    const newProfile: Profile = {
-      ...profileData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    }
-    onSelect(newProfile)
+    onCreateProfile(profileData)
+    setShowCreateForm(false)
   }
 
   return (
@@ -150,11 +181,16 @@ export default function ProfileSelector({ profiles, onSelect }: ProfileSelectorP
                   onClick={() => onSelect(profile)}
                   className="w-full p-4 text-left bg-gray-50 hover:bg-primary-50 rounded-xl border-2 border-transparent hover:border-primary-400 transition-all flex items-center gap-4"
                 >
-                  <span className="text-3xl">👤</span>
-                  <div className="flex-1">
-                    <span className="text-gray-700 font-medium">{profile.name}</span>
-                    <span className="text-gray-400 text-sm ml-2 capitalize">({profile.type})</span>
+                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-primary-300" />
                   </div>
+                  <div className="flex-1">
+                    <span className="text-gray-700 font-medium block">{profile.name}</span>
+                    <span className="text-gray-400 text-sm capitalize">{profile.type}</span>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </motion.button>
               ))
             ) : (
@@ -167,7 +203,9 @@ export default function ProfileSelector({ profiles, onSelect }: ProfileSelectorP
               onClick={() => setShowCreateForm(true)}
               className="w-full p-4 text-left bg-primary-50 hover:bg-primary-100 rounded-xl border-2 border-primary-300 hover:border-primary-400 transition-all flex items-center gap-4"
             >
-              <span className="text-3xl">➕</span>
+              <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
+                +
+              </div>
               <span className="text-primary-700 font-medium">Create New Profile</span>
             </motion.button>
           </div>

@@ -5,7 +5,6 @@ interface Tool {
   id: string
   name: string
   description: string
-  icon: string
   enabled: boolean
   status: 'available' | 'coming_soon'
 }
@@ -16,7 +15,6 @@ export default function Tools() {
       id: '1',
       name: 'Clinic Scheduling',
       description: 'Schedule appointments with local clinics directly from chat',
-      icon: '📅',
       enabled: false,
       status: 'available',
     },
@@ -24,7 +22,6 @@ export default function Tools() {
       id: '2',
       name: 'Medication Reminders',
       description: 'Set reminders for taking medications',
-      icon: '💊',
       enabled: false,
       status: 'available',
     },
@@ -32,7 +29,6 @@ export default function Tools() {
       id: '3',
       name: 'Health Records',
       description: 'Connect to your electronic health records',
-      icon: '🏥',
       enabled: false,
       status: 'coming_soon',
     },
@@ -40,7 +36,6 @@ export default function Tools() {
       id: '4',
       name: 'Emergency Contacts',
       description: 'Quick access to emergency services and contacts',
-      icon: '🚨',
       enabled: false,
       status: 'coming_soon',
     },
@@ -58,7 +53,7 @@ export default function Tools() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">Tools & Integrations</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-2">Tools and Integrations</h1>
       <p className="text-gray-500 mb-8">Enable tools to connect with real-world services</p>
 
       <div className="grid grid-cols-2 gap-6">
@@ -74,7 +69,12 @@ export default function Tools() {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
-                <span className="text-3xl">{tool.icon}</span>
+                <div className="w-10 h-10 rounded bg-primary-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
                 <div>
                   <h3 className="font-semibold text-gray-800">{tool.name}</h3>
                   <p className="text-gray-500 text-sm mt-1">{tool.description}</p>
