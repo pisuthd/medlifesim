@@ -52,6 +52,17 @@ function StepCard({ num, title, subtitle }: { num: string; title: string; subtit
   )
 }
 
+function StatItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ marginRight: 32 }}>
+      <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+        {label}
+      </p>
+      <p style={{ fontFamily: monoFont, fontSize: 18, fontWeight: 700, color: NAVY, margin: 0 }}>{value}</p>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
 
@@ -100,14 +111,19 @@ export default function Dashboard() {
         {/* Content */}
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 600 }}>
           <SectionLabel>Dashboard</SectionLabel>
-          <h1 style={{ fontFamily: sansFont, fontSize: 36, fontWeight: 300, color: NAVY, margin: '0 0 16px 0', lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: sansFont, fontSize: 36, fontWeight: 300, color: NAVY, margin: '0 0 24px 0', lineHeight: 1.2 }}>
             <strong style={{ fontWeight: 600 }}>Free & Private</strong><br />
             Medical Consultation
           </h1>
-          <p style={{ fontFamily: sansFont, fontSize: 15, color: MUTED, margin: '0 0 24px 0', lineHeight: 1.6 }}>
-            with Advanced AI Model of<br />
-            <strong style={{ color: NAVY }}>QVAC MedPsy</strong>
-          </p>
+
+          {/* Stats Row */}
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            <StatItem label="Model" value="QVAC MedPsy" />
+            <StatItem label="Uptime" value="~2h 30m" />
+            <StatItem label="Sessions" value="12" />
+            <StatItem label="Documents" value="5" />
+            <StatItem label="Tools" value="0" />
+          </div>
         </div>
 
         {/* Teal left accent */}
