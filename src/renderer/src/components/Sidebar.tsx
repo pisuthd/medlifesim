@@ -128,8 +128,8 @@ export default function Sidebar({ profileName }: { profileName: string }) {
           {profileName.slice(0, 2).toUpperCase()}
         </div>
         <p style={{ fontFamily: sansFont, fontSize: 12, fontWeight: 500, color: NAVY, margin: 0 }}>{profileName}</p>
-        <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
-          Active
+        <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, letterSpacing: '0.08em', marginTop: 2 }}>
+          v.1.0.0-beta.1
         </p>
       </div>
     </div>
