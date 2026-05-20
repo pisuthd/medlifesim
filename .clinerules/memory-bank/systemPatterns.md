@@ -35,12 +35,20 @@ const sansFont = "'DM Sans', sans-serif"
 ```
 src/
 ├── main/           # Electron main process
+│   ├── index.ts           # Main entry, AI chat, IPC handlers
+│   ├── profileStore.ts    # Profile persistence
+│   ├── sessions.ts        # Session management
+│   ├── toolsStore.ts      # Tool settings persistence
+│   └── tools/
+│       └── documents/
+│           ├── index.ts   # Tool definitions with execute()
+│           ├── store.ts   # DocumentsStore singleton
+│           ├── handlers.ts # IPC handlers
+│           └── ocr.ts     # OCR processing
 ├── preload/        # Context bridge for IPC
 └── renderer/       # React frontend
     └── src/
         ├── components/
-        │   ├── Sidebar/
-        │   └── MainLayout/
         ├── pages/
         │   ├── LoadingScreen/
         │   ├── ProfileSelector/
@@ -49,8 +57,7 @@ src/
         │   ├── Chat/
         │   ├── Documents/
         │   └── Tools/
-        ├── App.tsx
-        └── main.tsx
+        └── context/
 ```
 
 ## Page Structure
@@ -63,8 +70,44 @@ src/
    - **Documents** - Upload and file list
    - **Tools** - Toggle cards for integrations
 
+## Tool System Pattern
+
+### Tool Definition (QVAC SDK compatible)
+```typescript
+export const getDocumentsTool = {
+  type: 'function' as const,
+  name: 'get_documents',
+  description: '...',
+  parameters: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+  },
+  execute: async () => {
+    const docs = documentsStore.getDocuments()
+    return JSON.stringify({ success: true, documents: docs })
+  }
+}
+```
+
+### Tool Call Flow
+1. Call completion() with tools array
+2. Stream events: contentDelta, thinkingDelta, toolCall
+3. After streaming, get result.toolCalls (Promise)
+4. Execute each tool via tool.execute()
+5. Add results to conversationHistory with role: "tool"
+6. Loop back to completion() with updated history
+7. Max 3 tool calls to prevent infinite loops
+
+### Documents Store
+- Singleton class with setProfile(profileSlug) method
+- Stores in: `{userData}/profiles/{profileSlug}/documents/`
+- Must call setProfile() before getDocuments() or searchDocuments()
+
 ## Key Technical Decisions
 - Use HashRouter for Electron (client-side routing)
 - Profile loading moved to ProfileSelector component
 - Inline styles for consistent design system
 - App.tsx manages app state (loading → profile → main)
+- documentsStore.setProfile() must be called before tool execution
+- Tools require embedded execute function in definition

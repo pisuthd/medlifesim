@@ -26,23 +26,22 @@
 - [x] **Phase 4.3** Thinking box above response, trim leading \n
 - [x] **Phase 4.4** Session delete/clear functionality
 - [x] **Phase 5** Documents storage + AI tools
+- [x] **Phase 5.1** Documents page with drag & drop, OCR support
+- [x] **Phase 5.2** Tools persistence + system prompt for AI
+- [x] **Phase 5.3** Tool call handling loop (like everclaw)
+- [x] **Phase 5.4** Fix profile for documentsStore in tool calls
 
 ## What's Left to Build
 - [ ] RAG implementation with embeddings (future)
-- [ ] OCR integration for image files (future)
 
 ## Current Status
-- Phase 5: Documents storage complete
+- Phase 5: AI Tools with document access working
 - Model loads on app startup (download + load)
-- LoadingScreen polls status for progress
-- Session storage: `{userData}/profiles/{profileSlug}/sessions/{sessionSlug}/messages.json`
-- Chat supports session params (`?session=slug`), defaults to `main`
-- AI streaming with thinking box display
-- ProfileContext for global profile state
-- Thinking box now above response, leading \n trimmed
-- Session page has Clear (main) and Delete (non-main) buttons
-- Documents page with drag & drop, quick notes
-- Document tools for AI: `get_documents`, `search_documents`
+- Documents page with drag & drop, OCR, quick notes
+- Tool system with persistence (tools-config.json)
+- Tools page with toggle switches (Documents available, others coming soon)
+- AI tool calls: `get_documents`, `search_documents`
+- Tool execution loop: completion() → stream → get toolCalls → execute → loop
 
 ## Known Issues
 - None identified
@@ -52,6 +51,21 @@
 - **Download URL**: `https://github.com/pisuthd/my-doctor-ai/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf`
 - **Storage**: `{userData}/medpsy-1.7b-q4_k_m-imat.gguf`
 - **GitHub**: Ignored via `.gguf` pattern
+
+## Tool System
+- **Storage**: `{userData}/tools-config.json`
+- **Tools**:
+  - Documents (id: "1") - Available, enables get_documents + search_documents tools
+  - Scheduling (id: "2") - Coming Soon
+  - Pharmacy (id: "3") - Coming Soon
+- **Tool call flow**:
+  1. Call completion() with tools array
+  2. Stream events (contentDelta, thinkingDelta, toolCall)
+  3. Get result.toolCalls after streaming
+  4. Execute tools via tool.execute()
+  5. Add results to conversationHistory with role: "tool"
+  6. Loop back to completion() with updated history
+  7. Max 3 tool calls to prevent infinite loops
 
 ## Evolution of Project Decisions
 - 2026-05-20: Project scaffolded using electron-vite template
@@ -70,3 +84,7 @@
 - 2026-05-20: Phase 4.3 - Thinking box above response, trim leading \n
 - 2026-05-20: Phase 4.4 - Session delete/clear functionality
 - 2026-05-20: Phase 5 - Documents storage with JSON + AI tools
+- 2026-05-20: Phase 5.1 - Documents page with OCR, notes
+- 2026-05-20: Phase 5.2 - Tools persistence + system prompt
+- 2026-05-20: Phase 5.3 - Tool call handling loop (like everclaw)
+- 2026-05-20: Phase 5.4 - Set profile for documentsStore in tool calls
