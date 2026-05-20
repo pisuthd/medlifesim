@@ -1,89 +1,167 @@
 import { useState, useEffect } from 'react'
 
+const BLUE = '#1A1AE8'
+const TEAL = '#3EC4C0'
+const NAVY = '#0a0a5c'
+const MUTED = '#9999bb'
+
+const monoFont = "'Space Mono', monospace"
+const sansFont = "'DM Sans', sans-serif"
+
+type LoadingState = 'checking' | 'downloading' | 'loading' | 'ready'
+
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
+  const [state, setState] = useState<LoadingState>('checking')
   const [progress, setProgress] = useState(0)
+  const [statusText, setStatusText] = useState('Checking model...')
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setTimeout(onComplete, 400)
-          return 100
-        }
-        return prev + Math.random() * 15
-      })
-    }, 200)
-    return () => clearInterval(interval)
-  }, [onComplete])
+    let isMounted = true
 
-  const statusLabel =
-    progress < 40 ? 'Initializing 1.0.0-beta.1' : progress < 80 ? 'Loading QVAC MedPsy' : 'Ready'
+    const initModel = async () => {
+      try {
+        // First check current status
+        const status = await window.api.ai.getStatus()
+        
+        if (status.isReady) {
+          // Model already loaded
+          if (isMounted) {
+            setState('ready')
+            setProgress(100)
+            setStatusText('Ready')
+            setTimeout(onComplete, 400)
+          }
+          return
+        }
+
+        // Start loading/downloading model
+        if (isMounted) {
+          setState(status.downloading ? 'downloading' : 'loading')
+        }
+
+        // Listen for download progress
+        const unsubDownload = window.api.ai.onDownloadProgress((p) => {
+          if (isMounted) {
+            setProgress(p)
+            setStatusText(`Downloading MedPsy 1.7B... ${p}%`)
+          }
+        })
+
+        // Start loading model
+        const result = await window.api.ai.load()
+        
+        if (!isMounted) return
+
+        if (result.success) {
+          setState('loading')
+          setProgress(100)
+          setStatusText('Loading AI model...')
+          
+          // Wait a moment for model to fully initialize
+          setTimeout(() => {
+            if (isMounted) {
+              setState('ready')
+              setStatusText('Ready')
+              setTimeout(onComplete, 400)
+            }
+          }, 1500)
+        } else {
+          setStatusText(`Error: ${result.error}`)
+        }
+
+        unsubDownload()
+      } catch (error) {
+        if (isMounted) {
+          setStatusText(`Error: ${error}`)
+        }
+      }
+    }
+
+    initModel()
+
+    return () => {
+      isMounted = false
+    }
+  }, [onComplete])
 
   return (
     <div
-      className="min-h-screen bg-white relative overflow-hidden flex items-center"
-      style={{ paddingLeft: '56px' }}
+      style={{
+        minHeight: '100vh',
+        background: '#fff',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        paddingLeft: '56px',
+      }}
     >
       {/* Teal block — top-right, behind blue */}
       <div
-        className="absolute"
         style={{
+          position: 'absolute',
           top: 0,
           right: '180px',
           width: '240px',
           height: '200px',
-          backgroundColor: '#3EC4C0',
+          background: TEAL,
           zIndex: 1,
         }}
       />
 
       {/* Small blue cap — top-right corner */}
       <div
-        className="absolute"
         style={{
+          position: 'absolute',
           top: 0,
           right: 0,
           width: '180px',
           height: '100px',
-          backgroundColor: '#1A1AE8',
+          background: BLUE,
           zIndex: 3,
         }}
       />
 
       {/* Large blue block — steps forward and down */}
       <div
-        className="absolute"
         style={{
+          position: 'absolute',
           top: '100px',
           right: 0,
           width: '360px',
           height: '280px',
-          backgroundColor: '#1A1AE8',
+          background: BLUE,
           zIndex: 2,
         }}
       />
 
       {/* Teal left-edge accent bar */}
       <div
-        className="absolute bottom-0 left-0"
-        style={{ width: '4px', height: '80px', backgroundColor: '#3EC4C0', zIndex: 5 }}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          width: '4px',
+          height: '80px',
+          background: TEAL,
+          zIndex: 5,
+        }}
       />
 
-      {/* ── Content ── */}
-      <div className="relative" style={{ zIndex: 10 }}>
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 10 }}>
         {/* Wordmark */}
         <p
           style={{
-            fontFamily: "'Space Mono', monospace",
+            fontFamily: monoFont,
             fontWeight: 700,
             fontSize: '28px',
             letterSpacing: '0.04em',
-            color: '#1A1AE8',
+            color: BLUE,
             marginBottom: '48px',
           }}
         >
-          <span style={{ color: '#0a0a5c' }}>My</span>DoctorAI
+          <span style={{ color: NAVY }}>My</span>DoctorAI
         </p>
 
         {/* App label */}
@@ -92,7 +170,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             fontSize: '11px',
             fontWeight: 500,
             letterSpacing: '0.18em',
-            color: '#9999bb',
+            color: MUTED,
             textTransform: 'uppercase',
             marginBottom: '10px',
           }}
@@ -105,13 +183,13 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
           style={{
             fontSize: '32px',
             fontWeight: 300,
-            color: '#0a0a5c',
+            color: NAVY,
             letterSpacing: '-0.02em',
             lineHeight: 1.15,
             marginBottom: '40px',
           }}
         >
-          <strong style={{ fontWeight: 500 }}>Your Health Assitant</strong>
+          <strong style={{ fontWeight: 500 }}>Your Health Assistant</strong>
           <br />
           At Home
         </h1>
@@ -122,7 +200,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             style={{
               width: '100%',
               height: '2px',
-              backgroundColor: '#e8e8f0',
+              background: '#e8e8f0',
               position: 'relative',
               marginBottom: '14px',
             }}
@@ -134,7 +212,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                 top: 0,
                 height: '100%',
                 width: `${Math.min(progress, 100)}%`,
-                backgroundColor: '#1A1AE8',
+                background: BLUE,
                 transition: 'width 0.3s ease-out',
               }}
             />
@@ -144,18 +222,18 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             <span
               style={{
                 fontSize: '12px',
-                color: '#9999bb',
+                color: MUTED,
                 letterSpacing: '0.06em',
               }}
             >
-              {statusLabel}
+              {statusText}
             </span>
             <span
               style={{
-                fontFamily: "'Space Mono', monospace",
+                fontFamily: monoFont,
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#1A1AE8',
+                color: BLUE,
               }}
             >
               {Math.round(Math.min(progress, 100))}%

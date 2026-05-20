@@ -185,31 +185,6 @@ export default function Dashboard() {
               value={aiStatus.isReady ? formatUptime(aiStatus.uptime) : '--'}
             />
           </div>
-
-          {/* Load Model Button */}
-          {!aiStatus.isReady && !aiStatus.downloading && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleLoadModel}
-              disabled={loading}
-              style={{
-                marginTop: 24,
-                padding: '12px 24px',
-                background: loading ? MUTED : BLUE,
-                border: 'none',
-                borderRadius: 6,
-                color: '#fff',
-                fontFamily: monoFont,
-                fontWeight: 700,
-                fontSize: 11,
-                letterSpacing: '0.1em',
-                cursor: loading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {loading ? 'LOADING...' : 'LOAD MODEL'}
-            </motion.button>
-          )}
         </div>
 
         {/* Teal left accent */}
