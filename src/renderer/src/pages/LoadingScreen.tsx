@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
@@ -9,91 +8,62 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval)
-          setTimeout(onComplete, 500)
+          setTimeout(onComplete, 400)
           return 100
         }
-        return prev + Math.random() * 12
+        return prev + Math.random() * 15
       })
-    }, 250)
+    }, 200)
 
     return () => clearInterval(interval)
   }, [onComplete])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center relative overflow-hidden">
-      {/* Expanding rings */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        {[0, 1, 2, 3].map((index) => (
-          <motion.div
-            key={index}
-            className="absolute border border-primary-400/30 rounded-full"
-            initial={{ width: 80, height: 80, opacity: 0.8 }}
-            animate={{
-              width: [80, 400],
-              height: [80, 400],
-              opacity: [0.6, 0],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              delay: index * 0.75,
-              ease: "easeOut",
-            }}
-          />
-        ))}
+    <div className="min-h-screen bg-white relative overflow-hidden flex items-center justify-center">
+      {/* Abstract blue gradient background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Top right circle */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gradient-to-br from-primary-200/30 to-primary-400/10" />
+        
+        {/* Bottom left circle */}
+        <div className="absolute -bottom-48 -left-48 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-blue-100/40 to-primary-200/20" />
+        
+        {/* Center circle */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-primary-100/30 to-transparent" />
+        
+        {/* Decorative lines */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary-200/50 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary-200/30 to-transparent" />
       </div>
 
-      {/* Center content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center text-white relative z-10"
-      >
-        {/* Logo */}
-        <div className="relative w-20 h-20 mx-auto mb-6">
-          <motion.div
-            className="absolute inset-0 border-2 border-primary-300 rounded-full"
-            animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <div className="absolute inset-2 bg-primary-600 rounded-full flex items-center justify-center">
-            <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      {/* Content */}
+      <div className="text-center relative z-10">
+        <div className="mb-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
+            <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-wide mb-2">My Doctor AI</h1>
-        <p className="text-primary-300 text-sm tracking-wider mb-8">Initializing</p>
+        <h1 className="text-2xl font-semibold text-gray-800 mb-2">My Doctor AI</h1>
+        <p className="text-gray-400 text-sm mb-8">Loading...</p>
 
         {/* Progress bar */}
         <div className="w-64 mx-auto">
-          <div className="h-1 bg-primary-800 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-primary-400 to-primary-200 rounded-full"
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${Math.min(progress, 100)}%` }}
-              transition={{ duration: 0.3 }}
             />
           </div>
-          <div className="flex justify-between mt-2">
-            <span className="text-xs text-primary-400 uppercase tracking-wider">
-              {progress < 50 ? 'Loading Model' : progress < 90 ? 'Preparing Interface' : 'Ready'}
+          <div className="flex justify-between mt-3">
+            <span className="text-xs text-gray-400">
+              {progress < 40 ? 'Initializing' : progress < 80 ? 'Loading' : 'Ready'}
             </span>
-            <span className="text-xs text-primary-400">{Math.round(Math.min(progress, 100))}%</span>
+            <span className="text-xs text-gray-400 font-medium">{Math.round(Math.min(progress, 100))}%</span>
           </div>
         </div>
-      </motion.div>
-
-      {/* Bottom decoration */}
-      <div className="absolute bottom-8 flex gap-2">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className="w-2 h-2 bg-primary-400 rounded-full"
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-          />
-        ))}
       </div>
     </div>
   )

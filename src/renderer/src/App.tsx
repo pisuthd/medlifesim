@@ -22,14 +22,11 @@ function App() {
   const [appState, setAppState] = useState<'loading' | 'profile' | 'main'>('loading')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
 
   useEffect(() => {
-    // Only try to load profiles if API is available
     if (window.api?.profiles) {
       loadProfiles()
     } else {
-      // If API not available, just go to profile selection
       setAppState('profile')
     }
   }, [])
@@ -55,12 +52,8 @@ function App() {
   }
 
   const handleProfileCreate = async (profileData: { name: string; type: 'self' | 'family' | 'doctor' | 'community'; age?: number; gender?: 'male' | 'female' }) => {
-    setIsLoadingProfiles(true)
     try {
-      // Check if API is available
       if (!window.api?.profiles) {
-        console.error('API not available')
-        // Fallback: create profile locally
         const localProfile: Profile = {
           ...profileData,
           id: Date.now().toString(),
@@ -78,7 +71,6 @@ function App() {
       setAppState('main')
     } catch (error) {
       console.error('Failed to create profile:', error)
-      // Still go to main even if IPC fails - profile will be lost but app won't break
       const localProfile: Profile = {
         ...profileData,
         id: Date.now().toString(),
@@ -86,37 +78,33 @@ function App() {
       }
       setProfile(localProfile)
       setAppState('main')
-    } finally {
-      setIsLoadingProfiles(false)
     }
-  }
-
-  if (appState === 'loading') {
-    return <LoadingScreen onComplete={handleLoadingComplete} />
-  }
-
-  if (appState === 'profile' || !profile) {
-    return (
-      <ProfileSelector 
-        profiles={profiles} 
-        onSelect={handleProfileSelect} 
-        onCreateProfile={handleProfileCreate}
-      />
-    )
   }
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MainLayout profile={profile} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="sessions" element={<Sessions />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="documents" element={<Documents />} />
-          <Route path="tools" element={<Tools />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {appState === 'loading' && <LoadingScreen onComplete={handleLoadingComplete} />}
+      
+      {(appState === 'profile' && !profile) && (
+        <ProfileSelector 
+          profiles={profiles} 
+          onSelect={handleProfileSelect} 
+          onCreateProfile={handleProfileCreate}
+        />
+      )}
+      
+      {appState === 'main' && profile && (
+        <Routes>
+          <Route path="/" element={<MainLayout profile={profile} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="tools" element={<Tools />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
     </BrowserRouter>
   )
 }
