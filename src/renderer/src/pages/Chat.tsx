@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 const BLUE = '#1A1AE8'
@@ -10,16 +11,12 @@ const LIGHT_BLUE = '#f7f7fc'
 const monoFont = "'Space Mono', monospace"
 const sansFont = "'DM Sans', sans-serif"
 
-interface Message {
+interface ChatMessage {
   id: string
-  type: 'user' | 'ai'
+  role: 'user' | 'assistant'
   content: string
-  time: string
-}
-
-interface Session {
-  id: string
-  name: string
+  timestamp: string
+  thinking?: string
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -30,222 +27,287 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SessionDropdown({ sessions, currentSession, onSelect }: { 
-  sessions: Session[]; 
-  currentSession: string; 
-  onSelect: (id: string) => void 
-}) {
-  const [isOpen, setIsOpen] = useState(false)
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 12px',
-          background: LIGHT_BLUE,
-          border: '1px solid #e0e0f0',
-          borderRadius: 6,
-          cursor: 'pointer',
-          fontFamily: monoFont,
-          fontSize: 11,
-          color: NAVY,
-        }}
-      >
-        <span style={{ fontFamily: monoFont, fontSize: 10, color: MUTED }}>SESSION:</span>
-        <span>{currentSession}</span>
-        <span style={{ color: MUTED, fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
-      </button>
-      
-      {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            marginTop: 4,
-            background: '#fff',
-            border: '1px solid #e0e0f0',
-            borderRadius: 6,
-            minWidth: 160,
-            zIndex: 200,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          }}
-        >
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => {
-                onSelect(session.id)
-                setIsOpen(false)
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '10px 14px',
-                background: session.id === currentSession ? BLUE : 'transparent',
-                color: session.id === currentSession ? '#fff' : NAVY,
-                border: 'none',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontFamily: monoFont,
-                fontSize: 11,
-                letterSpacing: '0.06em',
-              }}
-              onMouseEnter={(e) => {
-                if (session.id !== currentSession) {
-                  e.currentTarget.style.background = LIGHT_BLUE
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (session.id !== currentSession) {
-                  e.currentTarget.style.background = 'transparent'
-                }
-              }}
-            >
-              {session.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [searchParams] = useSearchParams()
+  const sessionSlug = searchParams.get('session') || 'main'
+  
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [currentSession, setCurrentSession] = useState('Main')
-  const [sessions] = useState<Session[]>([
-    { id: 'main', name: 'Main' },
-    { id: 's1', name: 'Headache & Fatigue' },
-    { id: 's2', name: 'Chest Pain' },
-    { id: 's3', name: 'Medication Review' },
-  ])
+  const [loading, setLoading] = useState(false)
+  const [streamingContent, setStreamingContent] = useState('')
+  const [streamingThinking, setStreamingThinking] = useState('')
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSend = () => {
-    if (!input.trim()) return
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: input,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  // Get current profile
+  useEffect(() => {
+    const savedProfileId = localStorage.getItem('currentProfileId')
+    setCurrentProfileId(savedProfileId)
+  }, [])
+
+  // Load messages for session
+  useEffect(() => {
+    if (!currentProfileId) return
+
+    const loadMessages = async () => {
+      try {
+        const msgs = await window.api.sessions.loadMessages(currentProfileId, sessionSlug)
+        setMessages(msgs)
+      } catch (error) {
+        console.error('Failed to load messages:', error)
+      }
     }
-    
+
+    loadMessages()
+  }, [currentProfileId, sessionSlug])
+
+  // Set up streaming listeners
+  useEffect(() => {
+    const unsubToken = window.api.ai.onStreamToken((token) => {
+      setStreamingContent((prev) => prev + token)
+    })
+
+    const unsubThinking = window.api.ai.onStreamThinking((thinking) => {
+      setStreamingThinking((prev) => prev + thinking)
+    })
+
+    const unsubDone = window.api.ai.onStreamDone(() => {
+      // Add the complete response to messages
+      const assistantMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: streamingContent,
+        timestamp: new Date().toISOString(),
+        thinking: streamingThinking,
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+      setStreamingContent('')
+      setStreamingThinking('')
+      setLoading(false)
+    })
+
+    const unsubError = window.api.ai.onError((error) => {
+      console.error('AI error:', error)
+      setLoading(false)
+    })
+
+    return () => {
+      unsubToken()
+      unsubThinking()
+      unsubDone()
+      unsubError()
+    }
+  }, [streamingContent, streamingThinking])
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamingContent])
+
+  const handleSend = async () => {
+    if (!input.trim() || loading || !currentProfileId) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date().toISOString(),
+    }
+
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    setLoading(true)
+    setStreamingContent('')
+    setStreamingThinking('')
+
+    // Build history for AI (excluding current message)
+    const history = messages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp,
+    }))
+
+    try {
+      await window.api.ai.sendMessage(currentProfileId, sessionSlug, userMessage.content, history)
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      setLoading(false)
+    }
   }
 
-  const handleSessionSelect = (sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId)
-    if (session) {
-      setCurrentSession(session.name)
-      setMessages([]) // Clear messages when switching sessions
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
     }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: sansFont }}>
       {/* Header */}
-      <div style={{ padding: '24px 32px', borderBottom: '1px solid #e0e0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <SectionLabel>Chat</SectionLabel>
-          <h1 style={{ fontFamily: sansFont, fontSize: 24, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
-            <strong style={{ fontWeight: 500 }}>New</strong> conversation
-          </h1>
-        </div>
-        <SessionDropdown sessions={sessions} currentSession={currentSession} onSelect={handleSessionSelect} />
+      <div style={{ padding: '24px 32px', borderBottom: '1px solid #e0e0f0' }}>
+        <SectionLabel>Chat</SectionLabel>
+        <h1 style={{ fontFamily: sansFont, fontSize: 28, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 500 }}>{sessionSlug === 'main' ? 'Main Session' : sessionSlug}</strong>
+        </h1>
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px', background: '#f7f7fc' }}>
-        {messages.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED }}>
-              Start a conversation by typing below
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                style={{
-                  display: 'flex',
-                  justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: '70%',
-                    padding: '12px 16px',
-                    background: msg.type === 'user' ? BLUE : '#fff',
-                    border: msg.type === 'user' ? 'none' : '1px solid #e0e0f0',
-                    borderRadius: 8,
-                    color: msg.type === 'user' ? '#fff' : NAVY,
-                    fontFamily: sansFont,
-                    fontSize: 14,
-                  }}
-                >
-                  <p style={{ margin: 0 }}>{msg.content}</p>
-                  <p
-                    style={{
-                      fontFamily: monoFont,
-                      fontSize: 10,
-                      color: msg.type === 'user' ? 'rgba(255,255,255,0.7)' : MUTED,
-                      marginTop: 4,
-                      textAlign: 'right',
-                    }}
-                  >
-                    {msg.time}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+        {messages.length === 0 && !loading && (
+          <div style={{ textAlign: 'center', color: MUTED, padding: 48 }}>
+            <p style={{ fontFamily: monoFont, fontSize: 13 }}>No messages yet</p>
+            <p style={{ fontSize: 14, marginTop: 8 }}>Start a conversation with your health assistant</p>
           </div>
         )}
+
+        {messages.map((message) => (
+          <motion.div
+            key={message.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              marginBottom: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
+            }}
+          >
+            <div
+              style={{
+                maxWidth: '70%',
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: message.role === 'user' ? BLUE : '#fff',
+                color: message.role === 'user' ? '#fff' : NAVY,
+                border: message.role === 'user' ? 'none' : '1px solid #e0e0f0',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{message.content}</p>
+            </div>
+            
+            {/* Thinking box for assistant */}
+            {message.role === 'assistant' && message.thinking && (
+              <div
+                style={{
+                  marginTop: 8,
+                  maxWidth: '70%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: LIGHT_BLUE,
+                  border: '1px solid #e0e0f0',
+                  fontSize: 12,
+                  color: MUTED,
+                }}
+              >
+                <p style={{ margin: 0, fontFamily: monoFont, fontSize: 10, textTransform: 'uppercase', marginBottom: 4 }}>
+                  Thinking...
+                </p>
+                <p style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap' }}>{message.thinking}</p>
+              </div>
+            )}
+          </motion.div>
+        ))}
+
+        {/* Streaming response */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ marginBottom: 24 }}
+          >
+            <div
+              style={{
+                maxWidth: '70%',
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: '#fff',
+                border: '1px solid #e0e0f0',
+              }}
+            >
+              {streamingContent ? (
+                <p style={{ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{streamingContent}</p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 14, color: MUTED }}>Thinking...</p>
+              )}
+            </div>
+            
+            {/* Streaming thinking */}
+            {streamingThinking && (
+              <div
+                style={{
+                  marginTop: 8,
+                  maxWidth: '70%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: LIGHT_BLUE,
+                  border: '1px solid #e0e0f0',
+                }}
+              >
+                <p style={{ margin: 0, fontFamily: monoFont, fontSize: 10, textTransform: 'uppercase', color: MUTED }}>
+                  Thinking...
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: 12, whiteSpace: 'pre-wrap', color: MUTED }}>
+                  {streamingThinking}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div style={{ padding: '24px 32px', borderTop: '1px solid #e0e0f0', background: '#fff' }}>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <input
-            type="text"
+      <div style={{ padding: '16px 32px 24px', borderTop: '1px solid #e0e0f0' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            background: '#fff',
+            border: '1px solid #e0e0f0',
+            borderRadius: 12,
+            padding: 4,
+          }}
+        >
+          <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your message..."
+            onKeyDown={handleKeyDown}
+            placeholder="Tell me about your symptoms..."
+            disabled={loading}
             style={{
               flex: 1,
+              border: 'none',
               padding: '12px 16px',
-              border: '1px solid #e0e0f0',
-              borderRadius: 8,
-              fontFamily: sansFont,
               fontSize: 14,
-              color: NAVY,
+              fontFamily: sansFont,
+              resize: 'none',
               outline: 'none',
+              background: 'transparent',
             }}
+            rows={1}
           />
           <motion.button
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSend}
+            disabled={!input.trim() || loading}
             style={{
               padding: '12px 24px',
-              background: BLUE,
+              background: input.trim() && !loading ? BLUE : MUTED,
               border: 'none',
               borderRadius: 8,
               color: '#fff',
               fontFamily: monoFont,
-              fontSize: 12,
               fontWeight: 700,
+              fontSize: 11,
               letterSpacing: '0.1em',
-              cursor: 'pointer',
+              cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
             }}
           >
             SEND

@@ -15,6 +15,10 @@ const api = {
     load: () => ipcRenderer.invoke('ai:load'),
     unload: () => ipcRenderer.invoke('ai:unload'),
     
+    // Chat streaming
+    sendMessage: (profileSlug, sessionSlug, message, history) => 
+      ipcRenderer.invoke('ai:sendMessage', profileSlug, sessionSlug, message, history),
+    
     // Event listeners for progress
     onDownloadProgress: (callback: (progress: number) => void) => {
       const handler = (_: any, progress: number) => callback(progress)
@@ -27,6 +31,39 @@ const api = {
       ipcRenderer.on('ai:loadProgress', handler)
       return () => ipcRenderer.removeListener('ai:loadProgress', handler)
     },
+    
+    onStreamToken: (callback: (token: string) => void) => {
+      const handler = (_: any, token: string) => callback(token)
+      ipcRenderer.on('ai:streamToken', handler)
+      return () => ipcRenderer.removeListener('ai:streamToken', handler)
+    },
+    
+    onStreamThinking: (callback: (thinking: string) => void) => {
+      const handler = (_: any, thinking: string) => callback(thinking)
+      ipcRenderer.on('ai:streamThinking', handler)
+      return () => ipcRenderer.removeListener('ai:streamThinking', handler)
+    },
+    
+    onStreamDone: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('ai:streamDone', handler)
+      return () => ipcRenderer.removeListener('ai:streamDone', handler)
+    },
+    
+    onError: (callback: (error: string) => void) => {
+      const handler = (_: any, error: string) => callback(error)
+      ipcRenderer.on('ai:error', handler)
+      return () => ipcRenderer.removeListener('ai:error', handler)
+    },
+  },
+  
+  sessions: {
+    list: (profileSlug) => ipcRenderer.invoke('sessions:list', profileSlug),
+    create: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:create', profileSlug, sessionSlug),
+    delete: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:delete', profileSlug, sessionSlug),
+    loadMessages: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:loadMessages', profileSlug, sessionSlug),
+    saveMessages: (profileSlug, sessionSlug, messages) => 
+      ipcRenderer.invoke('sessions:saveMessages', profileSlug, sessionSlug, messages),
   },
 }
 

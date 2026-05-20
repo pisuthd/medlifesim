@@ -19,15 +19,17 @@
 - [x] **Phase 2.1** Fixed sidebar to be sticky
 - [x] **Phase 2.2** Sidebar labels, Chat session dropdown, Dashboard hero
 - [x] **Phase 3** QVAC AI model loading with download support
+- [x] **Phase 3.1** Fire-and-forget model loading, simplified uptime
+- [x] **Phase 4** Sessions + Chat + AI integration
 
 ## What's Left to Build
-- [ ] Chat integration with AI model
 - [ ] RAG implementation for document analysis
 
 ## Current Status
-- Phase 3: AI model loading complete
-- Model auto-downloads if missing
-- Dashboard shows real AI status
+- Phase 4: Sessions and Chat with AI integration complete
+- Session storage: `{userData}/profiles/{profileSlug}/sessions/{sessionSlug}/messages.json`
+- Chat supports session params (`?session=slug`), defaults to `main`
+- AI streaming with thinking box display
 
 ## Known Issues
 - None identified
@@ -48,3 +50,5 @@
 - 2026-05-20: Phase 2.1 - Fixed sidebar to be sticky
 - 2026-05-20: Phase 2.2 - Sidebar labels, Chat dropdown, Dashboard hero
 - 2026-05-20: Phase 3 - QVAC AI model loading with download support
+- 2026-05-20: Phase 3.1 - Fire-and-forget model loading, simplified uptime
+- 2026-05-20: Phase 4 - Sessions + Chat + AI integration

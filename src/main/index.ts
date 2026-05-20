@@ -3,11 +3,13 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { profileStore, Profile } from './profileStore'
+import { registerSessionsIpcHandlers, initSessions } from './sessions'
 
 // ============================================
 // QVAC AI Model Management
 // ============================================
-import { loadModel, unloadModel } from '@qvac/sdk'
+import { loadModel, unloadModel, completion } from '@qvac/sdk'
+import { saveMessages, loadMessages, ensureMainSession } from './sessions'
 
 const MODEL_FILE = 'medpsy-1.7b-q4_k_m-imat.gguf'
 const MODEL_URL = 'https://github.com/pisuthd/my-doctor-ai/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf'
@@ -315,6 +317,71 @@ app.whenReady().then(async () => {
     }
   })
 
+  // AI Chat with streaming
+  ipcMain.handle('ai:sendMessage', async (_event, profileSlug: string, sessionSlug: string, message: string, history: any[]) => {
+    if (!modelId || !mainWindowRef) {
+      return { success: false, error: 'AI model not loaded' }
+    }
+
+    try {
+      ensureMainSession(profileSlug)
+      
+      // Build conversation history
+      const conversationHistory = [
+        ...history.map((h: any) => ({ role: h.role, content: h.content })),
+        { role: 'user', content: message }
+      ]
+
+      const result = completion({
+        modelId: modelId,
+        history: conversationHistory,
+        stream: true,
+        kvCache: true,
+        captureThinking: true,
+      })
+
+      let fullResponse = ''
+      let thinkingContent = ''
+
+      // Stream tokens and thinking
+      for await (const event of result.events) {
+        switch (event.type) {
+          case 'contentDelta':
+            fullResponse += event.text
+            mainWindowRef.webContents.send('ai:streamToken', event.text)
+            break
+          case 'thinkingDelta':
+            thinkingContent += event.text
+            mainWindowRef.webContents.send('ai:streamThinking', event.text)
+            break
+        }
+      }
+
+      // Send completion signal
+      mainWindowRef.webContents.send('ai:streamDone', '')
+
+      // Save messages
+      const messages = loadMessages(profileSlug, sessionSlug)
+      messages.push(
+        { id: Date.now().toString(), role: 'user', content: message, timestamp: new Date().toISOString() },
+        { id: (Date.now() + 1).toString(), role: 'assistant', content: fullResponse, timestamp: new Date().toISOString(), thinking: thinkingContent }
+      )
+      saveMessages(profileSlug, sessionSlug, messages)
+
+      return { success: true }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      mainWindowRef?.webContents.send('ai:error', errorMsg)
+      return { success: false, error: errorMsg }
+    }
+  })
+
+  // Initialize sessions for existing profiles
+  initSessions()
+  
+  // Register sessions IPC handlers
+  registerSessionsIpcHandlers()
+  
   createWindow()
 
   console.log('[App] My Doctor AI ready')

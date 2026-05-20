@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 const BLUE = '#1A1AE8'
@@ -10,10 +12,10 @@ const monoFont = "'Space Mono', monospace"
 const sansFont = "'DM Sans', sans-serif"
 
 interface Session {
-  id: string
-  title: string
-  date: string
-  messages: number
+  slug: string
+  name: string
+  createdAt: string
+  messageCount: number
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -24,14 +26,53 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+function formatDate(isoString: string): string {
+  const date = new Date(isoString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays < 14) return '1 week ago'
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+  return date.toLocaleDateString()
+}
+
 export default function Sessions() {
-  const sessions: Session[] = [
-    { id: '1', title: 'Headache and fatigue', date: 'Today', messages: 12 },
-    { id: '2', title: 'Chest pain consultation', date: 'Yesterday', messages: 8 },
-    { id: '3', title: 'Medication review', date: '3 days ago', messages: 15 },
-    { id: '4', title: 'Back pain analysis', date: '1 week ago', messages: 6 },
-    { id: '5', title: 'Fever and chills', date: '2 weeks ago', messages: 10 },
-  ]
+  const navigate = useNavigate()
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null)
+
+  // Get current profile from localStorage
+  useEffect(() => {
+    const savedProfileId = localStorage.getItem('currentProfileId')
+    setCurrentProfileId(savedProfileId)
+  }, [])
+
+  // Load sessions
+  useEffect(() => {
+    if (!currentProfileId) return
+
+    const loadSessions = async () => {
+      try {
+        const list = await window.api.sessions.list(currentProfileId)
+        setSessions(list)
+      } catch (error) {
+        console.error('Failed to load sessions:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSessions()
+  }, [currentProfileId])
+
+  const handleSessionClick = (slug: string) => {
+    navigate(`/chat?session=${slug}`)
+  }
 
   return (
     <div style={{ padding: '32px', fontFamily: sansFont }}>
@@ -49,7 +90,7 @@ export default function Sessions() {
         <div style={{ height: 3, background: TEAL }} />
         
         {/* Table Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px', padding: '12px 16px', background: LIGHT_BLUE, borderBottom: '1px solid #e0e0f0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px', padding: '12px 16px', background: LIGHT_BLUE, borderBottom: '1px solid #e0e0f0' }}>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Conversation</span>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Date</span>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', textAlign: 'right' }}>Messages</span>
@@ -57,26 +98,37 @@ export default function Sessions() {
 
         {/* Table Rows */}
         <div>
-          {sessions.map((session, index) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: index * 0.05 }}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 120px 100px',
-                padding: '16px',
-                borderBottom: index < sessions.length - 1 ? '1px solid #e0e0f0' : 'none',
-                cursor: 'pointer',
-              }}
-              whileHover={{ backgroundColor: LIGHT_BLUE }}
-            >
-              <span style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, fontWeight: 500 }}>{session.title}</span>
-              <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{session.date}</span>
-              <span style={{ fontFamily: monoFont, fontSize: 12, color: MUTED, textAlign: 'right' }}>{session.messages}</span>
-            </motion.div>
-          ))}
+          {loading ? (
+            <div style={{ padding: 24, textAlign: 'center', color: MUTED }}>
+              Loading...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: MUTED }}>
+              No conversations yet. Start chatting!
+            </div>
+          ) : (
+            sessions.map((session, index) => (
+              <motion.div
+                key={session.slug}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => handleSessionClick(session.slug)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 140px 100px',
+                  padding: '16px',
+                  borderBottom: index < sessions.length - 1 ? '1px solid #e0e0f0' : 'none',
+                  cursor: 'pointer',
+                }}
+                whileHover={{ backgroundColor: LIGHT_BLUE }}
+              >
+                <span style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, fontWeight: 500 }}>{session.name}</span>
+                <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{formatDate(session.createdAt)}</span>
+                <span style={{ fontFamily: monoFont, fontSize: 12, color: MUTED, textAlign: 'right' }}>{session.messageCount}</span>
+              </motion.div>
+            ))
+          )}
         </div>
       </div>
     </div>
