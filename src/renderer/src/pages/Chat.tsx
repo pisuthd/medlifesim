@@ -1,107 +1,147 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useRef, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+
+const BLUE = '#1A1AE8'
+const TEAL = '#3EC4C0'
+const NAVY = '#0a0a5c'
+const MUTED = '#9999bb'
+const LIGHT_BLUE = '#f7f7fc'
+
+const monoFont = "'Space Mono', monospace"
+const sansFont = "'DM Sans', sans-serif"
 
 interface Message {
   id: string
-  role: 'user' | 'assistant'
+  type: 'user' | 'ai'
   content: string
-  timestamp: Date
+  time: string
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
+      {children}
+    </p>
+  )
 }
 
 export default function Chat() {
-  const location = useLocation()
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! I am your AI health assistant. How can I help you today?',
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
 
   const handleSend = () => {
     if (!input.trim()) return
-
+    
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      type: 'user',
       content: input,
-      timestamp: new Date(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
-
+    
     setMessages((prev) => [...prev, userMessage])
     setInput('')
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Thank you for sharing. Based on your symptoms, I recommend consulting with a healthcare professional for a proper diagnosis.',
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMessage])
-    }, 1000)
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <h2 className="text-lg font-semibold text-gray-800">New Consultation</h2>
-        <p className="text-sm text-gray-500">AI Health Assistant • Session #12</p>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: sansFont }}>
+      {/* Header */}
+      <div style={{ padding: '24px 32px', borderBottom: '1px solid #e0e0f0' }}>
+        <SectionLabel>Chat</SectionLabel>
+        <h1 style={{ fontFamily: sansFont, fontSize: 24, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 500 }}>New</strong> conversation
+        </h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        <AnimatePresence>
-          {messages.map((message) => (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-md px-4 py-3 rounded-2xl ${
-                  message.role === 'user'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white shadow-sm border border-gray-100 text-gray-800'
-                }`}
+      {/* Messages */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+        {messages.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED }}>
+              Start a conversation by typing below
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  display: 'flex',
+                  justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                }}
               >
-                <p>{message.content}</p>
-                <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-primary-200' : 'text-gray-400'}`}>
-                  {message.timestamp.toLocaleTimeString()}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        <div ref={messagesEndRef} />
+                <div
+                  style={{
+                    maxWidth: '70%',
+                    padding: '12px 16px',
+                    background: msg.type === 'user' ? BLUE : '#fff',
+                    border: msg.type === 'user' ? 'none' : '1px solid #e0e0f0',
+                    borderRadius: 8,
+                    color: msg.type === 'user' ? '#fff' : NAVY,
+                    fontFamily: sansFont,
+                    fontSize: 14,
+                  }}
+                >
+                  <p style={{ margin: 0 }}>{msg.content}</p>
+                  <p
+                    style={{
+                      fontFamily: monoFont,
+                      fontSize: 10,
+                      color: msg.type === 'user' ? 'rgba(255,255,255,0.7)' : MUTED,
+                      marginTop: 4,
+                      textAlign: 'right',
+                    }}
+                  >
+                    {msg.time}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="p-4 bg-white border-t border-gray-200">
-        <div className="flex gap-2">
+      {/* Input */}
+      <div style={{ padding: '24px 32px', borderTop: '1px solid #e0e0f0', background: '#fff' }}>
+        <div style={{ display: 'flex', gap: 12 }}>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Describe your symptoms..."
-            className="flex-1 px-4 py-3 rounded-full border border-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            placeholder="Type your message..."
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              border: '1px solid #e0e0f0',
+              borderRadius: 8,
+              fontFamily: sansFont,
+              fontSize: 14,
+              color: NAVY,
+              outline: 'none',
+            }}
           />
-          <button
+          <motion.button
+            whileTap={{ scale: 0.98 }}
             onClick={handleSend}
-            disabled={!input.trim()}
-            className="px-6 py-3 bg-primary-600 text-white rounded-full font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+            style={{
+              padding: '12px 24px',
+              background: BLUE,
+              border: 'none',
+              borderRadius: 8,
+              color: '#fff',
+              fontFamily: monoFont,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
+            }}
           >
-            Send
-          </button>
+            SEND
+          </motion.button>
         </div>
       </div>
     </div>

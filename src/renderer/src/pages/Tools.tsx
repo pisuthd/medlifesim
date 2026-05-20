@@ -1,6 +1,23 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
+const BLUE = '#1A1AE8'
+const TEAL = '#3EC4C0'
+const NAVY = '#0a0a5c'
+const MUTED = '#9999bb'
+const LIGHT_BLUE = '#f7f7fc'
+
+const monoFont = "'Space Mono', monospace"
+const sansFont = "'DM Sans', sans-serif"
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
+      {children}
+    </p>
+  )
+}
+
 interface Tool {
   id: string
   name: string
@@ -9,97 +26,111 @@ interface Tool {
   status: 'available' | 'coming_soon'
 }
 
+function ToolCard({ tool, onToggle }: { tool: Tool; onToggle: () => void }) {
+  return (
+    <div
+      style={{
+        padding: '20px',
+        background: '#fff',
+        border: '1px solid #e0e0f0',
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 16,
+        opacity: tool.status === 'coming_soon' ? 0.6 : 1,
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <h3 style={{ fontFamily: sansFont, fontSize: 15, fontWeight: 500, color: NAVY, margin: '0 0 4px 0' }}>{tool.name}</h3>
+        <p style={{ fontFamily: sansFont, fontSize: 13, color: MUTED, margin: 0 }}>{tool.description}</p>
+        {tool.status === 'coming_soon' && (
+          <span
+            style={{
+              display: 'inline-block',
+              marginTop: 8,
+              padding: '4px 8px',
+              background: LIGHT_BLUE,
+              fontFamily: monoFont,
+              fontSize: 9,
+              color: MUTED,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+            }}
+          >
+            Coming Soon
+          </span>
+        )}
+      </div>
+
+      {/* Toggle Switch */}
+      <button
+        onClick={onToggle}
+        disabled={tool.status === 'coming_soon'}
+        style={{
+          width: 44,
+          height: 24,
+          background: tool.enabled ? BLUE : '#e0e0f0',
+          borderRadius: 12,
+          border: 'none',
+          position: 'relative',
+          cursor: tool.status === 'available' ? 'pointer' : 'not-allowed',
+          transition: 'background 0.2s',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: tool.enabled ? 22 : 2,
+            width: 20,
+            height: 20,
+            background: '#fff',
+            borderRadius: '50%',
+            transition: 'left 0.2s',
+          }}
+        />
+      </button>
+    </div>
+  )
+}
+
 export default function Tools() {
   const [tools, setTools] = useState<Tool[]>([
-    {
-      id: '1',
-      name: 'Clinic Scheduling',
-      description: 'Schedule appointments with local clinics directly from chat',
-      enabled: false,
-      status: 'available',
-    },
-    {
-      id: '2',
-      name: 'Medication Reminders',
-      description: 'Set reminders for taking medications',
-      enabled: false,
-      status: 'available',
-    },
-    {
-      id: '3',
-      name: 'Health Records',
-      description: 'Connect to your electronic health records',
-      enabled: false,
-      status: 'coming_soon',
-    },
-    {
-      id: '4',
-      name: 'Emergency Contacts',
-      description: 'Quick access to emergency services and contacts',
-      enabled: false,
-      status: 'coming_soon',
-    },
+    { id: '1', name: 'Clinic Scheduling', description: 'Schedule appointments with local clinics directly from chat', enabled: false, status: 'available' },
+    { id: '2', name: 'Medication Reminders', description: 'Set reminders for taking medications', enabled: false, status: 'available' },
+    { id: '3', name: 'Health Records', description: 'Connect to your electronic health records', enabled: false, status: 'coming_soon' },
+    { id: '4', name: 'Emergency Contacts', description: 'Quick access to emergency services and contacts', enabled: false, status: 'coming_soon' },
   ])
 
   const toggleTool = (id: string) => {
     setTools((prev) =>
       prev.map((tool) =>
-        tool.id === id && tool.status === 'available'
-          ? { ...tool, enabled: !tool.enabled }
-          : tool
+        tool.id === id && tool.status === 'available' ? { ...tool, enabled: !tool.enabled } : tool
       )
     )
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">Tools and Integrations</h1>
-      <p className="text-gray-500 mb-8">Enable tools to connect with real-world services</p>
+    <div style={{ padding: '32px', fontFamily: sansFont }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionLabel>Tools</SectionLabel>
+        <h1 style={{ fontFamily: sansFont, fontSize: 28, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 500 }}>Enable</strong> integrations
+        </h1>
+      </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {tools.map((tool, index) => (
           <motion.div
             key={tool.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 ${
-              tool.status === 'coming_soon' ? 'opacity-60' : ''
-            }`}
+            transition={{ delay: index * 0.05 }}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded bg-primary-100 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800">{tool.name}</h3>
-                  <p className="text-gray-500 text-sm mt-1">{tool.description}</p>
-                  {tool.status === 'coming_soon' && (
-                    <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
-                      Coming Soon
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => toggleTool(tool.id)}
-                disabled={tool.status === 'coming_soon'}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  tool.enabled ? 'bg-primary-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    tool.enabled ? 'left-7' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
+            <ToolCard tool={tool} onToggle={() => toggleTool(tool.id)} />
           </motion.div>
         ))}
       </div>

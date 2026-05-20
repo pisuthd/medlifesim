@@ -1,83 +1,83 @@
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+
+const BLUE = '#1A1AE8'
+const TEAL = '#3EC4C0'
+const NAVY = '#0a0a5c'
+const MUTED = '#9999bb'
+const LIGHT_BLUE = '#f7f7fc'
+
+const monoFont = "'Space Mono', monospace"
+const sansFont = "'DM Sans', sans-serif"
 
 interface Session {
   id: string
   title: string
   date: string
   messages: number
-  status: 'active' | 'archived'
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
+      {children}
+    </p>
+  )
 }
 
 export default function Sessions() {
-  const navigate = useNavigate()
-
   const sessions: Session[] = [
-    { id: '1', title: 'Headache and fatigue', date: '2024-05-20', messages: 15, status: 'active' },
-    { id: '2', title: 'Chest pain consultation', date: '2024-05-19', messages: 28, status: 'active' },
-    { id: '3', title: 'Medication review', date: '2024-05-17', messages: 8, status: 'archived' },
-    { id: '4', title: 'Seasonal allergies', date: '2024-05-15', messages: 12, status: 'archived' },
-    { id: '5', title: 'Sleep issues', date: '2024-05-10', messages: 22, status: 'archived' },
+    { id: '1', title: 'Headache and fatigue', date: 'Today', messages: 12 },
+    { id: '2', title: 'Chest pain consultation', date: 'Yesterday', messages: 8 },
+    { id: '3', title: 'Medication review', date: '3 days ago', messages: 15 },
+    { id: '4', title: 'Back pain analysis', date: '1 week ago', messages: 6 },
+    { id: '5', title: 'Fever and chills', date: '2 weeks ago', messages: 10 },
   ]
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">All Sessions</h1>
-        <button
-          onClick={() => navigate('/chat')}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          New Session
-        </button>
+    <div style={{ padding: '32px', fontFamily: sansFont }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionLabel>Sessions</SectionLabel>
+        <h1 style={{ fontFamily: sansFont, fontSize: 28, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
+          <strong style={{ fontWeight: 500 }}>Your</strong> conversations
+        </h1>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Title</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Date</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Messages</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Status</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {sessions.map((session, index) => (
-              <motion.tr
-                key={session.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="hover:bg-gray-50"
-              >
-                <td className="px-6 py-4 font-medium text-gray-800">{session.title}</td>
-                <td className="px-6 py-4 text-gray-500">{session.date}</td>
-                <td className="px-6 py-4 text-gray-500">{session.messages}</td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      session.status === 'active'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {session.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => navigate('/chat', { state: { sessionId: session.id } })}
-                    className="text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    View
-                  </button>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Sessions Table */}
+      <div style={{ background: '#fff', border: '1px solid #e0e0f0', borderRadius: 8, overflow: 'hidden' }}>
+        {/* Teal top accent */}
+        <div style={{ height: 3, background: TEAL }} />
+        
+        {/* Table Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px', padding: '12px 16px', background: LIGHT_BLUE, borderBottom: '1px solid #e0e0f0' }}>
+          <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Conversation</span>
+          <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Date</span>
+          <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', textAlign: 'right' }}>Messages</span>
+        </div>
+
+        {/* Table Rows */}
+        <div>
+          {sessions.map((session, index) => (
+            <motion.div
+              key={session.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: index * 0.05 }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 120px 100px',
+                padding: '16px',
+                borderBottom: index < sessions.length - 1 ? '1px solid #e0e0f0' : 'none',
+                cursor: 'pointer',
+              }}
+              whileHover={{ backgroundColor: LIGHT_BLUE }}
+            >
+              <span style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, fontWeight: 500 }}>{session.title}</span>
+              <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{session.date}</span>
+              <span style={{ fontFamily: monoFont, fontSize: 12, color: MUTED, textAlign: 'right' }}>{session.messages}</span>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   )

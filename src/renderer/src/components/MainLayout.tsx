@@ -12,9 +12,9 @@ interface Profile {
 
 export default function MainLayout({ profile }: { profile: Profile }) {
   return (
-    <div className="flex min-h-screen">
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar profileName={profile.name} />
-      <main className="flex-1 bg-gray-50">
+      <main style={{ flex: 1, background: '#f7f7fc' }}>
         <Outlet />
       </main>
     </div>

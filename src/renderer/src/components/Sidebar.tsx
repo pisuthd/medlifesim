@@ -1,47 +1,131 @@
 import { NavLink } from 'react-router-dom'
 
+const BLUE = '#1A1AE8'
+const TEAL = '#3EC4C0'
+const NAVY = '#0a0a5c'
+const MUTED = '#9999bb'
+const LIGHT_BLUE = '#f7f7fc'
+
+const monoFont = "'Space Mono', monospace"
+const sansFont = "'DM Sans', sans-serif"
+
 const navItems = [
-  { path: '/', label: 'Dashboard' },
-  { path: '/sessions', label: 'Sessions' },
-  { path: '/chat', label: 'New Chat' },
-  { path: '/documents', label: 'Documents' },
-  { path: '/tools', label: 'Tools' },
+  { path: '/', label: 'Dashboard', num: '01' },
+  { path: '/sessions', label: 'Sessions', num: '02' },
+  { path: '/chat', label: 'New Chat', num: '03' },
+  { path: '/documents', label: 'Documents', num: '04' },
+  { path: '/tools', label: 'Tools', num: '05' },
 ]
+
+function Wordmark() {
+  return (
+    <p style={{ fontFamily: monoFont, fontWeight: 700, fontSize: 16, letterSpacing: '0.04em', color: BLUE, margin: 0 }}>
+      <span style={{ color: NAVY }}>My</span>DoctorAI
+    </p>
+  )
+}
 
 export default function Sidebar({ profileName }: { profileName: string }) {
   return (
-    <div className="w-64 bg-gradient-to-b from-primary-800 to-primary-900 min-h-screen p-4 text-white flex flex-col">
-      <div className="mb-8">
-        <h1 className="text-xl font-bold tracking-wide">My Doctor AI</h1>
-        <p className="text-primary-300 text-sm mt-1">Welcome, {profileName}</p>
+    <div
+      style={{
+        width: 200,
+        minHeight: '100vh',
+        background: '#fff',
+        borderRight: '1px solid #e0e0f0',
+        padding: '24px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: sansFont,
+        position: 'relative',
+      }}
+    >
+      {/* Teal top accent */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: TEAL }} />
+
+      {/* Wordmark */}
+      <div style={{ marginBottom: 32 }}>
+        <Wordmark />
       </div>
 
-      <nav className="space-y-1 flex-1">
-        {navItems.map((item, index) => (
+      {/* Nav items */}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                isActive
-                  ? 'bg-primary-700 text-white'
-                  : 'text-primary-200 hover:bg-primary-700/50'
-              }`
-            }
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
+              background: isActive ? BLUE : 'transparent',
+              borderRadius: 6,
+              textDecoration: 'none',
+              color: isActive ? '#fff' : NAVY,
+              fontFamily: sansFont,
+              fontSize: 13,
+              fontWeight: isActive ? 500 : 400,
+              transition: 'all 0.15s',
+            })}
           >
-            <span className="w-6 h-6 rounded bg-primary-600/50 flex items-center justify-center text-xs font-medium">
-              {index + 1}
-            </span>
-            <span className="font-medium">{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  style={{
+                    width: 24,
+                    height: 24,
+                    background: isActive ? 'rgba(255,255,255,0.2)' : LIGHT_BLUE,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: monoFont,
+                    fontWeight: 700,
+                    fontSize: 10,
+                    color: isActive ? '#fff' : MUTED,
+                    borderRadius: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.num}
+                </span>
+                <span>{item.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto pt-4 border-t border-primary-700/50">
-        <div className="p-3 bg-primary-700/30 rounded-lg">
-          <p className="text-xs text-primary-300 uppercase tracking-wider">AI Status</p>
-          <p className="text-primary-400 font-medium mt-1">Ready</p>
+      {/* Profile info */}
+      <div
+        style={{
+          padding: '12px',
+          background: LIGHT_BLUE,
+          borderRadius: 6,
+          marginTop: 'auto',
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            background: BLUE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: monoFont,
+            fontWeight: 700,
+            fontSize: 10,
+            color: '#fff',
+            marginBottom: 8,
+          }}
+        >
+          {profileName.slice(0, 2).toUpperCase()}
         </div>
+        <p style={{ fontFamily: sansFont, fontSize: 12, fontWeight: 500, color: NAVY, margin: 0 }}>{profileName}</p>
+        <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
+          Active
+        </p>
       </div>
     </div>
   )
