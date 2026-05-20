@@ -53,6 +53,7 @@ function DropZone({ onFileAdd, isProcessing }: { onFileAdd: (content: string, na
     e.preventDefault()
     setIsDragging(false)
     
+    // Use files array which has the path property in Electron
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
@@ -88,9 +89,16 @@ function DropZone({ onFileAdd, isProcessing }: { onFileAdd: (content: string, na
       }
       reader.readAsText(file)
     } else if (file.type.startsWith('image/')) {
-      // For images, get path and use OCR
-      // In Electron, we can get the path from the file object
-      const filePath = (file as any).path || file.name
+      // For images, we need to send the actual file path
+      // In Electron, file objects have a 'path' property with full path
+      const filePath = (file as any).path
+      
+      if (!filePath) {
+        console.error('[Documents] No file path available')
+        onFileAdd(`[Image: ${file.name}] - Could not get file path`, file.name, 'ocr')
+        return
+      }
+      
       console.log('[Documents] Processing image with OCR:', filePath)
       
       try {
@@ -99,7 +107,6 @@ function DropZone({ onFileAdd, isProcessing }: { onFileAdd: (content: string, na
           onFileAdd(result.text, file.name, 'ocr')
         } else {
           console.error('[Documents] OCR failed:', result.error)
-          // Fallback to placeholder
           onFileAdd(`[Image: ${file.name}] - OCR failed`, file.name, 'ocr')
         }
       } catch (error) {

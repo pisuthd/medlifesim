@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import * as fs from 'fs'
 import { documentsStore, Document } from './store'
 import { processOcr } from '../../ocr'
 
@@ -101,6 +102,13 @@ export function registerDocumentsOcrHandler(): void {
   ipcMain.handle('documents:processOcr', async (_event, imagePath: string) => {
     try {
       console.log('[Documents] Processing OCR for:', imagePath)
+      
+      // Verify file exists
+      if (!fs.existsSync(imagePath)) {
+        console.error('[Documents] File not found:', imagePath)
+        return { success: false, error: `File not found: ${imagePath}` }
+      }
+      
       const result = await processOcr(imagePath)
       return result
     } catch (error) {
