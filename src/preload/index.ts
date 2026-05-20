@@ -66,6 +66,17 @@ const api = {
     saveMessages: (profileSlug, sessionSlug, messages) => 
       ipcRenderer.invoke('sessions:saveMessages', profileSlug, sessionSlug, messages),
   },
+  
+  documents: {
+    list: () => ipcRenderer.invoke('documents:list'),
+    get: (docId: string) => ipcRenderer.invoke('documents:get', docId),
+    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) => 
+      ipcRenderer.invoke('documents:add', doc),
+    update: (docId: string, updates: any) => ipcRenderer.invoke('documents:update', docId, updates),
+    delete: (docId: string) => ipcRenderer.invoke('documents:delete', docId),
+    search: (query: string) => ipcRenderer.invoke('documents:search', query),
+    setProfile: (profileSlug: string) => ipcRenderer.invoke('documents:setProfile', profileSlug),
+  },
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

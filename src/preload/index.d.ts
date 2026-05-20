@@ -61,6 +61,15 @@ export interface ProfileAPI {
     loadMessages: (profileSlug: string, sessionSlug: string) => Promise<Message[]>
     saveMessages: (profileSlug: string, sessionSlug: string, messages: Message[]) => Promise<{ success: boolean }>
   }
+  documents: {
+    list: () => Promise<any[]>
+    get: (docId: string) => Promise<any>
+    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) => Promise<any>
+    update: (docId: string, updates: any) => Promise<{ success: boolean; document?: any }>
+    delete: (docId: string) => Promise<{ success: boolean }>
+    search: (query: string) => Promise<any[]>
+    setProfile: (profileSlug: string) => Promise<{ success: boolean }>
+  }
 }
 
 declare global {

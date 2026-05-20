@@ -25,12 +25,14 @@
 - [x] **Phase 4.2** ProfileContext for global state, session dropdown fix
 - [x] **Phase 4.3** Thinking box above response, trim leading \n
 - [x] **Phase 4.4** Session delete/clear functionality
+- [x] **Phase 5** Documents storage + AI tools
 
 ## What's Left to Build
-- [ ] RAG implementation for document analysis
+- [ ] RAG implementation with embeddings (future)
+- [ ] OCR integration for image files (future)
 
 ## Current Status
-- Phase 4: Sessions and Chat with AI integration complete
+- Phase 5: Documents storage complete
 - Model loads on app startup (download + load)
 - LoadingScreen polls status for progress
 - Session storage: `{userData}/profiles/{profileSlug}/sessions/{sessionSlug}/messages.json`
@@ -39,6 +41,8 @@
 - ProfileContext for global profile state
 - Thinking box now above response, leading \n trimmed
 - Session page has Clear (main) and Delete (non-main) buttons
+- Documents page with drag & drop, quick notes
+- Document tools for AI: `get_documents`, `search_documents`
 
 ## Known Issues
 - None identified
@@ -65,3 +69,4 @@
 - 2026-05-20: Phase 4.2 - ProfileContext, session dropdown fix, new session modal
 - 2026-05-20: Phase 4.3 - Thinking box above response, trim leading \n
 - 2026-05-20: Phase 4.4 - Session delete/clear functionality
+- 2026-05-20: Phase 5 - Documents storage with JSON + AI tools
