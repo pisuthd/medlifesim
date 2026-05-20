@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoadingScreen from './pages/LoadingScreen'
 import ProfileSelector from './pages/ProfileSelector'
 import MainLayout from './components/MainLayout'
@@ -82,7 +82,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       {appState === 'loading' && <LoadingScreen onComplete={handleLoadingComplete} />}
       
       {(appState === 'profile' && !profile) && (
@@ -105,7 +105,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
