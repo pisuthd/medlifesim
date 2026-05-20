@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
@@ -9,6 +10,14 @@ const LIGHT_BLUE = '#f7f7fc'
 
 const monoFont = "'Space Mono', monospace"
 const sansFont = "'DM Sans', sans-serif"
+
+interface AIStatus {
+  isReady: boolean
+  modelName: string
+  uptime: number
+  downloading: boolean
+  downloadProgress: number
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -52,19 +61,66 @@ function StepCard({ num, title, subtitle }: { num: string; title: string; subtit
   )
 }
 
-function StatItem({ label, value }: { label: string; value: string }) {
+function StatItem({ label, value, subtext }: { label: string; value: string; subtext?: string }) {
   return (
     <div style={{ marginRight: 32 }}>
       <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
         {label}
       </p>
       <p style={{ fontFamily: monoFont, fontSize: 18, fontWeight: 700, color: NAVY, margin: 0 }}>{value}</p>
+      {subtext && <p style={{ fontFamily: monoFont, fontSize: 9, color: MUTED, margin: '2px 0 0 0' }}>{subtext}</p>}
     </div>
   )
 }
 
+function formatUptime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  return `${hours}h ${mins}m`
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [aiStatus, setAIStatus] = useState<AIStatus>({
+    isReady: false,
+    modelName: 'Medpsy-1.7B',
+    uptime: 0,
+    downloading: false,
+    downloadProgress: 0,
+  })
+  const [loading, setLoading] = useState(false)
+
+  // Poll AI status every second
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const status = await window.api.ai.getStatus()
+        setAIStatus(status)
+      } catch (error) {
+        console.error('Failed to get AI status:', error)
+      }
+    }
+
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleLoadModel = async () => {
+    setLoading(true)
+    try {
+      const result = await window.api.ai.load()
+      if (!result.success) {
+        console.error('Failed to load model:', result.error)
+      }
+    } catch (error) {
+      console.error('Error loading model:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div style={{ fontFamily: sansFont, minHeight: '100vh', position: 'relative' }}>
@@ -78,7 +134,6 @@ export default function Dashboard() {
       }}>
         {/* Geometric staircase blocks - top right */}
         <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}>
-          {/* Step 1 - largest */}
           <div style={{ 
             position: 'absolute', 
             top: 0, 
@@ -87,7 +142,6 @@ export default function Dashboard() {
             height: 200, 
             background: BLUE 
           }} />
-          {/* Step 2 */}
           <div style={{ 
             position: 'absolute', 
             top: 200, 
@@ -96,7 +150,6 @@ export default function Dashboard() {
             height: 160, 
             background: TEAL 
           }} />
-          {/* Step 3 - smallest */}
           <div style={{ 
             position: 'absolute', 
             top: 360, 
@@ -118,12 +171,45 @@ export default function Dashboard() {
 
           {/* Stats Row */}
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            <StatItem label="Model" value="QVAC MedPsy" />
-            <StatItem label="Uptime" value="~2h 30m" />
-            <StatItem label="Sessions" value="12" />
-            <StatItem label="Documents" value="5" />
-            <StatItem label="Tools" value="0" />
+            <StatItem 
+              label="Model" 
+              value={aiStatus.modelName}
+              subtext={aiStatus.downloading ? `Downloading ${aiStatus.downloadProgress}%` : undefined}
+            />
+            <StatItem 
+              label="Status" 
+              value={aiStatus.isReady ? 'Ready' : aiStatus.downloading ? 'Downloading' : 'Not loaded'}
+            />
+            <StatItem 
+              label="Uptime" 
+              value={aiStatus.isReady ? formatUptime(aiStatus.uptime) : '--'}
+            />
           </div>
+
+          {/* Load Model Button */}
+          {!aiStatus.isReady && !aiStatus.downloading && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleLoadModel}
+              disabled={loading}
+              style={{
+                marginTop: 24,
+                padding: '12px 24px',
+                background: loading ? MUTED : BLUE,
+                border: 'none',
+                borderRadius: 6,
+                color: '#fff',
+                fontFamily: monoFont,
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: '0.1em',
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loading ? 'LOADING...' : 'LOAD MODEL'}
+            </motion.button>
+          )}
         </div>
 
         {/* Teal left accent */}
@@ -164,7 +250,7 @@ export default function Dashboard() {
             style={{
               marginTop: 32,
               padding: '14px 28px',
-              background: BLUE,
+              background: aiStatus.isReady ? BLUE : MUTED,
               border: 'none',
               borderRadius: 6,
               color: '#fff',
@@ -172,7 +258,7 @@ export default function Dashboard() {
               fontWeight: 700,
               fontSize: 12,
               letterSpacing: '0.1em',
-              cursor: 'pointer',
+              cursor: aiStatus.isReady ? 'pointer' : 'not-allowed',
             }}
           >
             START CHATTING →
