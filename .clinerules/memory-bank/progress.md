@@ -27,6 +27,8 @@
 
 ## Current Status
 - Phase 4: Sessions and Chat with AI integration complete
+- Model loads on app startup (download + load)
+- LoadingScreen polls status for progress
 - Session storage: `{userData}/profiles/{profileSlug}/sessions/{sessionSlug}/messages.json`
 - Chat supports session params (`?session=slug`), defaults to `main`
 - AI streaming with thinking box display
@@ -52,3 +54,4 @@
 - 2026-05-20: Phase 3 - QVAC AI model loading with download support
 - 2026-05-20: Phase 3.1 - Fire-and-forget model loading, simplified uptime
 - 2026-05-20: Phase 4 - Sessions + Chat + AI integration
+- 2026-05-20: Phase 4.1 - Model loading on startup, LoadingScreen simplified

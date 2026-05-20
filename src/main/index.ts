@@ -113,6 +113,12 @@ async function downloadModel(): Promise<boolean> {
 }
 
 async function loadAIModel(): Promise<boolean> {
+  // Don't reload if already loaded
+  if (modelId !== null) {
+    console.log('[AI] Model already loaded, skipping:', modelId)
+    return true
+  }
+  
   try {
     const modelPath = getModelPath()
     console.log('[AI] Loading model from:', modelPath)
@@ -149,7 +155,7 @@ function getAIStatus(): AIStatus {
   
   return {
     isReady: modelId !== null,
-    modelName: modelId ? 'Medpsy-1.7B' : 'Not loaded',
+    modelName: modelId ? 'Medpsy-1.7B' : 'Loading',
     uptime,
     downloading: isDownloading,
     downloadProgress,
@@ -300,7 +306,7 @@ app.whenReady().then(async () => {
       }
       
       // Load the model in background (fire and forget)
-      loadAIModel()
+      await loadAIModel()
       
       return { 
         success: true, 
@@ -390,6 +396,31 @@ app.whenReady().then(async () => {
   
   // Register sessions IPC handlers
   registerSessionsIpcHandlers()
+  
+  // Auto-load AI model on startup (with download if needed)
+  console.log('[AI] Starting model load on startup...')
+  ;(async () => {
+    // Check if model exists, if not download first
+    const exists = await checkModelExists()
+    
+    if (!exists) {
+      console.log('[AI] Model not found, downloading...')
+      const downloaded = await downloadModel()
+      
+      if (!downloaded) {
+        console.log('[AI] Failed to download model')
+        return
+      }
+    }
+    
+    // Now load the model
+    const success = await loadAIModel()
+    if (success) {
+      console.log('[AI] Startup model load complete')
+    } else {
+      console.log('[AI] Startup model load failed')
+    }
+  })()
   
   createWindow()
 

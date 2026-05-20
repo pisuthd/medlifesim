@@ -8,7 +8,15 @@ const MUTED = '#9999bb'
 const monoFont = "'Space Mono', monospace"
 const sansFont = "'DM Sans', sans-serif"
 
-type LoadingState = 'checking' | 'downloading' | 'loading' | 'ready'
+type LoadingState = 'checking' | 'loading' | 'ready'
+
+interface AIStatus {
+  isReady: boolean
+  modelName: string
+  uptime: number
+  downloading: boolean
+  downloadProgress: number
+}
 
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   const [state, setState] = useState<LoadingState>('checking')
@@ -17,72 +25,63 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
 
   useEffect(() => {
     let isMounted = true
+    let pollInterval: NodeJS.Timeout | null = null
 
-    const initModel = async () => {
+    const checkStatus = async () => {
       try {
-        // First check current status
-        const status = await window.api.ai.getStatus()
-        
-        if (status.isReady) {
-          // Model already loaded
-          if (isMounted) {
-            setState('ready')
-            setProgress(100)
-            setStatusText('Ready')
-            setTimeout(onComplete, 400)
-          }
-          return
-        }
-
-        // Start loading/downloading model
-        if (isMounted) {
-          setState(status.downloading ? 'downloading' : 'loading')
-        }
-
-        // Listen for download progress
-        const unsubDownload = window.api.ai.onDownloadProgress((p) => {
-          if (isMounted) {
-            setProgress(p)
-            setStatusText(`Downloading MedPsy 1.7B... ${p}%`)
-          }
-        })
-
-        // Start loading model
-        const result = await window.api.ai.load()
+        const status: AIStatus = await window.api.ai.getStatus()
         
         if (!isMounted) return
-
-        if (result.success) {
-          setState('loading')
+        
+        // Update progress based on status
+        if (status.isReady) {
           setProgress(100)
-          setStatusText('Loading AI model...')
+          setStatusText('Ready')
+          setState('ready')
           
-          // Wait a moment for model to fully initialize
+          // Cleanup
+          if (pollInterval) clearInterval(pollInterval)
+          
+          // Complete after short delay
           setTimeout(() => {
-            if (isMounted) {
-              setState('ready')
-              setStatusText('Ready')
-              setTimeout(onComplete, 400)
-            }
-          }, 1500)
-        } else {
-          setStatusText(`Error: ${result.error}`)
+            if (isMounted) onComplete()
+          }, 400)
+          return
         }
-
-        unsubDownload()
+        
+        // Model is loading
+        if (state !== 'loading') {
+          setState('loading')
+        }
+        
+        // Calculate progress based on download or simulated loading
+        let newProgress = 0
+        if (status.downloading) {
+          newProgress = status.downloadProgress
+          setStatusText(`Downloading MedPsy 1.7B... ${status.downloadProgress}%`)
+        } else {
+          // Simulate gradual progress during model loading
+          newProgress = Math.min(progress + Math.random() * 5, 90)
+          setStatusText('Loading AI model...')
+        }
+        setProgress(newProgress)
+        
       } catch (error) {
         if (isMounted) {
-          setStatusText(`Error: ${error}`)
+          setStatusText('Error checking status')
         }
       }
     }
 
-    initModel()
+    // Start polling
+    checkStatus()
+    pollInterval = setInterval(checkStatus, 500)
 
     return () => {
       isMounted = false
+      if (pollInterval) clearInterval(pollInterval)
     }
-  }, [onComplete])
+  }, [onComplete, progress, state])
 
   return (
     <div
