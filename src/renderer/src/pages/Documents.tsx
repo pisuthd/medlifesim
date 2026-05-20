@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { useDroppable } from '@dnd-kit/core'
 import { useProfile } from '../context/ProfileContext'
 
 const BLUE = '#1A1AE8'
@@ -34,13 +33,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function DropZone({ onFileDrop }: { onFileDrop: (content: string, name: string, type: 'text' | 'ocr' | 'note') => void }) {
+function DropZone({ onFileAdd, isProcessing }: { onFileAdd: (content: string, name: string, type: 'text' | 'ocr' | 'note') => void; isProcessing: boolean }) {
   const [isDragging, setIsDragging] = useState(false)
   const [showInput, setShowInput] = useState(false)
   const [noteContent, setNoteContent] = useState('')
   const [noteName, setNoteName] = useState('')
-
-  const { setNodeRef, isOver } = useDroppable({ id: 'documents-drop-zone' })
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -51,39 +49,77 @@ function DropZone({ onFileDrop }: { onFileDrop: (content: string, name: string, 
     setIsDragging(false)
   }
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
     
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
-      // For now, read text files directly
-      if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const content = event.target?.result as string
-          onFileDrop(content, file.name, 'text')
-        }
-        reader.readAsText(file)
-      } else if (file.type.startsWith('image/')) {
-        // Images would need OCR - mark as OCR type for future
-        onFileDrop(`[Image: ${file.name}]`, file.name, 'ocr')
-      } else {
-        // PDF or other - read as text if possible
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const content = event.target?.result as string
-          onFileDrop(content.substring(0, 5000), file.name, 'text')
-        }
-        reader.readAsText(file)
+      await processFile(file)
+    }
+  }
+
+  const handleClick = () => {
+    if (!isProcessing) {
+      fileInputRef.current?.click()
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      await processFile(file)
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const processFile = async (file: File) => {
+    if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
+      // Read text files directly
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        onFileAdd(content, file.name, 'text')
       }
+      reader.readAsText(file)
+    } else if (file.type.startsWith('image/')) {
+      // For images, get path and use OCR
+      // In Electron, we can get the path from the file object
+      const filePath = (file as any).path || file.name
+      console.log('[Documents] Processing image with OCR:', filePath)
+      
+      try {
+        const result = await window.api.documents.processOcr(filePath)
+        if (result.success && result.text) {
+          onFileAdd(result.text, file.name, 'ocr')
+        } else {
+          console.error('[Documents] OCR failed:', result.error)
+          // Fallback to placeholder
+          onFileAdd(`[Image: ${file.name}] - OCR failed`, file.name, 'ocr')
+        }
+      } catch (error) {
+        console.error('[Documents] OCR error:', error)
+        onFileAdd(`[Image: ${file.name}] - OCR error`, file.name, 'ocr')
+      }
+    } else {
+      // Try to read as text
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        onFileAdd(content.substring(0, 5000), file.name, 'text')
+      }
+      reader.readAsText(file)
     }
   }
 
   const handleAddNote = () => {
     if (noteContent.trim() && noteName.trim()) {
-      onFileDrop(noteContent, noteName, 'note')
+      onFileAdd(noteContent, noteName, 'note')
       setNoteContent('')
       setNoteName('')
       setShowInput(false)
@@ -92,20 +128,30 @@ function DropZone({ onFileDrop }: { onFileDrop: (content: string, name: string, 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.txt,.pdf"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
       {/* Drop zone */}
       <div
-        ref={setNodeRef}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={handleClick}
         style={{
-          border: `2px dashed ${isOver || isDragging ? BLUE : '#e0e0f0'}`,
+          border: `2px dashed ${isDragging ? BLUE : '#e0e0f0'}`,
           borderRadius: 8,
           padding: '48px 32px',
           textAlign: 'center',
-          background: isOver || isDragging ? '#f0f0fd' : '#fff',
+          background: isDragging ? '#f0f0fd' : '#fff',
           transition: 'all 0.2s',
-          cursor: 'pointer',
+          cursor: isProcessing ? 'wait' : 'pointer',
+          opacity: isProcessing ? 0.7 : 1,
         }}
       >
         <div
@@ -120,10 +166,23 @@ function DropZone({ onFileDrop }: { onFileDrop: (content: string, name: string, 
             margin: '0 auto 16px',
           }}
         >
-          <span style={{ fontFamily: monoFont, fontSize: 20, color: TEAL }}>+</span>
+          {isProcessing ? (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            >
+              <span style={{ fontFamily: monoFont, fontSize: 20, color: MUTED }}>⟳</span>
+            </motion.div>
+          ) : (
+            <span style={{ fontFamily: monoFont, fontSize: 20, color: TEAL }}>+</span>
+          )}
         </div>
-        <p style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, marginBottom: 4 }}>Drop files here or click to upload</p>
-        <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em' }}>PDF, TXT, JPG supported</p>
+        <p style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, marginBottom: 4 }}>
+          {isProcessing ? 'Processing...' : 'Drop files here or click to upload'}
+        </p>
+        <p style={{ fontFamily: monoFont, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          PDF, TXT, JPG, PNG supported
+        </p>
       </div>
 
       {/* Add note button */}
@@ -249,6 +308,7 @@ export default function Documents() {
   const { profile } = useProfile()
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Load documents on mount and profile change
   useEffect(() => {
@@ -272,9 +332,10 @@ export default function Documents() {
     loadDocuments()
   }, [profile])
 
-  const handleFileDrop = async (content: string, name: string, type: 'text' | 'ocr' | 'note') => {
+  const handleFileAdd = async (content: string, name: string, type: 'text' | 'ocr' | 'note') => {
     if (!profile) return
 
+    setIsProcessing(true)
     try {
       const newDoc = await window.api.documents.add({
         type,
@@ -288,6 +349,8 @@ export default function Documents() {
       setDocuments((prev) => [newDoc, ...prev])
     } catch (error) {
       console.error('Failed to add document:', error)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -316,7 +379,7 @@ export default function Documents() {
           <h2 style={{ fontFamily: sansFont, fontSize: 16, fontWeight: 300, color: NAVY, marginBottom: 16 }}>
             <strong style={{ fontWeight: 500 }}>Upload</strong> documents
           </h2>
-          <DropZone onFileDrop={handleFileDrop} />
+          <DropZone onFileAdd={handleFileAdd} isProcessing={isProcessing} />
         </div>
 
         {/* Files List */}
@@ -334,7 +397,7 @@ export default function Documents() {
               No documents yet. Upload files or add notes above.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
               {documents.map((doc) => (
                 <motion.div
                   key={doc.id}
@@ -354,7 +417,7 @@ export default function Documents() {
                     style={{
                       width: 36,
                       height: 36,
-                      background: doc.type === 'note' ? TEAL : BLUE,
+                      background: doc.type === 'note' ? TEAL : doc.type === 'ocr' ? '#E88B1A' : BLUE,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -364,7 +427,7 @@ export default function Documents() {
                       flexShrink: 0,
                     }}
                   >
-                    {doc.type === 'note' ? 'NT' : doc.type === 'ocr' ? 'IMG' : 'TXT'}
+                    {doc.type === 'note' ? 'NT' : doc.type === 'ocr' ? 'OCR' : 'TXT'}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontFamily: sansFont, fontSize: 13, fontWeight: 500, color: NAVY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { documentsStore, Document } from './store'
+import { processOcr } from '../../ocr'
 
 // Register documents IPC handlers
 export function registerDocumentsHandlers(): void {
@@ -93,4 +94,20 @@ export function registerDocumentsHandlers(): void {
   })
 
   console.log('[Documents] IPC handlers registered')
+}
+
+// OCR processor - process image file and return extracted text
+export function registerDocumentsOcrHandler(): void {
+  ipcMain.handle('documents:processOcr', async (_event, imagePath: string) => {
+    try {
+      console.log('[Documents] Processing OCR for:', imagePath)
+      const result = await processOcr(imagePath)
+      return result
+    } catch (error) {
+      console.error('[Documents] OCR failed:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+  
+  console.log('[Documents] OCR handler registered')
 }

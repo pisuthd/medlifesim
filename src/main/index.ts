@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
-import { registerDocumentsHandlers } from './tools/documents'
+import { registerDocumentsHandlers, registerDocumentsOcrHandler } from './tools/documents'
 
 // ============================================
 // QVAC AI Model Management
@@ -400,6 +400,7 @@ app.whenReady().then(async () => {
   
   // Register documents IPC handlers
   registerDocumentsHandlers()
+  registerDocumentsOcrHandler()
   
   // Auto-load AI model on startup (with download if needed)
   console.log('[AI] Starting model load on startup...')

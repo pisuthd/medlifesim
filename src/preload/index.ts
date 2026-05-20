@@ -76,6 +76,7 @@ const api = {
     delete: (docId: string) => ipcRenderer.invoke('documents:delete', docId),
     search: (query: string) => ipcRenderer.invoke('documents:search', query),
     setProfile: (profileSlug: string) => ipcRenderer.invoke('documents:setProfile', profileSlug),
+    processOcr: (imagePath: string) => ipcRenderer.invoke('documents:processOcr', imagePath),
   },
 }
 

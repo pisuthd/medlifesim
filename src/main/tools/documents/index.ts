@@ -1,6 +1,6 @@
 // Document tools - for AI to access stored documents
 export { documentsStore } from './store'
-export { registerDocumentsHandlers } from './handlers'
+export { registerDocumentsHandlers, registerDocumentsOcrHandler } from './handlers'
 
 // Tool definitions for AI
 export const getDocumentsTool = {

@@ -69,6 +69,7 @@ export interface ProfileAPI {
     delete: (docId: string) => Promise<{ success: boolean }>
     search: (query: string) => Promise<any[]>
     setProfile: (profileSlug: string) => Promise<{ success: boolean }>
+    processOcr: (imagePath: string) => Promise<{ success: boolean; text?: string; error?: string }>
   }
 }
 
