@@ -2,6 +2,9 @@
 export { documentsStore } from './store'
 export { registerDocumentsHandlers, registerDocumentsOcrHandler } from './handlers'
 
+// Import documents store for tool execution
+import { documentsStore } from './store'
+
 // Tool definitions for AI with execute functions embedded
 export const getDocumentsTool = {
   type: 'function' as const,
@@ -14,7 +17,9 @@ export const getDocumentsTool = {
   },
   execute: async () => {
     try {
-      const docs = (global as any).documentsStore?.getDocuments()
+      console.log('[Tool] get_documents called, accessing store...')
+      const docs = documentsStore.getDocuments()
+      console.log('[Tool] Found documents:', docs?.length || 0)
       
       if (!docs || docs.length === 0) {
         return JSON.stringify({
@@ -40,6 +45,7 @@ export const getDocumentsTool = {
         count: docs.length
       }, null, 2)
     } catch (error) {
+      console.error('[Tool] get_documents error:', error)
       return JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -65,7 +71,9 @@ export const searchDocumentsTool = {
   execute: async (args: Record<string, unknown>) => {
     try {
       const query = args.query as string
-      const docs = (global as any).documentsStore?.searchDocuments(query)
+      console.log('[Tool] search_documents called with query:', query)
+      const docs = documentsStore.searchDocuments(query)
+      console.log('[Tool] Found matching documents:', docs?.length || 0)
       
       if (!docs || docs.length === 0) {
         return JSON.stringify({
@@ -88,6 +96,7 @@ export const searchDocumentsTool = {
         count: docs.length
       }, null, 2)
     } catch (error) {
+      console.error('[Tool] search_documents error:', error)
       return JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

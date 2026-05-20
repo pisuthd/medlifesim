@@ -5,7 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
 import { registerDocumentsHandlers, registerDocumentsOcrHandler } from './tools/documents'
-import { getDocumentsTool, searchDocumentsTool } from './tools/documents'
+import { getDocumentsTool, searchDocumentsTool, documentsStore } from './tools/documents'
 import { toolsStore, getToolsSystemPrompt } from './toolsStore'
 
 // ============================================
@@ -362,6 +362,9 @@ app.whenReady().then(async () => {
 
     try {
       ensureMainSession(profileSlug)
+      
+      // Set profile for documents store so tools can access user documents
+      documentsStore.setProfile(profileSlug)
       
       // Get system prompt based on enabled tools
       const toolsPrompt = getToolsSystemPrompt()
