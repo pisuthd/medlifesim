@@ -1,15 +1,73 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
+function createDefaultMenu(): void {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About My Doctor AI',
+          click: async () => {
+            const { shell } = await import('electron')
+            await shell.openExternal('https://github.com/pisuthd/my-doctor-ai')
+          }
+        }
+      ]
+    }
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
     show: false,
-    autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -37,10 +95,12 @@ function createWindow(): void {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.my-doctor-ai')
+
+  // Create default application menu
+  createDefaultMenu()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -69,6 +129,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

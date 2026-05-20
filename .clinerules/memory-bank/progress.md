@@ -18,6 +18,8 @@
 - [x] Chat interface component
 - [x] Documents manager with drag & drop
 - [x] Tools panel component
+- [x] Default Electron menu (File, Edit, View, Window, Help)
+- [x] Window size increased to 1200x800
 
 ## What's Left to Build
 - [ ] AI backend integration (local model)
@@ -25,8 +27,7 @@
 - [ ] RAG implementation for document analysis
 
 ## Current Status
-- Phase 1: UI framework complete
-- Phase 1 commit: 7b6dfcd
+- Phase 1.1: UI enhancements and menu
 - Next: Connect AI backend
 
 ## Known Issues
@@ -38,3 +39,5 @@
 - 2026-05-20: Configured blue gradient theme (Slack-style)
 - 2026-05-20: Built all UI page components (Phase 1)
 - 2026-05-20: Committed Phase 1 (7b6dfcd)
+- 2026-05-20: Added default Electron menu with debug tools (Phase 1.1)
+- 2026-05-20: Window size increased to 1200x800 for better UX
