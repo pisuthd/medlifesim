@@ -11,7 +11,7 @@ import { toolsStore, getToolsSystemPrompt } from './toolsStore'
 // ============================================
 // QVAC AI Model Management
 // ============================================
-import { loadModel, unloadModel, completion } from '@qvac/sdk'
+import { loadModel, unloadModel, completion, type ToolCall } from '@qvac/sdk'
 import { saveMessages, loadMessages, ensureMainSession } from './sessions'
 
 const MODEL_FILE = 'medpsy-1.7b-q4_k_m-imat.gguf'
@@ -344,7 +344,17 @@ app.whenReady().then(async () => {
     }
   })
 
-  // AI Chat with streaming
+  // Execute tool by name
+  async function executeToolCall(toolName: string, args: Record<string, unknown>): Promise<string> {
+    if (toolName === 'get_documents') {
+      return getDocumentsTool.execute()
+    } else if (toolName === 'search_documents') {
+      return searchDocumentsTool.execute(args)
+    }
+    return JSON.stringify({ error: `Unknown tool: ${toolName}` })
+  }
+
+  // AI Chat with streaming and tool calls
   ipcMain.handle('ai:sendMessage', async (_event, profileSlug: string, sessionSlug: string, message: string, history: any[]) => {
     if (!modelId || !mainWindowRef) {
       return { success: false, error: 'AI model not loaded' }
@@ -367,30 +377,66 @@ app.whenReady().then(async () => {
       const hasDocumentsTool = enabledTools.some(t => t.id === '1')
       const tools = hasDocumentsTool ? [getDocumentsTool, searchDocumentsTool] : []
       
-      const result = completion({
-        modelId: modelId,
-        history: conversationHistory,
-        stream: true,
-        kvCache: true,
-        captureThinking: true,
-        tools: tools.length > 0 ? tools : undefined,
-      })
-
       let fullResponse = ''
       let thinkingContent = ''
+      const maxToolCalls = 3 // Prevent infinite loops
+      let toolCallCount = 0
 
-      // Stream tokens and thinking
-      for await (const event of result.events) {
-        switch (event.type) {
-          case 'contentDelta':
-            fullResponse += event.text
-            mainWindowRef.webContents.send('ai:streamToken', event.text)
-            break
-          case 'thinkingDelta':
-            thinkingContent += event.text
-            mainWindowRef.webContents.send('ai:streamThinking', event.text)
-            break
+      while (toolCallCount < maxToolCalls) {
+        const result = completion({
+          modelId: modelId,
+          history: conversationHistory,
+          stream: true,
+          kvCache: true,
+          captureThinking: true,
+          tools: tools.length > 0 ? tools : undefined,
+        })
+
+        // Stream tokens and thinking
+        for await (const event of result.events) {
+          switch (event.type) {
+            case 'contentDelta':
+              fullResponse += event.text
+              mainWindowRef!.webContents.send('ai:streamToken', event.text)
+              break
+            case 'thinkingDelta':
+              thinkingContent += event.text
+              mainWindowRef!.webContents.send('ai:streamThinking', event.text)
+              break
+            case 'toolCall':
+              console.log(`[AI] Tool call: ${event.call.name}(${JSON.stringify(event.call.arguments)})`)
+              break
+          }
         }
+
+        // Get tool calls after streaming
+        const toolCalls: ToolCall[] = await result.toolCalls
+
+        if (toolCalls.length === 0) {
+          // No more tool calls, we're done
+          break
+        }
+
+        toolCallCount++
+        console.log(`[AI] Executing ${toolCalls.length} tool call(s)...`)
+
+        // Execute tool calls and add results to history
+        for (const call of toolCalls) {
+          const toolResult = await executeToolCall(call.name, call.arguments as Record<string, unknown>)
+          console.log(`[AI] Tool ${call.name} result:`, toolResult.substring(0, 100))
+          conversationHistory.push({
+            role: 'tool',
+            content: toolResult,
+          })
+        }
+
+        // Add a continuation prompt
+        conversationHistory.push({
+          role: 'user',
+          content: 'Based on the tool results above, please continue your response.',
+        })
+
+        console.log(`[AI] Tool call ${toolCallCount} completed, continuing...`)
       }
 
       // Send completion signal
