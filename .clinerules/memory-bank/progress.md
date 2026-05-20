@@ -10,34 +10,30 @@
 - [x] Framer Motion installed for animations
 - [x] @dnd-kit installed for drag & drop
 - [x] React Router for page navigation
-- [x] Loading screen component
-- [x] Profile selector with contextual forms
-- [x] Main layout with sidebar
+- [x] Loading screen with expanding rings animation
+- [x] Profile selector with existing profiles list + create new
+- [x] Profile form: Self = name + age + gender, Others = name only
+- [x] Main layout with sidebar (number badges instead of emojis)
 - [x] Dashboard component
 - [x] Sessions list component (table view)
 - [x] Chat interface component
-- [x] Documents manager with drag & drop
-- [x] Tools panel component
+- [x] Documents manager with drag & drop (SVG icons)
+- [x] Tools panel with toggles (SVG icons)
 - [x] Default Electron menu (File, Edit, View, Window, Help)
-- [x] Window size increased to 1200x800
+- [x] Window size 1200x800
 
 ## What's Left to Build
-- [ ] AI backend integration (local model)
-- [ ] Real data persistence
-- [ ] RAG implementation for document analysis
+- [ ] Phase 1.3: Profile persistence with IPC (local JSON file)
 
 ## Current Status
-- Phase 1.1: UI enhancements and menu
-- Next: Connect AI backend
+- Phase 1.2: UI redesign complete
+- Next: Profile persistence (Phase 1.3)
 
 ## Known Issues
 - None identified
 
 ## Evolution of Project Decisions
 - 2026-05-20: Project scaffolded using electron-vite template
-- 2026-05-20: Added TailwindCSS, Framer Motion, @dnd-kit
-- 2026-05-20: Configured blue gradient theme (Slack-style)
-- 2026-05-20: Built all UI page components (Phase 1)
-- 2026-05-20: Committed Phase 1 (7b6dfcd)
-- 2026-05-20: Added default Electron menu with debug tools (Phase 1.1)
-- 2026-05-20: Window size increased to 1200x800 for better UX
+- 2026-05-20: Phase 1 - Built all UI page components
+- 2026-05-20: Phase 1.1 - Added default Electron menu
+- 2026-05-20: Phase 1.2 - UI redesign (loading screen, remove emojis, fix profile flow)
