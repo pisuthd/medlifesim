@@ -49,10 +49,22 @@ export default function Chat() {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
   const [newSessionName, setNewSessionName] = useState('')
   const [modalKey, setModalKey] = useState(0)
+  const [modalInputRef, setModalInputRef] = useState<HTMLInputElement | null>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Focus modal input when modal opens
+  useEffect(() => {
+    if (showNewSessionModal && modalInputRef) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        modalInputRef.focus()
+        modalInputRef.select()
+      }, 50)
+    }
+  }, [showNewSessionModal, modalInputRef])
 
   // Reset modal state when session changes
   useEffect(() => {
@@ -367,6 +379,7 @@ export default function Chat() {
             </h3>
             <input
               type="text"
+              ref={(el) => setModalInputRef(el)}
               value={newSessionName}
               onChange={(e) => setNewSessionName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
