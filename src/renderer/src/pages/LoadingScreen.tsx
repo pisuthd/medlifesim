@@ -181,13 +181,13 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
           style={{
             fontFamily: monoFont,
             fontWeight: 700,
-            fontSize: '28px',
+            fontSize: '24px',
             letterSpacing: '0.04em',
             color: BLUE,
             marginBottom: '48px',
           }}
         >
-          <span style={{ color: NAVY }}>Med</span>Psy Doctor
+          <span style={{ color: NAVY }}>MedPsy</span> Doctor
         </p>
 
         {/* App label */}

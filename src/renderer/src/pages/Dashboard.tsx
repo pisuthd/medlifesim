@@ -144,6 +144,23 @@ export default function Dashboard() {
       {/* CTA Section */}
       <div style={{ padding: '48px 48px 48px 56px' }}>
         <div style={{ maxWidth: 900 }}>
+          {/* Free & Open Source Card */}
+          <div style={{
+            padding: 20,
+            background: '#fff',
+            border: '1px solid #e0e0f0',
+            borderRadius: 8,
+            borderLeft: `3px solid ${BLUE}`,
+            marginBottom: 24,
+          }}>
+            <h3 style={{ fontFamily: sansFont, fontSize: 16, fontWeight: 500, color: NAVY, margin: '0 0 8px 0' }}>
+              MedPsy Doctor
+            </h3>
+            <p style={{ fontFamily: sansFont, fontSize: 13, color: MUTED, margin: 0 }}>
+              Free & Open Source. A desktop application that brings on-device AI medical assistance with privacy-first design.
+            </p>
+          </div>
+
           {/* CTA */}
           <motion.button
             whileHover={{ scale: 1.02 }}

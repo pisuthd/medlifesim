@@ -36,7 +36,7 @@ const profileTypeOptions = [
 function Wordmark() {
   return (
     <p style={{ fontFamily: monoFont, fontWeight: 700, fontSize: 20, letterSpacing: '0.04em', color: BLUE, margin: 0 }}>
-      <span style={{ color: NAVY }}>Med</span>Psy Doctor
+      <span style={{ color: NAVY }}>MedPsy</span> Doctor
     </p>
   )
 }
