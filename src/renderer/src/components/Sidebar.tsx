@@ -14,7 +14,8 @@ const navItems = [
   { path: '/', label: 'Dashboard', num: '02' },
   { path: '/sessions', label: 'Sessions', num: '03' },
   { path: '/documents', label: 'Documents', num: '04' },
-  { path: '/tools', label: 'Tools', num: '05' },
+  { path: '/settings', label: 'Settings', num: '05' },
+  { path: '/tools', label: 'Tools', num: '06' },
 ]
 
 function Wordmark() {

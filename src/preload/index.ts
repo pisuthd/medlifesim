@@ -72,6 +72,11 @@ const api = {
     setEnabled: (toolId: string, enabled: boolean) => ipcRenderer.invoke('tools:setEnabled', toolId, enabled),
   },
   
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    setCtxSize: (ctx_size: number) => ipcRenderer.invoke('settings:setCtxSize', ctx_size),
+  },
+  
   documents: {
     list: () => ipcRenderer.invoke('documents:list'),
     get: (docId: string) => ipcRenderer.invoke('documents:get', docId),

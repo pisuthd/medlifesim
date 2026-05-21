@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import Sessions from './pages/Sessions'
 import Chat from './pages/Chat'
 import Documents from './pages/Documents'
+import Settings from './pages/Settings'
 import Tools from './pages/Tools'
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
               <Route path="sessions" element={<Sessions />} />
               <Route path="chat" element={<Chat />} />
               <Route path="documents" element={<Documents />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="tools" element={<Tools />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

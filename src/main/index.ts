@@ -6,7 +6,7 @@ import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
 import { registerDocumentsHandlers, registerDocumentsOcrHandler } from './tools/documents'
 import { getDocumentsTool, searchDocumentsTool, documentsStore } from './tools/documents'
-import { toolsStore, getToolsSystemPrompt } from './toolsStore'
+import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 
 // ============================================
 // QVAC AI Model Management
@@ -130,7 +130,7 @@ async function loadAIModel(): Promise<boolean> {
       modelSrc: modelPath,
       modelType: 'llm',
       modelConfig: {
-        ctx_size: 4096,
+        ctx_size: settingsStore.getCtxSize(),
         tools: true,
       },
       onProgress: (progress) => {
@@ -274,6 +274,16 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('tools:setEnabled', (_, toolId: string, enabled: boolean) => {
     return toolsStore.setToolEnabled(toolId, enabled)
+  })
+
+  // Settings IPC handlers
+  ipcMain.handle('settings:get', () => {
+    return settingsStore.getSettings()
+  })
+
+  ipcMain.handle('settings:setCtxSize', (_, ctx_size: number) => {
+    settingsStore.setCtxSize(ctx_size)
+    return { success: true }
   })
 
   // Profile IPC handlers

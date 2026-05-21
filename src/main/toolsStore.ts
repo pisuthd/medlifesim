@@ -10,10 +10,23 @@ export interface ToolConfig {
   status: 'available' | 'coming_soon'
 }
 
+export interface AppSettings {
+  ctx_size: number
+}
+
 const TOOLS_FILE = 'tools-config.json'
+const SETTINGS_FILE = 'settings.json'
+
+const DEFAULT_SETTINGS: AppSettings = {
+  ctx_size: 4096,
+}
 
 function getToolsFilePath(): string {
   return path.join(app.getPath('userData'), TOOLS_FILE)
+}
+
+function getSettingsFilePath(): string {
+  return path.join(app.getPath('userData'), SETTINGS_FILE)
 }
 
 // Default tools configuration
@@ -80,8 +93,59 @@ class ToolsStore {
   }
 }
 
+// Settings Store
+function loadSettings(): AppSettings {
+  try {
+    const filePath = getSettingsFilePath()
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(content) }
+    }
+  } catch (error) {
+    console.error('[Settings] Failed to load:', error)
+  }
+  return { ...DEFAULT_SETTINGS }
+}
+
+function saveSettings(settings: AppSettings): void {
+  try {
+    const filePath = getSettingsFilePath()
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2))
+    console.log('[Settings] Saved to:', filePath)
+  } catch (error) {
+    console.error('[Settings] Failed to save:', error)
+  }
+}
+
+class SettingsStore {
+  private settings: AppSettings
+
+  constructor() {
+    this.settings = loadSettings()
+  }
+
+  getSettings(): AppSettings {
+    return { ...this.settings }
+  }
+
+  getCtxSize(): number {
+    return this.settings.ctx_size
+  }
+
+  setCtxSize(ctx_size: number): void {
+    this.settings.ctx_size = ctx_size
+    saveSettings(this.settings)
+  }
+
+  reset(): void {
+    this.settings = { ...DEFAULT_SETTINGS }
+    saveSettings(this.settings)
+  }
+}
+
 // Singleton instance
 export const toolsStore = new ToolsStore()
+export const settingsStore = new SettingsStore()
 
 // Generate system prompt based on enabled tools
 export function getToolsSystemPrompt(): string {

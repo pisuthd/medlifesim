@@ -6,9 +6,9 @@ const NAVY = '#0a0a5c'
 const MUTED = '#9999bb'
 
 const monoFont = "'Space Mono', monospace"
-// const sansFont = "'DM Sans', sans-serif"
+const sansFont = "'DM Sans', sans-serif"
 
-type LoadingState = 'checking' | 'loading' | 'ready'
+type LoadingState = 'checking' | 'loading' | 'ready' | 'error'
 
 interface AIStatus {
   isReady: boolean
@@ -16,12 +16,27 @@ interface AIStatus {
   uptime: number
   downloading: boolean
   downloadProgress: number
+  error?: string
 }
 
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   const [state, setState] = useState<LoadingState>('checking')
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('Checking model...')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleReload = async () => {
+    setState('loading')
+    setProgress(0)
+    setStatusText('Reloading...')
+    setErrorMessage('')
+    
+    try {
+      await window.api.ai.load()
+    } catch (error) {
+      console.error('Reload failed:', error)
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -50,7 +65,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
         }
         
         // Model is loading
-        if (state !== 'loading') {
+        if (state !== 'loading' && state !== 'error') {
           setState('loading')
         }
         
@@ -68,7 +83,10 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
         
       } catch (error) {
         if (isMounted) {
-          setStatusText('Error checking status')
+          setState('error')
+          setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
+          setStatusText('Error loading model')
+          if (pollInterval) clearInterval(pollInterval)
         }
       }
     }
@@ -160,7 +178,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             marginBottom: '48px',
           }}
         >
-          <span style={{ color: NAVY }}>My</span>DoctorAI
+          <span style={{ color: NAVY }}>Med</span>Psy
         </p>
 
         {/* App label */}
@@ -193,51 +211,109 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
           At Home
         </h1>
 
-        {/* Progress bar */}
+        {/* Progress bar or Error state */}
         <div style={{ width: '260px' }}>
-          <div
-            style={{
-              width: '100%',
-              height: '2px',
-              background: '#e8e8f0',
-              position: 'relative',
-              marginBottom: '14px',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                height: '100%',
-                width: `${Math.min(progress, 100)}%`,
-                background: BLUE,
-                transition: 'width 0.3s ease-out',
-              }}
-            />
-          </div>
+          {state === 'error' ? (
+            <div>
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#fff0f0',
+                  border: '1px solid #ffcccc',
+                  borderRadius: 8,
+                  marginBottom: 16,
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: monoFont,
+                    fontSize: 11,
+                    color: '#cc0000',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    marginBottom: 8,
+                  }}
+                >
+                  Error
+                </p>
+                <p
+                  style={{
+                    fontFamily: sansFont,
+                    fontSize: 13,
+                    color: '#660000',
+                    margin: 0,
+                  }}
+                >
+                  {errorMessage || 'Failed to load AI model'}
+                </p>
+              </div>
+              
+              <button
+                onClick={handleReload}
+                style={{
+                  padding: '12px 24px',
+                  background: BLUE,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontFamily: monoFont,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                }}
+              >
+                Reload Model
+              </button>
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  width: '100%',
+                  height: '2px',
+                  background: '#e8e8f0',
+                  position: 'relative',
+                  marginBottom: '14px',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${Math.min(progress, 100)}%`,
+                    background: BLUE,
+                    transition: 'width 0.3s ease-out',
+                  }}
+                />
+              </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span
-              style={{
-                fontSize: '12px',
-                color: MUTED,
-                letterSpacing: '0.06em',
-              }}
-            >
-              {statusText}
-            </span>
-            <span
-              style={{
-                fontFamily: monoFont,
-                fontSize: '13px',
-                fontWeight: 700,
-                color: BLUE,
-              }}
-            >
-              {Math.round(Math.min(progress, 100))}%
-            </span>
-          </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: MUTED,
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  {statusText}
+                </span>
+                <span
+                  style={{
+                    fontFamily: monoFont,
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: BLUE,
+                  }}
+                >
+                  {Math.round(Math.min(progress, 100))}%
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

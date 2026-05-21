@@ -73,6 +73,10 @@ export interface ProfileAPI {
     getAll: () => Promise<Tool[]>
     setEnabled: (toolId: string, enabled: boolean) => Promise<boolean>
   }
+  settings: {
+    get: () => Promise<{ ctx_size: number }>
+    setCtxSize: (ctx_size: number) => Promise<{ success: boolean }>
+  }
   documents: {
     list: () => Promise<any[]>
     get: (docId: string) => Promise<any>
