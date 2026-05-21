@@ -67,7 +67,7 @@ export default function Chat() {
     }
     
     loadSessions()
-  }, [profile])
+  }, [profile, sessionSlug])
 
   // Load messages for session
   useEffect(() => {
