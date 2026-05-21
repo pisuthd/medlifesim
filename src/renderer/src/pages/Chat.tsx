@@ -53,12 +53,6 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Reset modal state when session changes
-  useEffect(() => {
-    setShowNewSessionModal(false)
-    setNewSessionName('')
-  }, [sessionSlug])
-
   // Load sessions for dropdown
   useEffect(() => {
     if (!profile) return
@@ -145,18 +139,6 @@ export default function Chat() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  // Focus modal input using document.getElementById
-  useEffect(() => {
-    if (showNewSessionModal) {
-      setTimeout(() => {
-        const input = document.getElementById('modal-session-input')
-        if (input) {
-          input.focus()
-        }
-      }, 100)
-    }
-  }, [showNewSessionModal])
 
   const handleSessionChange = (slug: string) => {
     setSearchParams({ session: slug })
