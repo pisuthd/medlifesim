@@ -175,39 +175,15 @@ export default function Dashboard() {
         <div style={{ position: 'absolute', bottom: 0, left: 0, width: 4, height: 120, background: TEAL }} />
       </div>
 
-      {/* How to use Section */}
+      {/* CTA Section */}
       <div style={{ padding: '48px 48px 48px 56px' }}>
         <div style={{ maxWidth: 900 }}>
-          <SectionLabel>Getting Started</SectionLabel>
-          <h2 style={{ fontFamily: sansFont, fontSize: 24, fontWeight: 300, color: NAVY, margin: '0 0 24px 0', lineHeight: 1.2 }}>
-            <strong style={{ fontWeight: 500 }}>How</strong> to use
-          </h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <StepCard 
-              num="01"
-              title="Start Chat"
-              subtitle="Tell your symptoms. All conversations are private and stay on your device."
-            />
-            <StepCard 
-              num="02"
-              title="Upload Documents"
-              subtitle="Upload sensitive data like medical notes. Support PDF and many image types."
-            />
-            <StepCard 
-              num="03"
-              title="Enable Tools"
-              subtitle="To interact with external system like smart devices or schedule appointments."
-            />
-          </div>
-
           {/* CTA */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate('/chat')}
             style={{
-              marginTop: 32,
               padding: '14px 28px',
               background: aiStatus.isReady ? BLUE : MUTED,
               border: 'none',

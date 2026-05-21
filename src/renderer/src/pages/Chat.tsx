@@ -222,91 +222,94 @@ export default function Chat() {
             </h1>
           </div>
           
-          {/* Session Dropdown */}
-          <div ref={dropdownRef} style={{ position: 'relative' }}>
+          {/* Session Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* New Session Button - Left of dropdown */}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setShowSessionDropdown(!showSessionDropdown)}
+              onClick={() => setShowNewSessionModal(true)}
               style={{
                 padding: '10px 16px',
-                background: '#fff',
-                border: '1px solid #e0e0f0',
+                background: BLUE,
+                border: 'none',
                 borderRadius: 8,
-                color: NAVY,
+                color: '#fff',
                 fontFamily: monoFont,
                 fontSize: 11,
+                fontWeight: 700,
                 letterSpacing: '0.06em',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
               }}
             >
-              SESSIONS
-              <span style={{ fontSize: 10 }}>{showSessionDropdown ? '▲' : '▼'}</span>
+              + NEW SESSION
             </motion.button>
             
-            {showSessionDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+            {/* Session Dropdown */}
+            <div ref={dropdownRef} style={{ position: 'relative' }}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowSessionDropdown(!showSessionDropdown)}
                 style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: 8,
+                  padding: '10px 16px',
                   background: '#fff',
                   border: '1px solid #e0e0f0',
                   borderRadius: 8,
-                  minWidth: 220,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  zIndex: 100,
-                  overflow: 'hidden',
+                  color: NAVY,
+                  fontFamily: monoFont,
+                  fontSize: 11,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                {/* Session List */}
-                {sessions.map((session) => (
-                  <div
-                    key={session.slug}
-                    onClick={() => handleSessionChange(session.slug)}
-                    style={{
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      background: session.slug === sessionSlug ? LIGHT_BLUE : 'transparent',
-                      borderBottom: '1px solid #f0f0f0',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = LIGHT_BLUE}
-                    onMouseLeave={(e) => e.currentTarget.style.background = session.slug === sessionSlug ? LIGHT_BLUE : 'transparent'}
-                  >
-                    <span style={{ fontFamily: sansFont, fontSize: 13, color: NAVY }}>
-                      {session.name}
-                    </span>
-                  </div>
-                ))}
-                
-                {/* New Session Button */}
-                <div
-                  onClick={() => {
-                    setShowNewSessionModal(true)
-                    setShowSessionDropdown(false)
-                  }}
+                SESSIONS
+                <span style={{ fontSize: 10 }}>{showSessionDropdown ? '▲' : '▼'}</span>
+              </motion.button>
+              
+              {showSessionDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   style={{
-                    padding: '12px 16px',
-                    cursor: 'pointer',
-                    background: 'transparent',
-                    borderTop: '1px solid #e0e0f0',
-                    marginTop: 4,
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 8,
+                    background: '#fff',
+                    border: '1px solid #e0e0f0',
+                    borderRadius: 8,
+                    minWidth: 220,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    zIndex: 100,
+                    overflow: 'hidden',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = LIGHT_BLUE}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span style={{ fontFamily: monoFont, fontSize: 11, color: BLUE, fontWeight: 700 }}>
-                    + NEW SESSION
-                  </span>
-                </div>
-              </motion.div>
-            )}
+                  {/* Session List */}
+                  {sessions.map((session) => (
+                    <div
+                      key={session.slug}
+                      onClick={() => handleSessionChange(session.slug)}
+                      style={{
+                        padding: '12px 16px',
+                        cursor: 'pointer',
+                        background: session.slug === sessionSlug ? LIGHT_BLUE : 'transparent',
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = LIGHT_BLUE}
+                      onMouseLeave={(e) => e.currentTarget.style.background = session.slug === sessionSlug ? LIGHT_BLUE : 'transparent'}
+                    >
+                      <span style={{ fontFamily: sansFont, fontSize: 13, color: NAVY }}>
+                        {session.name}
+                      </span>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
       </div>
