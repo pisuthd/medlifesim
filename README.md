@@ -103,15 +103,7 @@ src/
         ├── pages/
         ├── context/
         └── App.tsx
-```
-
-## 📰 Related News
-
-**AI Trends | Tether Launches Medical Language Model QVAC MedPsy** - Binance News (May 7, 2025)
-
-> The Tether AI research team just dropped QVAC MedPsy, a cutting-edge medical language model designed to run directly on smartphones, wearables, and other devices with limited processing power.
-
-This desktop application brings those capabilities to your computer with a polished UI and additional features.
+``
 
 ## 📄 License
 
