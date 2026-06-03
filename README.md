@@ -9,7 +9,7 @@ A free, open-source desktop application for QVAC MedPsy - the medical language m
 
 ## 🎯 What is QVAC MedPsy?
 
-**QVAC MedPsy** is a cutting-edge medical language model from Tether AI (launched May 2025), designed to run directly on devices with limited processing power. This desktop app brings QVAC MedPsy to your Windows, Mac, or Linux computer with a user-friendly interface.
+**QVAC MedPsy** is a cutting-edge medical language model from Tether AI (launched May 2026), designed to run directly on devices with limited processing power. This desktop app brings QVAC MedPsy to your Windows, Mac, or Linux computer with a user-friendly interface.
 
 ### Why Use This App?
 
