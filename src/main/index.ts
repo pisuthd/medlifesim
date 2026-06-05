@@ -481,7 +481,7 @@ app.whenReady().then(async () => {
   
   createWindow()
 
-  console.log('[App] MedPsy Doctor ready')
+  console.log('[App] MedLifeSim ready')
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 
 type LoadingState = 'checking' | 'loading' | 'ready' | 'error'
 
@@ -187,7 +180,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             marginBottom: '48px',
           }}
         >
-          <span style={{ color: NAVY }}>MedPsy</span> Doctor
+          <span style={{ color: NAVY }}>MedLife</span>Sim
         </p>
 
         {/* App label */}
