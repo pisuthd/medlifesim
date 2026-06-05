@@ -295,7 +295,7 @@ app.whenReady().then(async () => {
         }
       }
       
-      // Load the model in background (fire and forget)
+      // Load the model in background
       await loadAIModel()
       
       return { 

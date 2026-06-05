@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { ChatMessage } from './index.d'
 
 // Custom APIs for renderer
 const api = {
@@ -17,7 +18,7 @@ const api = {
     reload: () => ipcRenderer.invoke('ai:reload'),
     
     // Chat streaming
-    sendMessage: (profileSlug, sessionSlug, message, history, profile) => 
+    sendMessage: (profileSlug: string, sessionSlug: string, message: string, history: ChatMessage[], profile?: { name: string; type: string; age?: number; gender?: string }) => 
       ipcRenderer.invoke('ai:sendMessage', profileSlug, sessionSlug, message, history, profile),
     
     // Event listeners for progress
@@ -59,12 +60,12 @@ const api = {
   },
   
   sessions: {
-    list: (profileSlug) => ipcRenderer.invoke('sessions:list', profileSlug),
-    create: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:create', profileSlug, sessionSlug),
-    delete: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:delete', profileSlug, sessionSlug),
-    clearMessages: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:clearMessages', profileSlug, sessionSlug),
-    loadMessages: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:loadMessages', profileSlug, sessionSlug),
-    saveMessages: (profileSlug, sessionSlug, messages) => 
+    list: (profileSlug: string) => ipcRenderer.invoke('sessions:list', profileSlug),
+    create: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:create', profileSlug, sessionSlug),
+    delete: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:delete', profileSlug, sessionSlug),
+    clearMessages: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:clearMessages', profileSlug, sessionSlug),
+    loadMessages: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:loadMessages', profileSlug, sessionSlug),
+    saveMessages: (profileSlug: string, sessionSlug: string, messages: ChatMessage[]) => 
       ipcRenderer.invoke('sessions:saveMessages', profileSlug, sessionSlug, messages),
   },
   
