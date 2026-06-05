@@ -1,5 +1,5 @@
 {
-  "name": "medpsy-doctor",
+  "name": "medlifesim-desktop",
   "version": "1.0.0-beta.1",
   "description": "Private & On-Device AI Health Assistant - Chat with AI, upload documents, enable tools for medical consultations",
   "main": "./out/main/index.js",
@@ -26,24 +26,12 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@qvac/sdk": "^0.10.2",
+    "@qvac/sdk": "0.12.2",
     "@tailwindcss/vite": "^4.3.0",
     "framer-motion": "^12.39.0",
     "react-router-dom": "^7.15.1",
-    "tailwindcss": "^4.3.0",
-    "bare-os": "3.6.2",
-    "bare-subprocess": "5.2.1",
-    "buffer": "6.0.3",
-    "bare-crypto": "1.13.6",
-    "bare-link": "^3.2.1",
-    "bare-rpc": "^1.3.1",
-    "bare-runtime": "^1.28.5",
-    "bare-runtime-win32-x64": "^1.28.5",
-    "hyperdht": "^6.29.6",
-    "hyperdrive": "^13.3.2",
-    "jszip": "3.10.1",
-    "mirror-drive": "^1.14.1",
-    "tar-stream": "^3.2.0"
+    "tailwindcss": "^4.3.0", 
+    "buffer": "6.0.3"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
@@ -64,7 +52,6 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.6",
-    "bare-pack": "1.4.8"
+    "vite": "^7.2.6"
   }
 }

@@ -4,8 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
-import { registerDocumentsHandlers, registerDocumentsOcrHandler } from './tools/documents'
-import { getDocumentsTool, searchDocumentsTool, documentsStore } from './tools/documents'
+ 
 import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 
 // ============================================
@@ -325,11 +324,11 @@ app.whenReady().then(async () => {
 
   // Execute tool by name
   async function executeToolCall(toolName: string, args: Record<string, unknown>): Promise<string> {
-    if (toolName === 'get_documents') {
-      return getDocumentsTool.execute()
-    } else if (toolName === 'search_documents') {
-      return searchDocumentsTool.execute(args)
-    }
+    // if (toolName === 'get_documents') {
+    //   return getDocumentsTool.execute()
+    // } else if (toolName === 'search_documents') {
+    //   return searchDocumentsTool.execute(args)
+    // }
     return JSON.stringify({ error: `Unknown tool: ${toolName}` })
   }
 
@@ -343,7 +342,7 @@ app.whenReady().then(async () => {
       ensureMainSession(profileSlug)
       
       // Set profile for documents store so tools can access user documents
-      documentsStore.setProfile(profileSlug)
+      // documentsStore.setProfile(profileSlug)
       
       // Get system prompt based on enabled tools and profile context
       const toolsPrompt = getToolsSystemPrompt(profile)
@@ -355,9 +354,9 @@ app.whenReady().then(async () => {
       ]
 
       // Get enabled tools based on Documents tool being enabled
-      const enabledTools = toolsStore.getEnabledTools()
-      const hasDocumentsTool = enabledTools.some(t => t.id === '1')
-      const tools = hasDocumentsTool ? [getDocumentsTool, searchDocumentsTool] : []
+      // const enabledTools = toolsStore.getEnabledTools()
+      // const hasDocumentsTool = enabledTools.some(t => t.id === '1')
+      // const tools = hasDocumentsTool ? [getDocumentsTool, searchDocumentsTool] : []
       
       let fullResponse = ''
       let thinkingContent = ''
@@ -371,7 +370,8 @@ app.whenReady().then(async () => {
           stream: true,
           kvCache: true,
           captureThinking: true,
-          tools: tools.length > 0 ? tools : undefined,
+          tools: []
+          // tools: tools.length > 0 ? tools : undefined,
         })
 
         // Stream tokens and thinking
@@ -447,8 +447,8 @@ app.whenReady().then(async () => {
   registerSessionsIpcHandlers()
   
   // Register documents IPC handlers
-  registerDocumentsHandlers()
-  registerDocumentsOcrHandler()
+  // registerDocumentsHandlers()
+  // registerDocumentsOcrHandler()
   
   // Auto-load AI model on startup (with download if needed)
   console.log('[AI] Starting model load on startup...')
