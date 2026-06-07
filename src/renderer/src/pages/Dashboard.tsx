@@ -1,23 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-// const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
-
-interface AIStatus {
-  isReady: boolean
-  modelName: string
-  uptime: number
-  downloading: boolean
-  downloadProgress: number
-}
+import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
+import { useAI } from '../context/AIContext'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -47,36 +32,35 @@ function formatUptime(seconds: number): string {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [aiStatus, setAIStatus] = useState<AIStatus>({
-    isReady: false,
-    modelName: 'Medpsy-1.7B',
-    uptime: 0,
-    downloading: false,
-    downloadProgress: 0,
-  }) 
+  const { isReady, activeModel, progress, status, error } = useAI()
 
-  // Poll AI status every second
+  // Tick uptime once a second so it updates without a refetch.
+  const [uptime, setUptime] = useState(0)
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const status = await window.api.ai.getStatus()
-        setAIStatus(status)
-      } catch (error) {
-        console.error('Failed to get AI status:', error)
-      }
+    if (!status?.active.loadedAt) {
+      setUptime(0)
+      return
     }
+    const tick = () => {
+      setUptime(Math.floor((Date.now() - (status.active.loadedAt ?? Date.now())) / 1000))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [status?.active.loadedAt])
 
-    fetchStatus()
-    const interval = setInterval(fetchStatus, 3000)
-    return () => clearInterval(interval)
-  }, [])
- 
+  const modelName = activeModel?.name ?? '—'
+  const modelSubtext = progress
+    ? `${progress.phase === 'downloading' ? 'Downloading' : 'Loading'} ${Math.round(progress.percentage)}%`
+    : error
+    ? 'Error loading'
+    : undefined
 
   return (
     <div style={{ fontFamily: sansFont, minHeight: '100vh', position: 'relative' }}>
       {/* Hero Section */}
-      <div style={{ 
-        padding: '48px 48px 48px 56px', 
+      <div style={{
+        padding: '48px 48px 48px 56px',
         background: '#fff',
         position: 'relative',
         overflow: 'hidden',
@@ -84,28 +68,28 @@ export default function Dashboard() {
       }}>
         {/* Geometric staircase blocks - top right */}
         <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}>
-          <div style={{ 
-            position: 'absolute', 
-            top: 0, 
-            right: 0, 
-            width: 300, 
-            height: 200, 
-            background: BLUE 
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 300,
+            height: 200,
+            background: BLUE
           }} />
-          <div style={{ 
-            position: 'absolute', 
-            top: 200, 
-            right: 0, 
-            width: 200, 
-            height: 160, 
-            background: TEAL 
+          <div style={{
+            position: 'absolute',
+            top: 200,
+            right: 0,
+            width: 200,
+            height: 160,
+            background: TEAL
           }} />
-          <div style={{ 
-            position: 'absolute', 
-            top: 360, 
-            right: 100, 
-            width: 100, 
-            height: 80, 
+          <div style={{
+            position: 'absolute',
+            top: 360,
+            right: 100,
+            width: 100,
+            height: 80,
             background: BLUE,
             opacity: 0.5
           }} />
@@ -121,18 +105,18 @@ export default function Dashboard() {
 
           {/* Stats Row */}
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            <StatItem 
-              label="Model" 
-              value={aiStatus.modelName}
-              subtext={aiStatus.downloading ? `Downloading ${aiStatus.downloadProgress}%` : undefined}
+            <StatItem
+              label="Model"
+              value={modelName}
+              subtext={modelSubtext}
             />
-            <StatItem 
-              label="Status" 
-              value={aiStatus.isReady ? 'Ready' : 'Loading'}
+            <StatItem
+              label="Status"
+              value={isReady ? 'Ready' : 'Loading'}
             />
-            <StatItem 
-              label="Uptime" 
-              value={aiStatus.isReady ? formatUptime(aiStatus.uptime) : '--'}
+            <StatItem
+              label="Uptime"
+              value={isReady ? formatUptime(uptime) : '--'}
             />
           </div>
         </div>
@@ -154,7 +138,7 @@ export default function Dashboard() {
             marginBottom: 24,
           }}>
             <h3 style={{ fontFamily: sansFont, fontSize: 16, fontWeight: 500, color: NAVY, margin: '0 0 8px 0' }}>
-              MedPsy Doctor
+              MedLifeSim
             </h3>
             <p style={{ fontFamily: sansFont, fontSize: 13, color: MUTED, margin: 0 }}>
               Free & Open Source. A desktop application that brings on-device AI medical assistance with privacy-first design.
@@ -168,7 +152,7 @@ export default function Dashboard() {
             onClick={() => navigate('/chat')}
             style={{
               padding: '14px 28px',
-              background: aiStatus.isReady ? BLUE : MUTED,
+              background: isReady ? BLUE : MUTED,
               border: 'none',
               borderRadius: 6,
               color: '#fff',
@@ -176,7 +160,7 @@ export default function Dashboard() {
               fontWeight: 700,
               fontSize: 12,
               letterSpacing: '0.1em',
-              cursor: aiStatus.isReady ? 'pointer' : 'not-allowed',
+              cursor: isReady ? 'pointer' : 'not-allowed',
             }}
           >
             START CHATTING →

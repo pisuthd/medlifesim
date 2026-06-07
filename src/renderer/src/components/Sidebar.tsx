@@ -1,13 +1,5 @@
 import { NavLink } from 'react-router-dom'
-
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, TEAL, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
 
 const navItems = [
   { path: '/chat', label: 'Chat', num: '01' },
@@ -19,7 +11,7 @@ const navItems = [
 function Wordmark() {
   return (
     <p style={{ fontFamily: monoFont, fontWeight: 700, fontSize: 16, letterSpacing: '0.04em', color: NAVY, margin: 0 }}>
-      MedPsy <span style={{ color: BLUE }}>Doctor</span>
+      <span style={{ color: BLUE }}>MedLife</span>Sim
     </p>
   )
 }

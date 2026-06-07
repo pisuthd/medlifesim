@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const BLUE = '#1A1AE8'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { useAI } from '../context/AIContext'
+import { BLUE, NAVY, MUTED, monoFont, sansFont } from '../theme'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -18,9 +13,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function Settings() {
   const [ctxSize, setCtxSize] = useState(4096)
+  const navigate = useNavigate()
+  const { reload, progress, error: aiError, activeModel } = useAI()
   const [isReloading, setIsReloading] = useState(false)
   const [reloadError, setReloadError] = useState('')
-  const navigate = useNavigate()
 
   // Load settings on mount
   useEffect(() => {
@@ -47,17 +43,17 @@ export default function Settings() {
   const handleReloadModel = async () => {
     setIsReloading(true)
     setReloadError('')
-    
+
     try {
-      const result = await window.api.ai.reload()
-      if (result.success) {
-        // Model reloaded successfully, navigate to chat
-        navigate('/chat')
-      } else {
-        setReloadError(result.error || 'Failed to reload model')
+      // Reload currently-active model via the shared context.
+      if (!activeModel) {
+        setReloadError('No model is currently selected')
+        return
       }
-    } catch (error) {
-      setReloadError(error instanceof Error ? error.message : 'Unknown error')
+      await reload()
+      navigate('/chat')
+    } catch (e) {
+      setReloadError(e instanceof Error ? e.message : 'Failed to reload model')
     } finally {
       setIsReloading(false)
     }
@@ -111,8 +107,14 @@ export default function Settings() {
         <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED, marginBottom: 16 }}>
           After changing context size, reload the model to apply the new setting.
         </p>
-        
-        {reloadError && (
+
+        {activeModel && (
+          <p style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+            Current model: <span style={{ color: NAVY, fontWeight: 700 }}>{activeModel.name}</span>
+          </p>
+        )}
+
+        {(reloadError || aiError) && (
           <div
             style={{
               padding: '12px 16px',
@@ -126,30 +128,32 @@ export default function Settings() {
               Error
             </p>
             <p style={{ fontFamily: sansFont, fontSize: 13, color: '#660000', margin: 0 }}>
-              {reloadError}
+              {reloadError || aiError?.message || 'Failed to reload model'}
             </p>
           </div>
         )}
-        
+
         <button
           onClick={handleReloadModel}
-          disabled={isReloading}
+          disabled={isReloading || !!progress}
           style={{
             padding: '12px 24px',
-            background: isReloading ? MUTED : BLUE,
+            background: isReloading || progress ? MUTED : BLUE,
             color: '#fff',
             border: 'none',
             borderRadius: 8,
             fontFamily: monoFont,
             fontSize: 12,
             fontWeight: 500,
-            cursor: isReloading ? 'not-allowed' : 'pointer',
+            cursor: isReloading || progress ? 'not-allowed' : 'pointer',
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
             transition: 'all 0.2s',
           }}
         >
-          {isReloading ? 'Reloading...' : 'Reload Model'}
+          {isReloading || progress
+            ? `Reloading… ${Math.round(progress?.percentage ?? 0)}%`
+            : 'Reload Model'}
         </button>
       </div>
     </div>

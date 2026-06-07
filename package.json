@@ -1,5 +1,5 @@
 {
-  "name": "medlifesim-desktop",
+  "name": "medlifesim",
   "version": "1.0.0-beta.1",
   "description": "Private & On-Device AI Health Assistant - Chat with AI, upload documents, enable tools for medical consultations",
   "main": "./out/main/index.js",

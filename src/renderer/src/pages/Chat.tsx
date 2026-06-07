@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
+import { useAI } from '../context/AIContext'
 
 const BLUE = '#1A1AE8' 
 const NAVY = '#0a0a5c'
@@ -36,6 +37,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function Chat() {
   const { profile } = useProfile()
+  const { isReady, progress } = useAI()
   const [searchParams, setSearchParams] = useSearchParams()
   const sessionSlug = searchParams.get('session') || 'main'
   
@@ -170,7 +172,7 @@ export default function Chat() {
   }
 
   const handleSend = async () => {
-    if (!input.trim() || loading || !profile) return
+    if (!input.trim() || loading || !profile || !isReady) return
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -518,6 +520,23 @@ export default function Chat() {
 
       {/* Input */}
       <div style={{ padding: '16px 32px 24px', borderTop: '1px solid #e0e0f0' }}>
+        {!isReady && (
+          <p
+            style={{
+              fontFamily: monoFont,
+              fontSize: 11,
+              color: MUTED,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              textAlign: 'center',
+              marginBottom: 8,
+            }}
+          >
+            {progress
+              ? `${progress.phase === 'downloading' ? 'Downloading' : 'Loading'} model… ${Math.round(progress.percentage)}%`
+              : 'Model not ready — pick one from the model screen.'}
+          </p>
+        )}
         <div
           style={{
             display: 'flex',
@@ -533,8 +552,8 @@ export default function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Tell me about your symptoms..."
-            disabled={loading}
+            placeholder={isReady ? 'Tell me about your symptoms...' : 'Waiting for model to load…'}
+            disabled={loading || !isReady}
             style={{
               flex: 1,
               border: 'none',
@@ -551,10 +570,10 @@ export default function Chat() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSend}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || !isReady}
             style={{
               padding: '12px 24px',
-              background: input.trim() && !loading ? BLUE : MUTED,
+              background: input.trim() && !loading && isReady ? BLUE : MUTED,
               border: 'none',
               borderRadius: 8,
               color: '#fff',
@@ -562,7 +581,7 @@ export default function Chat() {
               fontWeight: 700,
               fontSize: 11,
               letterSpacing: '0.1em',
-              cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
+              cursor: input.trim() && !loading && isReady ? 'pointer' : 'not-allowed',
             }}
           >
             SEND
