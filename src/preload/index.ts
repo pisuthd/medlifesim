@@ -1,16 +1,39 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ChatMessage } from './index.d'
+import type { ChatMessage, ModelEntry, ModelLoadProgress, ModelErrorPayload, ModelStatus } from './index.d'
 
 // Custom APIs for renderer
 const api = {
   profiles: {
     getAll: () => ipcRenderer.invoke('profiles:getAll'),
-    add: (profile: { name: string; type: string; age?: number; gender?: string }) => 
+    add: (profile: { name: string; type: string; age?: number; gender?: string }) =>
       ipcRenderer.invoke('profiles:add', profile),
     remove: (id: string) => ipcRenderer.invoke('profiles:remove', id),
   },
-  
+
+  models: {
+    list: (): Promise<ModelEntry[]> => ipcRenderer.invoke('models:list'),
+    add: (entry: { name: string; source: string; description?: string; quantization?: string; params?: string }): Promise<ModelEntry> =>
+      ipcRenderer.invoke('models:add', entry),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('models:remove', id),
+    select: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('models:select', id),
+    cancel: (opts?: { clearCache?: boolean }): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('models:cancel', opts),
+    status: (): Promise<ModelStatus> => ipcRenderer.invoke('models:status'),
+    pickFile: (): Promise<string | null> => ipcRenderer.invoke('models:pickFile'),
+    onProgress: (callback: (progress: ModelLoadProgress) => void) => {
+      const handler = (_: unknown, progress: ModelLoadProgress) => callback(progress)
+      ipcRenderer.on('models:progress', handler)
+      return () => ipcRenderer.removeListener('models:progress', handler)
+    },
+    onError: (callback: (err: ModelErrorPayload) => void) => {
+      const handler = (_: unknown, err: ModelErrorPayload) => callback(err)
+      ipcRenderer.on('models:error', handler)
+      return () => ipcRenderer.removeListener('models:error', handler)
+    },
+  },
+
   ai: {
     getStatus: () => ipcRenderer.invoke('ai:getStatus'),
     load: () => ipcRenderer.invoke('ai:load'),

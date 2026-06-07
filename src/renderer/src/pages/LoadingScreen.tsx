@@ -1,107 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
-
-type LoadingState = 'checking' | 'loading' | 'ready' | 'error'
-
-interface AIStatus {
-  isReady: boolean
-  modelName: string
-  uptime: number
-  downloading: boolean
-  downloadProgress: number
-  error?: string
-}
+import { useAI } from '../context/AIContext'
 
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
-  const [state, setState] = useState<LoadingState>('checking')
-  const [progress, setProgress] = useState(0)
-  const [statusText, setStatusText] = useState('Checking model...')
-  const [errorMessage, setErrorMessage] = useState('')
+  const { isReady, progress, error, activeModel, reload } = useAI()
 
-  const handleReload = async () => {
-    setState('loading')
-    setProgress(0)
-    setStatusText('Reloading...')
-    setErrorMessage('')
-    
-    try {
-      await window.api.ai.load()
-    } catch (error) {
-      console.error('Reload failed:', error)
-    }
-  }
-
+  // When the model finishes loading, advance after a short delay.
   useEffect(() => {
-    let isMounted = true
-    let pollInterval: NodeJS.Timeout | null = null
+    if (!isReady) return
+    const t = setTimeout(() => onComplete(), 400)
+    return () => clearTimeout(t)
+  }, [isReady, onComplete])
 
-    // Listen for AI errors
-    const unsubscribe = window.api.ai.onError((error: string) => {
-      if (isMounted) {
-        console.log('[LoadingScreen] Received AI error:', error)
-        setState('error')
-        setErrorMessage(error || 'Failed to load AI model')
-        setStatusText('Error loading model')
-      }
-    })
-
-    const checkStatus = async () => {
-      try {
-        const status: AIStatus = await window.api.ai.getStatus()
-        
-        if (!isMounted) return
-        
-        // Update progress based on status
-        if (status.isReady) {
-          setProgress(100)
-          setStatusText('Ready')
-          setState('ready')
-          
-          // Cleanup
-          if (pollInterval) clearInterval(pollInterval)
-          
-          // Complete after short delay
-          setTimeout(() => {
-            if (isMounted) onComplete()
-          }, 400)
-          return
-        }
-        
-        // Model is loading
-        if (state !== 'loading' && state !== 'error') {
-          setState('loading')
-        }
-        
-        // Calculate progress based on download or simulated loading
-        if (status.downloading) {
-          setProgress(status.downloadProgress)
-          setStatusText(`Downloading MedPsy 1.7B... ${status.downloadProgress}%`)
-        } else {
-          // Simulate gradual progress during model loading
-          setProgress(prev => Math.min(prev + Math.random() * 3, 90))
-          setStatusText('Loading AI model...')
-        }
-        
-      } catch (error) {
-        if (isMounted) {
-          setState('error')
-          setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
-          setStatusText('Error loading model')
-          if (pollInterval) clearInterval(pollInterval)
-        }
-      }
-    }
-
-    // Start polling
-    checkStatus()
-    pollInterval = setInterval(checkStatus, 500)
-
-    return () => {
-      isMounted = false
-      unsubscribe()
-      if (pollInterval) clearInterval(pollInterval)
-    }
-  }, [onComplete, state])
+  const percent = Math.max(0, Math.min(100, Math.round(progress?.percentage ?? 0)))
+  const modelLabel = activeModel?.name ?? 'Model'
+  const statusText = error
+    ? 'Error loading model'
+    : progress?.phase === 'downloading'
+    ? `Downloading ${modelLabel}… ${percent}%`
+    : progress?.phase === 'loading'
+    ? `Loading ${modelLabel}… ${percent}%`
+    : isReady
+    ? 'Ready'
+    : 'Preparing model…'
 
   return (
     <div
@@ -215,7 +136,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
 
         {/* Progress bar or Error state */}
         <div style={{ width: '260px' }}>
-          {state === 'error' ? (
+          {error ? (
             <div>
               <div
                 style={{
@@ -246,12 +167,14 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                     margin: 0,
                   }}
                 >
-                  {errorMessage || 'Failed to load AI model'}
+                  {error.message || 'Failed to load AI model'}
                 </p>
               </div>
-              
+
               <button
-                onClick={handleReload}
+                onClick={() => {
+                  void reload()
+                }}
                 style={{
                   padding: '12px 24px',
                   background: BLUE,
@@ -286,7 +209,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                     left: 0,
                     top: 0,
                     height: '100%',
-                    width: `${Math.min(progress, 100)}%`,
+                    width: `${percent}%`,
                     background: BLUE,
                     transition: 'width 0.3s ease-out',
                   }}
@@ -311,7 +234,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                     color: BLUE,
                   }}
                 >
-                  {Math.round(Math.min(progress, 100))}%
+                  {percent}%
                 </span>
               </div>
             </>

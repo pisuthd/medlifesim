@@ -1,168 +1,43 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
- 
+
 import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 
 // ============================================
-// QVAC AI Model Management
+// QVAC AI Model Management (QVAC-native flow)
 // ============================================
-import { loadModel, unloadModel, completion, type ToolCall } from '@qvac/sdk'
+import { completion, type ToolCall } from '@qvac/sdk'
 import { saveMessages, loadMessages, ensureMainSession } from './sessions'
+import {
+  ensureQvacConfig,
+  setMainWindow,
+  ensureModel,
+  cancelCurrentRequest,
+  unloadCurrent,
+  getActiveModelId,
+  buildStatus,
+} from './qvac'
+import { modelStore, type ModelEntry, type ModelSourceKind } from './modelStore'
 
-const MODEL_FILE = 'medpsy-1.7b-q4_k_m-imat.gguf'
-const MODEL_URL = 'https://github.com/pisuthd/medpsy-doctor/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf'
-
-interface AIStatus {
-  isReady: boolean
-  modelName: string
-  uptime: number // seconds
-  downloading: boolean
-  downloadProgress: number // 0-100
-  error?: string
+interface ModelsStatus {
+  active: {
+    id: string | null
+    name: string
+    source: string
+    sourceKind: ModelSourceKind | null
+    loaded: boolean
+    requestId: string | null
+    loadedAt: number | null
+  }
+  lastSelectedId: string | null
+  available: ModelEntry[]
 }
 
-let modelId: string | null = null
-let modelStartTime: number | null = null
 let mainWindowRef: BrowserWindow | null = null
-
-// Download progress tracking
-let downloadProgress = 0
-let isDownloading = false
-
-function getModelPath(): string {
-  return join(app.getPath('userData'), MODEL_FILE)
-}
-
-async function checkModelExists(): Promise<boolean> {
-  const fs = await import('fs')
-  const modelPath = getModelPath()
-  return fs.existsSync(modelPath)
-}
-
-async function downloadModel(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const https = require('https')
-    const fs = require('fs')
-    const modelPath = getModelPath()
-    
-    isDownloading = true
-    downloadProgress = 0
-    
-    // Ensure directory exists
-    const dir = app.getPath('userData')
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
-    
-    const file = fs.createWriteStream(modelPath)
-    
-    https.get(MODEL_URL, (response: any) => {
-      // Handle redirects
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        https.get(response.headers.location, (redirectResponse: any) => {
-          const totalSize = parseInt(redirectResponse.headers['content-length'] || '0', 10)
-          let downloaded = 0
-          
-          redirectResponse.on('data', (chunk: Buffer) => {
-            downloaded += chunk.length
-            file.write(chunk)
-            downloadProgress = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0
-            
-            // Send progress to renderer
-            if (mainWindowRef) {
-              mainWindowRef.webContents.send('ai:downloadProgress', downloadProgress)
-            }
-          })
-          
-          redirectResponse.on('end', () => {
-            file.end()
-            isDownloading = false
-            downloadProgress = 100
-            resolve(true)
-          })
-        })
-      } else {
-        const totalSize = parseInt(response.headers['content-length'] || '0', 10)
-        let downloaded = 0
-        
-        response.on('data', (chunk: Buffer) => {
-          downloaded += chunk.length
-          file.write(chunk)
-          downloadProgress = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0
-          
-          if (mainWindowRef) {
-            mainWindowRef.webContents.send('ai:downloadProgress', downloadProgress)
-          }
-        })
-        
-        response.on('end', () => {
-          file.end()
-          isDownloading = false
-          downloadProgress = 100
-          resolve(true)
-        })
-      }
-    }).on('error', (err: Error) => {
-      console.error('[Download] Error:', err)
-      isDownloading = false
-      resolve(false)
-    })
-  })
-}
-
-async function loadAIModel(): Promise<boolean> {
-  // Don't reload if already loaded
-  if (modelId !== null) {
-    console.log('[AI] Model already loaded, skipping:', modelId)
-    return true
-  }
-  
-  try {
-    const modelPath = getModelPath()
-    console.log('[AI] Loading model from:', modelPath)
-    
-    modelId = await loadModel({
-      modelSrc: modelPath,
-      modelType: 'llamacpp-completion',
-      modelConfig: {
-        ctx_size: settingsStore.getCtxSize(),
-        tools: false,
-      },
-      onProgress: (progress) => {
-        const msg = typeof progress === 'string' ? progress : JSON.stringify(progress)
-        console.log('[AI]', msg)
-        
-        if (mainWindowRef) {
-          mainWindowRef.webContents.send('ai:loadProgress', msg)
-        }
-      }
-    })
-    
-    modelStartTime = Date.now()
-    console.log('[AI] Model loaded successfully:', modelId)
-    return true
-  } catch (error) {
-    console.error('[AI] Failed to load model:', error)
-    modelId = null
-    return false
-  }
-}
-
-function getAIStatus(): AIStatus {
-  const uptime = modelStartTime ? Math.floor((Date.now() - modelStartTime) / 1000) : 0
-  
-  return {
-    isReady: modelId !== null,
-    modelName: modelId ? 'Medpsy-1.7B' : 'Loading',
-    uptime,
-    downloading: isDownloading,
-    downloadProgress,
-  }
-}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -192,14 +67,18 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
-  
+
   mainWindowRef = mainWindow
+  setMainWindow(mainWindow)
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.medpsy.doctor')
+
+  // Bootstrap the QVAC config (sets QVAC_CONFIG_PATH) BEFORE any SDK call.
+  ensureQvacConfig()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -226,34 +105,6 @@ app.whenReady().then(async () => {
     return { success: true }
   })
 
-  // Model reload handler
-  ipcMain.handle('ai:reload', async () => {
-    try {
-      console.log('[AI] Reloading model...')
-      
-      // Unload existing model if loaded
-      if (modelId) {
-        await unloadModel({ modelId })
-        modelId = null
-        modelStartTime = null
-        console.log('[AI] Model unloaded')
-      }
-      
-      // Reload with current settings
-      const success = await loadAIModel()
-      
-      if (success) {
-        return { success: true, status: getAIStatus() }
-      } else {
-        return { success: false, error: 'Failed to reload model' }
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      console.error('[AI] Reload failed:', message)
-      return { success: false, error: message }
-    }
-  })
-
   // Profile IPC handlers
   ipcMain.handle('profiles:getAll', () => {
     return profileStore.getAll()
@@ -267,63 +118,158 @@ app.whenReady().then(async () => {
     return profileStore.remove(id)
   })
 
-  // AI IPC handlers
-  ipcMain.handle('ai:getStatus', () => {
-    return getAIStatus()
+  // ─── Model registry (QVAC-backed) ──────────────────────────────────────
+  ipcMain.handle('models:list', () => {
+    return modelStore.getAll()
   })
 
-  ipcMain.handle('ai:load', async () => {
+  ipcMain.handle(
+    'models:add',
+    (
+      _,
+      entry: { name: string; source: string; description?: string; quantization?: string; params?: string },
+    ) => {
+      if (!entry?.name?.trim() || !entry?.source?.trim()) {
+        throw new Error('Both name and source are required')
+      }
+      const trimmed = entry.source.trim()
+      return modelStore.add({
+        name: entry.name.trim(),
+        source: trimmed,
+        description: entry.description?.trim(),
+        quantization: entry.quantization?.trim(),
+        params: entry.params?.trim(),
+      })
+    },
+  )
+
+  ipcMain.handle('models:remove', (_, id: string) => {
+    return modelStore.remove(id)
+  })
+
+  ipcMain.handle('models:status', (): ModelsStatus => {
+    return buildStatus() as ModelsStatus
+  })
+
+  ipcMain.handle('models:pickFile', async () => {
+    const win = mainWindowRef ?? BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select a GGUF model file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'GGUF Models', extensions: ['gguf'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const picked = result.filePaths[0]
+    if (!picked.toLowerCase().endsWith('.gguf')) {
+      throw new Error('Selected file is not a .gguf model')
+    }
+    return picked
+  })
+
+  ipcMain.handle('models:select', async (_, id: string) => {
+    const entry = modelStore.getById(id)
+    if (!entry) {
+      return { success: false, error: 'Unknown model id' }
+    }
+
     try {
-      // Don't reload if already loaded
-      if (modelId !== null) {
-        console.log('[AI] Model already loaded:', modelId)
-        return { 
-          success: true, 
-          status: getAIStatus()
-        }
+      // Cancel any in-flight request and unload the currently-loaded model.
+      await cancelCurrentRequest()
+      const prevId = getActiveModelId()
+      if (prevId) {
+        await unloadCurrent(prevId)
       }
-      
-      // Check if model exists, if not download first
-      const exists = await checkModelExists()
-      
-      if (!exists) {
-        console.log('[AI] Model not found, downloading...')
-        const downloaded = await downloadModel()
-        
-        if (!downloaded) {
-          return { success: false, error: 'Failed to download model' }
-        }
-      }
-      
-      // Load the model in background
-      await loadAIModel()
-      
-      return { 
-        success: true, 
-        status: getAIStatus()
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
+      // Mark this entry as the user's most recent choice.
+      modelStore.setLastSelected(entry.id)
+      // Drive the download + load.
+      await ensureModel(entry)
+      return { success: true }
+    } catch (err) {
+      const mapped = (err && typeof err === 'object' && 'code' in err)
+        ? (err as { code: string; message: string; retryable: boolean })
+        : { code: 'UNKNOWN', message: String(err), retryable: true }
+      // Surface the error to the renderer via the push channel too.
+      mainWindowRef?.webContents.send('models:error', mapped)
+      return { success: false, error: mapped.message }
+    }
+  })
+
+  ipcMain.handle('models:cancel', async (_, opts?: { clearCache?: boolean }) => {
+    await cancelCurrentRequest({ clearCache: opts?.clearCache })
+    return { success: true }
+  })
+
+  // ─── AI: legacy shims (back-compat for Chat/Settings/Dashboard) ───────
+  // Status is now backed by the new buildStatus() snapshot.
+  ipcMain.handle('ai:getStatus', () => {
+    const status = buildStatus()
+    const modelName = status.active.name || (status.active.loaded ? 'Model' : 'Loading')
+    return {
+      isReady: status.active.loaded,
+      modelName,
+      uptime: status.active.loadedAt
+        ? Math.floor((Date.now() - status.active.loadedAt) / 1000)
+        : 0,
+      downloading: status.active.requestId !== null,
+      downloadProgress: 0, // legacy field; the new `models:progress` channel carries real numbers
+    }
+  })
+
+  // ai:load → trigger a load of the currently-selected model (if any).
+  ipcMain.handle('ai:load', async () => {
+    const last = modelStore.getLastSelected() ?? modelStore.getAll()[0]
+    if (!last) {
+      return { success: false, error: 'No models in registry' }
+    }
+    try {
+      await cancelCurrentRequest()
+      const prevId = getActiveModelId()
+      if (prevId) await unloadCurrent(prevId)
+      modelStore.setLastSelected(last.id)
+      await ensureModel(last)
+      return { success: true, status: buildStatus() }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load model'
       return { success: false, error: message }
     }
   })
 
+  // ai:unload → unload current model.
   ipcMain.handle('ai:unload', async () => {
+    const id = getActiveModelId()
+    if (!id) return { success: true }
     try {
-      if (modelId) {
-        await unloadModel({ modelId })
-        modelId = null
-        modelStartTime = null
-      }
+      await unloadCurrent(id)
       return { success: true }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to unload model'
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to unload model'
+      return { success: false, error: message }
+    }
+  })
+
+  // ai:reload → unload then re-load currently-selected model.
+  ipcMain.handle('ai:reload', async () => {
+    const last = modelStore.getLastSelected() ?? modelStore.getAll()[0]
+    if (!last) return { success: false, error: 'No models in registry' }
+    try {
+      await cancelCurrentRequest()
+      const prevId = getActiveModelId()
+      if (prevId) await unloadCurrent(prevId)
+      await ensureModel(last)
+      return { success: true, status: buildStatus() }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to reload model'
       return { success: false, error: message }
     }
   })
 
   // Execute tool by name
-  async function executeToolCall(toolName: string, args: Record<string, unknown>): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function executeToolCall(toolName: string, _args: Record<string, unknown>): Promise<string> {
     // if (toolName === 'get_documents') {
     //   return getDocumentsTool.execute()
     // } else if (toolName === 'search_documents') {
@@ -334,19 +280,20 @@ app.whenReady().then(async () => {
 
   // AI Chat with streaming and tool calls
   ipcMain.handle('ai:sendMessage', async (_event, profileSlug: string, sessionSlug: string, message: string, history: any[], profile?: { name: string; type: string; age?: number; gender?: string }) => {
+    const modelId = getActiveModelId()
     if (!modelId || !mainWindowRef) {
       return { success: false, error: 'AI model not loaded' }
     }
 
     try {
       ensureMainSession(profileSlug)
-      
+
       // Set profile for documents store so tools can access user documents
       // documentsStore.setProfile(profileSlug)
-      
+
       // Get system prompt based on enabled tools and profile context
       const toolsPrompt = getToolsSystemPrompt(profile)
-      
+
       // Build conversation history
       const conversationHistory = [
         ...history.map((h: any) => ({ role: h.role, content: h.content })),
@@ -357,7 +304,7 @@ app.whenReady().then(async () => {
       // const enabledTools = toolsStore.getEnabledTools()
       // const hasDocumentsTool = enabledTools.some(t => t.id === '1')
       // const tools = hasDocumentsTool ? [getDocumentsTool, searchDocumentsTool] : []
-      
+
       let fullResponse = ''
       let thinkingContent = ''
       const maxToolCalls = 3 // Prevent infinite loops
@@ -442,43 +389,17 @@ app.whenReady().then(async () => {
 
   // Initialize sessions for existing profiles
   initSessions()
-  
+
   // Register sessions IPC handlers
   registerSessionsIpcHandlers()
-  
+
   // Register documents IPC handlers
   // registerDocumentsHandlers()
   // registerDocumentsOcrHandler()
-  
-  // Auto-load AI model on startup (with download if needed)
-  console.log('[AI] Starting model load on startup...')
-  ;(async () => {
-    // Check if model exists, if not download first
-    const exists = await checkModelExists()
-    
-    if (!exists) {
-      console.log('[AI] Model not found, downloading...')
-      const downloaded = await downloadModel()
-      
-      if (!downloaded) {
-        console.log('[AI] Failed to download model')
-        return
-      }
-    }
-    
-    // Now load the model
-    const success = await loadAIModel()
-    if (success) {
-      console.log('[AI] Startup model load complete')
-    } else {
-      console.log('[AI] Startup model load failed')
-      // Send error to renderer
-      if (mainWindowRef) {
-        mainWindowRef.webContents.send('ai:error', 'Failed to load AI model. Click Reload to try again.')
-      }
-    }
-  })()
-  
+
+  // No silent background auto-load — the renderer drives loading via the
+  // `model` boot step (see App.tsx). The user always picks a model first.
+
   createWindow()
 
   console.log('[App] MedLifeSim ready')
@@ -495,9 +416,10 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async () => {
+  const modelId = getActiveModelId()
   if (modelId) {
     try {
-      await unloadModel({ modelId })
+      await unloadCurrent(modelId)
       console.log('[AI] Model unloaded on exit')
     } catch (error) {
       console.error('Failed to unload model:', error)
