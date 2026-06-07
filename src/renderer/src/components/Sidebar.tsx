@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { MessageCircle, LayoutDashboard, History, Settings, Play, FolderOpen } from 'lucide-react'
-import { BLUE, TEAL, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
+import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 
 const navItems = [
   { path: '/chat', label: 'Chat', icon: MessageCircle, category: 'chat' },
@@ -93,7 +93,7 @@ export default function Sidebar() {
                       transition: 'all 0.15s',
                     })}
                   >
-                    {({ isActive }) => (
+                    {({ isActive: _isActive }) => (
                       <>
                         <Icon
                           size={16}
