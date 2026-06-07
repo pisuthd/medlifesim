@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard'
 import Sessions from './pages/Sessions'
 import Chat from './pages/Chat'
 import Settings from './pages/Settings'
+import StartSimulation from './pages/StartSimulation'
+import RecentSimulations from './pages/RecentSimulations'
 import { MUTED, monoFont } from './theme'
 import type { ModelEntry } from '../../preload/index.d'
 
@@ -112,6 +114,8 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="sessions" element={<Sessions />} />
                 <Route path="chat" element={<Chat />} />
+                <Route path="start-simulation" element={<StartSimulation />} />
+                <Route path="recent-simulations" element={<RecentSimulations />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

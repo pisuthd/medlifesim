@@ -28,10 +28,11 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@qvac/sdk": "0.12.2",
     "@tailwindcss/vite": "^4.3.0",
+    "buffer": "6.0.3",
     "framer-motion": "^12.39.0",
+    "lucide-react": "^1.17.0",
     "react-router-dom": "^7.15.1",
-    "tailwindcss": "^4.3.0", 
-    "buffer": "6.0.3"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
