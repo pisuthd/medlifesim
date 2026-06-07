@@ -4,14 +4,6 @@ import { motion } from 'framer-motion'
 import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 import { useAI } from '../context/AIContext'
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
-      {children}
-    </p>
-  )
-}
-
 function StatItem({ label, value, subtext }: { label: string; value: string; subtext?: string }) {
   return (
     <div style={{ marginRight: 32 }}>
@@ -34,7 +26,6 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { isReady, activeModel, progress, status, error } = useAI()
 
-  // Tick uptime once a second so it updates without a refetch.
   const [uptime, setUptime] = useState(0)
   useEffect(() => {
     if (!status?.active.loadedAt) {
@@ -97,11 +88,18 @@ export default function Dashboard() {
 
         {/* Content */}
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 600 }}>
-          <SectionLabel>Dashboard</SectionLabel>
-          <h1 style={{ fontFamily: sansFont, fontSize: 36, fontWeight: 300, color: NAVY, margin: '0 0 24px 0', lineHeight: 1.2 }}>
+          <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
+            Account
+          </p>
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{ fontFamily: sansFont, fontSize: 36, fontWeight: 300, color: NAVY, margin: '0 0 24px 0', lineHeight: 1.2 }}
+          >
             <strong style={{ fontWeight: 600 }}>Free & Private</strong><br />
             Medical Consultation
-          </h1>
+          </motion.h1>
 
           {/* Stats Row */}
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>

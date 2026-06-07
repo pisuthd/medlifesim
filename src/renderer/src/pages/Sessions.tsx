@@ -2,29 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
-
-// const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import PageWrapper from '../components/PageWrapper'
+import { TEAL, MUTED, monoFont, sansFont } from '../theme'
 
 interface Session {
   slug: string
   name: string
   createdAt: string
   messageCount: number
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
-      {children}
-    </p>
-  )
 }
 
 function formatDate(isoString: string): string {
@@ -47,7 +32,6 @@ export default function Sessions() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load sessions on mount
   useEffect(() => {
     if (!profile) {
       setLoading(false)
@@ -80,7 +64,6 @@ export default function Sessions() {
 
     try {
       await window.api.sessions.clearMessages(profile.id, slug)
-      // Refresh list
       const list = await window.api.sessions.list(profile.id)
       setSessions(list)
     } catch (error) {
@@ -96,7 +79,6 @@ export default function Sessions() {
 
     try {
       await window.api.sessions.delete(profile.id, slug)
-      // Refresh list
       const list = await window.api.sessions.list(profile.id)
       setSessions(list)
     } catch (error) {
@@ -105,29 +87,17 @@ export default function Sessions() {
   }
 
   return (
-    <div style={{ padding: '32px', fontFamily: sansFont }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <SectionLabel>Sessions</SectionLabel>
-        <h1 style={{ fontFamily: sansFont, fontSize: 28, fontWeight: 300, color: NAVY, margin: 0, lineHeight: 1.2 }}>
-          <strong style={{ fontWeight: 500 }}>Your</strong> conversations
-        </h1>
-      </div>
-
-      {/* Sessions Table */}
+    <PageWrapper title="Your conversations" category="Chat">
       <div style={{ background: '#fff', border: '1px solid #e0e0f0', borderRadius: 8, overflow: 'hidden' }}>
-        {/* Teal top accent */}
         <div style={{ height: 3, background: TEAL }} />
         
-        {/* Table Header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 60px', padding: '12px 16px', background: LIGHT_BLUE, borderBottom: '1px solid #e0e0f0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 60px', padding: '12px 16px', background: '#f7f7fc', borderBottom: '1px solid #e0e0f0' }}>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Conversation</span>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>Date</span>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', textAlign: 'right' }}>Messages</span>
           <span style={{ fontFamily: monoFont, fontSize: 10, letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', textAlign: 'center' }}>Actions</span>
         </div>
 
-        {/* Table Rows */}
         <div>
           {loading ? (
             <div style={{ padding: 24, textAlign: 'center', color: MUTED }}>
@@ -156,12 +126,11 @@ export default function Sessions() {
                   onClick={() => handleSessionClick(session.slug)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <span style={{ fontFamily: sansFont, fontSize: 14, color: NAVY, fontWeight: 500 }}>{session.name}</span>
+                  <span style={{ fontFamily: sansFont, fontSize: 14, color: '#1a1a2e', fontWeight: 500 }}>{session.name}</span>
                 </div>
                 <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{formatDate(session.createdAt)}</span>
                 <span style={{ fontFamily: monoFont, fontSize: 12, color: MUTED, textAlign: 'right' }}>{session.messageCount}</span>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                  {/* Clear button - only for main session */}
                   {session.slug === 'main' && (
                     <button
                       onClick={() => handleClearMessages(session.slug, session.name)}
@@ -179,7 +148,6 @@ export default function Sessions() {
                       Clear
                     </button>
                   )}
-                  {/* Delete button - only for non-main sessions */}
                   {session.slug !== 'main' && (
                     <button
                       onClick={() => handleDeleteSession(session.slug, session.name)}
@@ -203,6 +171,6 @@ export default function Sessions() {
           )}
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }
