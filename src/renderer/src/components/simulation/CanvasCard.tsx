@@ -221,9 +221,25 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
-                    {CATEGORY_PREFIX[card.category]} • {card.badge}
+                    <span
+                      style={{
+                        background: accent,
+                        color: '#fff',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        fontSize: 8,
+                        fontWeight: 700,
+                        letterSpacing: '0.1em',
+                      }}
+                    >
+                      {CATEGORY_PREFIX[card.category]}
+                    </span>
+                     {card.badge}
                   </div>
                   <div
                     style={{
@@ -377,14 +393,14 @@ function Port({ side, active, color, onClick }: PortProps) {
         onClick()
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      animate={active ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-      transition={active ? { repeat: Infinity, duration: 1.2, ease: 'easeInOut' } : { duration: 0.12 }}
-      whileHover={{ scale: 1.3 }}
+      // animate={active ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+      // transition={active ? { repeat: Infinity, duration: 1.2, ease: 'easeInOut' } : { duration: 0.12 }}
+      // whileHover={{ scale: 1.3 }}
       style={{
         position: 'absolute',
         top: '50%',
         [isIn ? 'left' : 'right']: -7,
-        transform: 'translateY(-50%)',
+        // transform: 'translateY(-50%)',
         width: 14,
         height: 14,
         padding: 0,
@@ -392,7 +408,7 @@ function Port({ side, active, color, onClick }: PortProps) {
         border: '1.5px solid ' + color,
         borderRadius: '50%',
         cursor: 'crosshair',
-        boxShadow: active ? '0 0 0 4px ' + color + '22' : 'none',
+        // boxShadow: active ? '0 0 0 4px ' + color + '22' : 'none',
         zIndex: 2,
       }}
     />
@@ -472,7 +488,7 @@ function EditForm({
           color: MUTED,
         }}
       >
-        Badge
+        Attribute
       </label>
       <input
         type="text"
@@ -515,14 +531,14 @@ function EditForm({
           marginTop: 2,
         }}
       >
-        Subtitle
+        Note
       </label>
       <input
         type="text"
         value={subtitle}
         onChange={(e) => onSubtitleChange(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Optional subtitle"
+        placeholder="Optional note"
         style={{ ...inputBase, padding: '4px 6px', fontSize: 10 }}
       />
 

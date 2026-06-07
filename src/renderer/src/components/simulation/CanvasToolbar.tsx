@@ -97,7 +97,7 @@ export default function CanvasToolbar({
         }}
       >
         <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>+</span>
-        Add Card
+        Add Element
       </motion.button>
 
       <motion.button

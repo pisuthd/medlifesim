@@ -6,6 +6,14 @@ import {
   PALETTE_CARDS,
   TONE_COLORS,
 } from '../../data/simulationCards'
+
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  environment: 'Where risk originates',
+  subject: 'Who is affected',
+  exposure: 'How they are exposed',
+  'health-state': 'What condition they are in',
+  intervention: 'What actions change outcome',
+}
 import type { SimCardTemplate } from '../../types/simulation'
 
 interface AddCardPopoverProps {
@@ -127,19 +135,31 @@ export default function AddCardPopover({ open, onPick, onClose }: AddCardPopover
           if (!items || items.length === 0) return null
           return (
             <section key={cat} style={{ marginTop: 12 }}>
-              <p
-                style={{
-                  fontFamily: monoFont,
-                  fontSize: 10,
-                  letterSpacing: '0.14em',
-                  color: MUTED,
-                  textTransform: 'uppercase',
-                  margin: 0,
-                  marginBottom: 8,
-                }}
-              >
-                {CATEGORY_LABELS[cat]}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <p
+                  style={{
+                    fontFamily: monoFont,
+                    fontSize: 10,
+                    letterSpacing: '0.14em',
+                    color: MUTED,
+                    textTransform: 'uppercase',
+                    margin: 0,
+                  }}
+                >
+                  {CATEGORY_LABELS[cat]}
+                </p>
+                <span style={{ color: '#d0d0e8', fontSize: 10 }}>·</span>
+                <p
+                  style={{
+                    fontFamily: sansFont,
+                    fontSize: 10,
+                    color: '#b0b0cc',
+                    margin: 0,
+                  }}
+                >
+                  {CATEGORY_DESCRIPTIONS[cat]}
+                </p>
+              </div>
               <div
                 style={{
                   display: 'grid',

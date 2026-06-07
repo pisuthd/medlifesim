@@ -350,16 +350,6 @@ function ZoomBadge({
       >
         Reset
       </button>
-      <span
-        style={{
-          fontFamily: sansFont,
-          fontSize: 10,
-          color: '#b0b0c8',
-          marginLeft: 6,
-        }}
-      >
-        Wheel · Drag to pan
-      </span>
     </div>
   )
 }
@@ -422,9 +412,9 @@ function EmptyHint() {
     >
       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#7a7aa0' }}>
         Empty canvas
-      </div>
-      Click + Add Card to drop scenario parts, drag them around, then
-      connect their ports to draw lines.
+      </div> 
+      Click + Add Element to add elements, drag them around, then 
+      connect their ports to build a pipeline.
     </div>
   )
 }
