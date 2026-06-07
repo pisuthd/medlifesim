@@ -9,12 +9,17 @@ interface CanvasProps {
   selectedId: string | null
   /** placementId of the card currently in connect-source mode, if any. */
   connectFrom: string | null
+  /** placementId of the card currently in inline-edit mode, if any. */
+  editingId: string | null
   onSelectCard: (id: string | null) => void
   onDeleteCard: (id: string) => void
   onToggleCollapse: (id: string) => void
   onPortClick: (placementId: string, side: PortSide) => void
   onDeleteConnection: (id: string) => void
   onCancelConnect: () => void
+  onRequestEdit: (id: string) => void
+  onEditCard: (id: string, updates: { title: string; subtitle: string; badge: string }) => void
+  onEditCancel: (id: string) => void
 }
 
 const ZOOM_MIN = 0.25
@@ -40,12 +45,16 @@ export default function Canvas({
   state,
   selectedId,
   connectFrom,
+  editingId,
   onSelectCard,
   onDeleteCard,
   onToggleCollapse,
   onPortClick,
   onDeleteConnection,
   onCancelConnect,
+  onRequestEdit,
+  onEditCard,
+  onEditCancel,
 }: CanvasProps) {
   const surfaceRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
@@ -67,14 +76,16 @@ export default function Canvas({
       }
       const target = e.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+      // Don't let Delete/Backspace nuke a card that's currently being
+      // edited — the user might just be editing text in the canvas card.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && selectedId !== editingId) {
         e.preventDefault()
         onDeleteCard(selectedId)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [connectFrom, selectedId, onCancelConnect, onDeleteCard])
+  }, [connectFrom, selectedId, editingId, onCancelConnect, onDeleteCard])
 
   // Wheel zoom — must be a native passive:false listener so we can
   // preventDefault and stop the page from scrolling.
@@ -214,10 +225,14 @@ export default function Canvas({
             card={card}
             selected={selectedId === card.placementId}
             isConnectSource={connectFrom === card.placementId}
+            editing={editingId === card.placementId}
             onSelect={onSelectCard}
             onDelete={onDeleteCard}
             onToggleCollapse={onToggleCollapse}
             onPortClick={onPortClick}
+            onRequestEdit={onRequestEdit}
+            onEdit={onEditCard}
+            onEditCancel={onEditCancel}
             ref={(el) => {
               cardRefs.current[card.placementId] = el
             }}

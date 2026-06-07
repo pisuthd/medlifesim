@@ -4,8 +4,9 @@ import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
 interface CanvasToolbarProps {
   cardCount: number
   addOpen: boolean
-  onToggleAdd: () => void
-  onClear: () => void
+  onToggleAdd: () => void 
+  /** Fires when the user clicks Reset — the parent owns the confirm flow. */
+  onRequestReset: () => void
 }
 
 /**
@@ -17,8 +18,8 @@ interface CanvasToolbarProps {
 export default function CanvasToolbar({
   cardCount,
   addOpen,
-  onToggleAdd,
-  onClear,
+  onToggleAdd, 
+  onRequestReset,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -69,6 +70,12 @@ export default function CanvasToolbar({
       <motion.button
         type="button"
         onClick={onToggleAdd}
+        // Stop pointerdown from reaching the window: the AddCardPopover
+        // listens for window mousedown to close itself, and pointerdown
+        // fires before mousedown — without this, clicking "Close" would
+        // close the popover via the window listener and then the button's
+        // own onClick would toggle it right back open.
+        onPointerDown={(e) => e.stopPropagation()}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         style={{
@@ -90,35 +97,36 @@ export default function CanvasToolbar({
         }}
       >
         <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>+</span>
-        {addOpen ? 'Close' : 'Add Card'}
+        Add Card
       </motion.button>
 
       <motion.button
         type="button"
-        onClick={onClear}
+        onClick={onRequestReset}
         disabled={cardCount === 0}
         whileHover={cardCount > 0 ? { scale: 1.05 } : undefined}
         whileTap={cardCount > 0 ? { scale: 0.95 } : undefined}
-        title="Clear all cards"
-        aria-label="Clear all cards"
+        title="Reset canvas"
+        aria-label="Reset canvas"
         style={{
           height: 30,
-          width: 30,
-          padding: 0,
+          padding: '0 12px',
           background: 'transparent',
           color: cardCount === 0 ? '#d0d0e8' : MUTED,
           border: '1px solid ' + (cardCount === 0 ? '#e8e8f0' : '#e0e0f0'),
           borderRadius: 6,
           fontFamily: monoFont,
-          fontSize: 16,
-          lineHeight: 1,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
           cursor: cardCount > 0 ? 'pointer' : 'not-allowed',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        ×
+        Reset
       </motion.button>
     </div>
   )

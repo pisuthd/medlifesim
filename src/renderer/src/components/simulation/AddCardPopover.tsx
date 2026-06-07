@@ -80,7 +80,7 @@ export default function AddCardPopover({ open, onPick, onClose }: AddCardPopover
         position: 'absolute',
         top: 64,
         left: 16,
-        width: 320,
+        width: 360,
         maxHeight: 'calc(100vh - 96px)',
         background: '#fff',
         border: '1px solid #e0e0f0',

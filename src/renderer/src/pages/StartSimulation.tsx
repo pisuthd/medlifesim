@@ -5,6 +5,7 @@ import {
   AddCardPopover,
   Canvas,
   CanvasToolbar,
+  ConfirmModal,
   OutcomesModal,
 } from '../components/simulation'
 import type { PortSide } from '../components/simulation/CanvasCard'
@@ -21,7 +22,9 @@ import {
   type CanvasCard,
   type CanvasState,
   type SimCardTemplate,
+  type SimCategory,
   type SimOutcome,
+  type SimTone,
 } from '../types/simulation'
 
 /**
@@ -44,6 +47,12 @@ export default function StartSimulation() {
   const [connectFrom, setConnectFrom] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
+  // Reset confirm flow — true while the user is being asked to confirm a
+  // destructive clear of the canvas.
+  const [resetOpen, setResetOpen] = useState(false)
+  // Inline edit — when set, the matching card is in edit mode and the
+  // canvas's other interactions (drag, port clicks) are suppressed.
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Warning toast auto-dismiss: any new warning replaces the old timer.
   useEffect(() => {
@@ -88,6 +97,56 @@ export default function StartSimulation() {
     setCanvas((prev) => ({ ...prev, cards: [...prev.cards, newCard] }))
     setSelectedId(id)
     setAddOpen(false)
+  }
+
+  /**
+   * Drop a new empty (title/subtitle/badge-less) card of `category` on the
+   * canvas and immediately put it into edit mode. Triggered by the
+   * "+ Add custom" placeholder in the popover.
+   */
+  function handleAddCustom(category: SimCategory) {
+    const id = freshId('card')
+    const jitterX = Math.round((Math.random() - 0.5) * 80)
+    const jitterY = Math.round((Math.random() - 0.5) * 60)
+    const tone: SimTone = 'muted'
+    const newCard: CanvasCard = {
+      placementId: id,
+      id: 'custom-' + category + '-' + id,
+      category,
+      title: '',
+      subtitle: '',
+      badge: '',
+      tone,
+      x: 360 + jitterX,
+      y: 220 + jitterY,
+      collapsed: false,
+    }
+    setCanvas((prev) => ({ ...prev, cards: [...prev.cards, newCard] }))
+    setSelectedId(id)
+    setEditingId(id)
+    setAddOpen(false)
+  }
+
+  /** Persist the edited text for a card and exit edit mode. */
+  function handleEditCard(
+    id: string,
+    updates: { title: string; subtitle: string; badge: string },
+  ) {
+    setCanvas((prev) => ({
+      ...prev,
+      cards: prev.cards.map((c) => (c.placementId === id ? { ...c, ...updates } : c)),
+    }))
+    setEditingId(null)
+  }
+
+  /** Enter edit mode for `id` (typically called from CanvasCard's dblclick). */
+  function handleRequestEdit(id: string) {
+    setEditingId(id)
+  }
+
+  /** Exit edit mode without saving. */
+  function handleEditCancel(_id: string) {
+    setEditingId(null)
   }
 
   function handleSelectCard(id: string | null) {
@@ -181,12 +240,16 @@ export default function StartSimulation() {
           state={canvas}
           selectedId={selectedId}
           connectFrom={connectFrom}
+          editingId={editingId}
           onSelectCard={handleSelectCard}
           onDeleteCard={handleDeleteCard}
           onToggleCollapse={handleToggleCollapse}
           onPortClick={handlePortClick}
           onDeleteConnection={handleDeleteConnection}
           onCancelConnect={() => setConnectFrom(null)}
+          onRequestEdit={handleRequestEdit}
+          onEditCard={handleEditCard}
+          onEditCancel={handleEditCancel}
         />
       </DndContext>
 
@@ -194,13 +257,27 @@ export default function StartSimulation() {
         cardCount={canvas.cards.length}
         addOpen={addOpen}
         onToggleAdd={() => setAddOpen((v) => !v)}
-        onClear={handleClearAll}
+        onRequestReset={() => setResetOpen(true)}
       />
 
       <AddCardPopover
         open={addOpen}
         onPick={handleAddTemplate}
         onClose={() => setAddOpen(false)}
+      />
+
+      <ConfirmModal
+        open={resetOpen}
+        title="Reset canvas?"
+        message="All cards and connections will be removed. This can't be undone."
+        confirmLabel="Reset"
+        destructive
+        onConfirm={() => {
+          handleClearAll()
+          setResetOpen(false)
+          setEditingId(null)
+        }}
+        onCancel={() => setResetOpen(false)}
       />
 
       {/* Floating Generate button — bottom-right. The Outcomes drawer
