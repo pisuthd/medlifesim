@@ -1,16 +1,17 @@
 import type {
-  CanvasCard,
-  Connection,
   PlacedCard,
   SimCardTemplate,
   SimCategory,
-  SimOutcome,
   SimTone,
 } from '../types/simulation'
 
 /**
  * Pure placeholder data for the simulation builder.
  * Realistic scenarios for Thailand-focused pilots.
+ *
+ * Outcome computation lives in `simulationPaths.ts` and `simulationTemplates.ts`.
+ * This file is intentionally limited to: card catalog, tone utilities, and
+ * connection-rule helpers.
  */
 
 export const CATEGORY_ORDER: SimCategory[] = [
@@ -222,7 +223,7 @@ const TONE_VALUES: SimTone[] = ['blue', 'teal', 'navy', 'muted']
 export function randomTone(seed: string): SimTone {
   let hash = 0
   for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+    hash = (hash << 5) - hash + seed.charCodeAt(i)
     hash |= 0
   }
   return TONE_VALUES[Math.abs(hash) % TONE_VALUES.length]
@@ -235,18 +236,7 @@ export const TONE_TINT = (tone: SimTone): string => {
   return c.length === 7 ? c + '12' : c
 }
 
-/** Simple baseline data per intervention (expandable) */
-const INTERVENTION_BASELINES: Record<string, { risk: number; severe: number; summary: string }> = {
-  'int-no-intervention': { risk: 45, severe: 12, summary: 'No mitigation leads to highest symptom and burden rates.' },
-  'int-air-purifiers-masks': { risk: 18, severe: 4, summary: 'Significant reduction in respiratory symptoms through reduced exposure.' },
-  'int-no-smoking-policy': { risk: 8, severe: 2, summary: 'Strongest improvement by eliminating the source of exposure.' },
-  'int-respite-care': { risk: 22, severe: 6, summary: 'Lower caregiver burden and better elder health outcomes.' },
-  'int-education-counseling': { risk: 28, severe: 9, summary: 'Moderate reduction in early substance use through prevention.' },
-}
-
-const UNKNOWN_INTERVENTION = { risk: 30, severe: 8, summary: 'Placeholder intervention profile.' }
-
-/** Connection rules (strict linear pipeline) */
+/** Connection rules (strict linear pipeline). */
 const VALID_CONNECTIONS: Record<SimCategory, SimCategory[]> = {
   environment: ['subject'],
   subject: ['exposure'],
@@ -266,69 +256,6 @@ export function describeConnectionRule(target: SimCategory): string {
   return allowed.length === 0
     ? `${CATEGORY_LABELS[target]} cannot accept connections.`
     : `${CATEGORY_LABELS[target]} can only accept connections from ${allowed.join(' or ')}.`
-}
-
-/** Generate all combinatorial outcomes */
-export function generateOutcomes(
-  cards: CanvasCard[],
-  connections: Connection[]
-): SimOutcome[] {
-  const byId = new Map(cards.map((c) => [c.placementId, c]))
-  const outgoing = new Map<string, string[]>()
-
-  for (const conn of connections) {
-    if (!outgoing.has(conn.from)) outgoing.set(conn.from, [])
-    outgoing.get(conn.from)!.push(conn.to)
-  }
-
-  const getChildren = (id: string, cat: SimCategory): CanvasCard[] =>
-    (outgoing.get(id) ?? [])
-      .map((toId) => byId.get(toId))
-      .filter((c): c is CanvasCard => !!c && c.category === cat)
-
-  const results: SimOutcome[] = []
-  let idx = 0
-
-  const envs = cards.filter((c) => c.category === 'environment')
-
-  for (const env of envs) {
-    for (const subj of getChildren(env.placementId, 'subject')) {
-      for (const expo of getChildren(subj.placementId, 'exposure')) {
-        for (const health of getChildren(expo.placementId, 'health-state')) {
-          for (const intv of getChildren(health.placementId, 'intervention')) {
-            const baseline = INTERVENTION_BASELINES[intv.id] ?? UNKNOWN_INTERVENTION
-
-            const risk = Math.max(0, Math.min(100, baseline.risk))
-            const severe = Math.max(0, Math.min(100, baseline.severe))
-
-            const tone: SimOutcome['tone'] = risk < 15 ? 'good' : risk > 35 ? 'bad' : 'neutral'
-
-            results.push({
-              id: `outcome-${idx++}`,
-              pathLabels: {
-                environment: env.title,
-                subject: subj.title,
-                exposure: expo.title,
-                healthState: health.title,
-                intervention: intv.title,
-              },
-              interventionId: intv.id,
-              infectionRate: risk,      // renamed conceptually to "risk"
-              severeCaseRate: severe,
-              summary: baseline.summary,
-              tone,
-            })
-          }
-        }
-      }
-    }
-  }
-
-  return results
-}
-
-export function canGenerate(cards: CanvasCard[], connections: Connection[]): boolean {
-  return generateOutcomes(cards, connections).length > 0
 }
 
 export function toPlacedCard(template: SimCardTemplate, placementId: string): PlacedCard {

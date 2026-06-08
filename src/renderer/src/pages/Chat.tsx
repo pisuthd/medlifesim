@@ -76,6 +76,13 @@ export default function Chat() {
     }
 
     loadMessages()
+
+    // Sim outcome sessions are populated by the background worker after
+    // the user submits a scenario. Poll so the chat shows the AI's reply
+    // once the worker writes messages.json — without forcing a refresh.
+    if (!sessionSlug.startsWith('sim-')) return
+    const interval = setInterval(loadMessages, 3000)
+    return () => clearInterval(interval)
   }, [profile, sessionSlug])
 
   useEffect(() => {

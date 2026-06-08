@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DndContext, type DragEndEvent } from '@dnd-kit/core'
 import {
@@ -11,21 +12,19 @@ import {
 import type { PortSide } from '../components/simulation/CanvasCard'
 import {
   canConnect,
-  canGenerate,
   describeConnectionRule,
-  generateOutcomes,
-  randomTone,
   toPlacedCard,
 } from '../data/simulationCards'
+import { canEnumerate, enumeratePaths } from '../data/simulationPaths'
+import { useProfile } from '../context/ProfileContext'
 import { BLUE, MUTED, monoFont } from '../theme'
 import {
   EMPTY_CANVAS,
   type CanvasCard,
   type CanvasState,
   type SimCardTemplate,
-  type SimCategory,
-  type SimOutcome,
-  type SimTone,
+  type SimPathPreview,
+  type SimTemplate,
 } from '../types/simulation'
 
 /**
@@ -42,8 +41,10 @@ import {
  * building the graph.
  */
 export default function StartSimulation() {
+  const navigate = useNavigate()
+  const { profile } = useProfile()
   const [canvas, setCanvas] = useState<CanvasState>(EMPTY_CANVAS)
-  const [outcomes, setOutcomes] = useState<SimOutcome[] | null>(null)
+  const [paths, setPaths] = useState<SimPathPreview[] | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [connectFrom, setConnectFrom] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -51,9 +52,17 @@ export default function StartSimulation() {
   // Reset confirm flow — true while the user is being asked to confirm a
   // destructive clear of the canvas.
   const [resetOpen, setResetOpen] = useState(false)
+  // Template replacement confirm — when set, the matching template is
+  // queued to load once the user confirms discarding the current canvas.
+  const [pendingTemplate, setPendingTemplate] = useState<SimTemplate | null>(null)
   // Inline edit — when set, the matching card is in edit mode and the
   // canvas's other interactions (drag, port clicks) are suppressed.
   const [editingId, setEditingId] = useState<string | null>(null)
+  // Submission flow
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  // Toast shown after a successful submission
+  const [successToast, setSuccessToast] = useState<{ simId: string; count: number } | null>(null)
 
   // Warning toast auto-dismiss: any new warning replaces the old timer.
   useEffect(() => {
@@ -100,33 +109,6 @@ export default function StartSimulation() {
     setAddOpen(false)
   }
 
-  /**
-   * Drop a new empty (title/subtitle/badge-less) card of `category` on the
-   * canvas and immediately put it into edit mode. Triggered by the
-   * "+ Add custom" placeholder in the popover.
-   */
-  function handleAddCustom(category: SimCategory) {
-    const id = freshId('card')
-    const jitterX = Math.round((Math.random() - 0.5) * 80)
-    const jitterY = Math.round((Math.random() - 0.5) * 60)
-    const newCard: CanvasCard = {
-      placementId: id,
-      id: 'custom-' + category + '-' + id,
-      category,
-      title: '',
-      subtitle: '',
-      badge: '',
-      tone: randomTone(id),
-      x: 360 + jitterX,
-      y: 220 + jitterY,
-      collapsed: false,
-    }
-    setCanvas((prev) => ({ ...prev, cards: [...prev.cards, newCard] }))
-    setSelectedId(id)
-    setEditingId(id)
-    setAddOpen(false)
-  }
-
   /** Persist the edited text for a card and exit edit mode. */
   function handleEditCard(
     id: string,
@@ -145,7 +127,8 @@ export default function StartSimulation() {
   }
 
   /** Exit edit mode without saving. */
-  function handleEditCancel(_id: string) {
+  function handleEditCancel(_id: string): void {
+    void _id
     setEditingId(null)
   }
 
@@ -198,7 +181,7 @@ export default function StartSimulation() {
     setCanvas((prev) => ({
       ...prev,
       cards: prev.cards.map((c) =>
-        c.placementId === id ? { ...c, collapsed: !c.collapsed } : c,
+        c.placementId === id ? { ...c, collapsed: !c.collapsed } : c
       ),
     }))
   }
@@ -211,19 +194,76 @@ export default function StartSimulation() {
   }
 
   function handleGenerate() {
-    const computed = generateOutcomes(canvas.cards, canvas.connections)
+    const computed = enumeratePaths(canvas.cards, canvas.connections)
     if (computed.length === 0) return
-    setOutcomes(computed)
+    setPaths(computed)
   }
 
   function handleClearAll() {
     setCanvas(EMPTY_CANVAS)
-    setOutcomes(null)
+    setPaths(null)
     setSelectedId(null)
     setConnectFrom(null)
   }
 
-  const canGen = canGenerate(canvas.cards, canvas.connections)
+  /**
+   * User picked a template (or "Blank Canvas") from the toolbar dropdown.
+   * If the current canvas is non-empty we ask them to confirm replacing
+   * it; otherwise we apply immediately.
+   */
+  function handleLoadTemplate(template: SimTemplate) {
+    if (canvas.cards.length === 0) {
+      applyTemplate(template)
+      return
+    }
+    setPendingTemplate(template)
+  }
+
+  function applyTemplate(template: SimTemplate) {
+    setCanvas(template.canvas)
+    setPaths(null)
+    setSelectedId(null)
+    setConnectFrom(null)
+    setEditingId(null)
+  }
+
+  function cancelTemplateLoad() {
+    setPendingTemplate(null)
+  }
+
+  async function handleProceed(name: string) {
+    if (!profile) {
+      setSubmitError('No profile selected.')
+      return
+    }
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const result = await window.api.simulations.create(profile.id, name, canvas)
+      const count = result?.outcomeCount ?? paths?.length ?? 0
+      const simId = result?.id ?? ''
+      setPaths(null)
+      setSuccessToast({ simId, count })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Submission failed'
+      setSubmitError(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function closeSuccessToast() {
+    setSuccessToast(null)
+  }
+
+  // Auto-dismiss the success toast after 6s.
+  useEffect(() => {
+    if (!successToast) return
+    const t = setTimeout(() => setSuccessToast(null), 6000)
+    return () => clearTimeout(t)
+  }, [successToast])
+
+  const canGen = canEnumerate(canvas.cards, canvas.connections)
 
   return (
     <div
@@ -258,6 +298,8 @@ export default function StartSimulation() {
         addOpen={addOpen}
         onToggleAdd={() => setAddOpen((v) => !v)}
         onRequestReset={() => setResetOpen(true)}
+        onPickTemplate={handleLoadTemplate}
+        onPickBlank={() => handleLoadTemplate({ canvas: EMPTY_CANVAS } as SimTemplate)}
       />
 
       <AddCardPopover
@@ -278,6 +320,23 @@ export default function StartSimulation() {
           setEditingId(null)
         }}
         onCancel={() => setResetOpen(false)}
+      />
+
+      <ConfirmModal
+        open={pendingTemplate !== null}
+        title="Load template?"
+        message={
+          pendingTemplate
+            ? `Loading "${pendingTemplate.name}" will replace all ${canvas.cards.length} current card(s) and ${canvas.connections.length} connection(s). This can't be undone.`
+            : ''
+        }
+        confirmLabel="Replace"
+        destructive
+        onConfirm={() => {
+          if (pendingTemplate) applyTemplate(pendingTemplate)
+          setPendingTemplate(null)
+        }}
+        onCancel={cancelTemplateLoad}
       />
 
       {/* Floating Generate button — bottom-right. The Outcomes drawer
@@ -314,24 +373,18 @@ export default function StartSimulation() {
       >
         <span aria-hidden style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>▶</span>
         Preview
-        {/* {!canGen && (
-          <span
-            style={{
-              fontFamily: sansFont,
-              fontSize: 10,
-              fontWeight: 500,
-              opacity: 0.8,
-              marginLeft: 4,
-              letterSpacing: 0,
-              textTransform: 'none',
-            }}
-          >
-            (connect env → sub → expo → health → intervention)
-          </span>
-        )} */}
       </motion.button>
 
-      <OutcomesModal outcomes={outcomes} onClose={() => setOutcomes(null)} />
+      <OutcomesModal
+        paths={paths}
+        onClose={() => {
+          setPaths(null)
+          setSubmitError(null)
+        }}
+        onProceed={handleProceed}
+        submitting={submitting}
+        submitError={submitError}
+      />
 
       <AnimatePresence>
         {warning && (
@@ -367,6 +420,90 @@ export default function StartSimulation() {
             }}
           >
             {warning}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {successToast && (
+          <motion.div
+            key="success-toast"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: 'absolute',
+              top: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '0 14px 0 18px',
+              height: 40,
+              background: '#fff',
+              border: '1px solid #cfeae5',
+              borderRadius: 20,
+              boxShadow: '0 6px 18px rgba(10,10,92,0.10)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              zIndex: 110,
+              maxWidth: '90%',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: monoFont,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                color: MUTED,
+              }}
+            >
+              Submitted · {successToast.count} outcomes queued
+            </span>
+            <motion.button
+              type="button"
+              onClick={() => navigate('/recent-simulations')}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              style={{
+                height: 26,
+                padding: '0 12px',
+                background: BLUE,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                fontFamily: monoFont,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Track
+            </motion.button>
+            <motion.button
+              type="button"
+              onClick={closeSuccessToast}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                width: 22,
+                height: 22,
+                padding: 0,
+                background: 'transparent',
+                color: MUTED,
+                border: 'none',
+                fontFamily: monoFont,
+                fontSize: 14,
+                lineHeight: 1,
+                cursor: 'pointer',
+              }}
+            >
+              ×
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

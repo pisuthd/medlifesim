@@ -22,6 +22,8 @@ interface AIContextValue {
   select: (id: string) => Promise<void>
   cancel: (clearCache?: boolean) => Promise<void>
   reload: () => Promise<void>
+  resetCache: (id: string) => Promise<{ success: boolean; deleted: string[]; error?: string }>
+  setError: (e: ModelErrorPayload | null) => void
 }
 
 const AIContext = createContext<AIContextValue | null>(null)
@@ -104,6 +106,22 @@ export function AIProvider({ children }: { children: ReactNode }) {
     await select(status.active.id)
   }, [select, status])
 
+  const resetCache = useCallback(
+    async (id: string) => {
+      if (!window.api?.models?.resetCache) {
+        return { success: false, deleted: [], error: 'Not available' }
+      }
+      const r = await window.api.models.resetCache(id)
+      if (r.success) {
+        setError(null)
+        setProgress(null)
+      }
+      await refresh()
+      return r
+    },
+    [refresh],
+  )
+
   const isReady = !!status?.active?.loaded
   const activeModel =
     status?.active?.id
@@ -112,7 +130,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
 
   return (
     <AIContext.Provider
-      value={{ status, progress, error, isReady, activeModel, refresh, select, cancel, reload }}
+      value={{ status, progress, error, isReady, activeModel, refresh, select, cancel, reload, resetCache, setError }}
     >
       {children}
     </AIContext.Provider>
