@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron'
-import { join } from 'path'
-import { existsSync, writeFileSync, mkdirSync } from 'fs'
+import { join, basename as pathBasename } from 'path'
+import { existsSync, writeFileSync, mkdirSync, promises as fsPromises } from 'fs'
 import {
   loadModel,
   unloadModel,
@@ -72,6 +72,81 @@ function emitProgress(
   p: { downloaded: number; total: number; percentage: number; requestId?: string },
 ): void {
   send('models:progress', { phase, ...p })
+}
+
+// ───────────────────────────── cache-file utility ──────────────────────
+
+/**
+ * Compute the basename of an HTTP(S) source URL, matching how the QVAC
+ * SDK constructs cache filenames at http.js:328-329:
+ *   `<shortHash(source)>_<basename>`
+ * `generateShortHash` is not exported from the SDK, so we discover
+ * cache files by `endsWith` on the basename only.
+ */
+function basenameOfSource(source: string): string {
+  if (!/^https?:\/\//i.test(source)) return ''
+  try {
+    return pathBasename(new URL(source).pathname) || ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Find every file in `<userData>/qvac-cache/` whose name ends with
+ * `_<basename(entry.source)>` and unlink it. Used both by auto-recovery
+ * (after a retryable download error in downloadThenLoad) and by the
+ * manual `resetCache` IPC. Returns the absolute paths that were deleted.
+ */
+export async function findAndUnlinkCacheFile(
+  entry: ModelEntry,
+): Promise<string[]> {
+  const basename = basenameOfSource(entry.source)
+  if (!basename) return []
+  const cacheDir = join(app.getPath('userData'), 'qvac-cache')
+  let names: string[]
+  try {
+    names = await fsPromises.readdir(cacheDir)
+  } catch (err) {
+    console.warn('[qvac] resetCache: cache dir unreadable:', cacheDir, err)
+    return []
+  }
+  const suffix = `_${basename}`
+  const deleted: string[] = []
+  for (const name of names) {
+    if (!name.endsWith(suffix)) continue
+    const abs = join(cacheDir, name)
+    try {
+      await fsPromises.unlink(abs)
+      deleted.push(abs)
+      console.log('[qvac] Deleted cache file:', abs)
+    } catch (err) {
+      // EBUSY/EPERM on Windows if the worker still holds a handle —
+      // log and continue. Auto-recovery will retry on the next launch.
+      console.warn('[qvac] Failed to delete cache file:', abs, err)
+    }
+  }
+  return deleted
+}
+
+/**
+ * Public manual-reset entry point. Used by the `models:resetCache` IPC.
+ */
+export async function resetCache(
+  entry: ModelEntry,
+): Promise<{ success: boolean; deleted: string[]; error?: string }> {
+  if (entry.sourceKind === 'file') {
+    return { success: false, deleted: [], error: 'Cannot reset local file' }
+  }
+  try {
+    const deleted = await findAndUnlinkCacheFile(entry)
+    console.log(`[qvac] resetCache: removed ${deleted.length} file(s) for ${entry.id}`)
+    return { success: true, deleted }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[qvac] resetCache failed:', message)
+    return { success: false, deleted: [], error: message }
+  }
 }
 
 // ───────────────────────────── error mapping ─────────────────────────────

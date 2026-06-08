@@ -4,6 +4,12 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { profileStore } from './profileStore'
 import { registerSessionsIpcHandlers, initSessions } from './sessions'
+import {
+  initSimulations,
+  registerSimulationsIpcHandlers,
+  setSimulationsMainWindowGetter,
+} from './simulations'
+import { startSimulationWorker } from './simulationWorker'
 
 import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 
@@ -12,6 +18,7 @@ import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 // ============================================
 import { completion, type ToolCall } from '@qvac/sdk'
 import { saveMessages, loadMessages, ensureMainSession } from './sessions'
+import { withLock } from './completionLock'
 import {
   ensureQvacConfig,
   setMainWindow,
@@ -20,6 +27,7 @@ import {
   unloadCurrent,
   getActiveModelId,
   buildStatus,
+  resetCache,
 } from './qvac'
 import { modelStore, type ModelEntry, type ModelSourceKind } from './modelStore'
 
@@ -38,6 +46,200 @@ interface ModelsStatus {
 }
 
 let mainWindowRef: BrowserWindow | null = null
+
+// ────────────────────────────── runCompletion ────────────────────────────
+
+/**
+ * Execute a single AI completion against the active model and persist the
+ * resulting user + assistant messages into the session's messages.json.
+ *
+ * Optional callbacks let callers stream tokens to the renderer (chat UI)
+ * or stay silent (the simulation worker, which only cares about the
+ * final reply). On any internal error the function throws and the caller
+ * is responsible for surfacing it.
+ */
+export interface CompletionOptions {
+  /** Fired for each streamed content token. */
+  onToken?: (token: string) => void
+  /** Fired for each streamed thinking token. */
+  onThinking?: (token: string) => void
+  /** Fired after the final response has been persisted. */
+  onDone?: (info: { content: string; thinking: string }) => void
+}
+
+export interface CompletionArgs {
+  profileSlug: string
+  sessionSlug: string
+  userMessage: string
+  history: { role: string; content: string }[]
+  profile?: { name: string; type: string; age?: number; gender?: string }
+}
+
+export async function runCompletion(
+  args: CompletionArgs,
+  options: CompletionOptions = {},
+  lockKind: 'chat' | 'worker' = 'chat'
+): Promise<{ content: string; thinking: string }> {
+  const modelId = getActiveModelId()
+  if (!modelId) throw new Error('AI model not loaded')
+
+  const toolsPrompt = getToolsSystemPrompt(args.profile)
+  const conversationHistory = [
+    ...args.history.map((h) => ({ role: h.role, content: h.content })),
+    { role: 'user', content: toolsPrompt + '\n\n' + args.userMessage },
+  ]
+
+  let fullResponse = ''
+  let thinkingContent = ''
+  const maxToolCalls = 3
+  let toolCallCount = 0
+
+  // Hard ceiling per completion iteration. If the SDK stalls (no events,
+  // no completionDone) this rejects so the caller's catch can mark the
+  // outcome errored and the worker can move on.
+  const COMPLETION_TIMEOUT_MS = 10 * 60 * 1000
+
+  while (toolCallCount < maxToolCalls) {
+    // withLock serialises against the other caller of runCompletion (the
+    // chat IPC handler vs the simulation worker). The worker also
+    // short-circuits with shouldDefer() at the top of its tick so it
+    // never queues behind chat — it just retries next tick.
+    const { content, thinking, toolCalls, stopReason } = await withLock(
+      lockKind,
+      async () => {
+
+        const result = completion({
+          modelId,
+          history: conversationHistory,
+          stream: true,
+          kvCache: true,
+          captureThinking: true,
+          tools: [],
+        })
+
+        let iterContent = ''
+        let iterThinking = ''
+        let iterStopReason: string | null = null
+
+        const consume = (async () => {
+          let eventCount = 0
+          console.log(`[AI] Starting to iterate events for requestId=${result.requestId}`)
+          try {
+            for await (const event of result.events) {
+              eventCount++
+              // Per-event diagnostic — cheap, single-line. If the bug
+              // recurs we'll see exactly which events (if any) arrived.
+              console.log(`[AI] event[${eventCount}]: ${event.type}`, JSON.stringify(event).slice(0, 200))
+              switch (event.type) {
+              case 'contentDelta':
+                iterContent += event.text
+                console.log("content:", event.text)
+                options.onToken?.(event.text)
+                break
+              case 'thinkingDelta':
+                iterThinking += event.text
+                console.log("thinking:", event.text)
+                options.onThinking?.(event.text)
+                break
+              case 'toolCall':
+                console.log(
+                  `[AI] Tool call: ${event.call.name}(${JSON.stringify(event.call.arguments)})`
+                )
+                break
+              case 'completionDone':
+                // The SDK's only stream-terminator event. Break the
+                // loop on it instead of relying on iterator termination,
+                // which can hang indefinitely if the SDK never delivers.
+                iterStopReason =
+                  (event as { stopReason?: string }).stopReason ?? 'unknown'
+                console.log(`[AI] completionDone stopReason=${iterStopReason}`)
+                return
+              }
+            }
+          } catch (err) {
+            console.log(`[AI] Error consuming events:`, err)
+          }
+        })()
+
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `[AI] completion timeout after ${COMPLETION_TIMEOUT_MS}ms`
+                )
+              ),
+            COMPLETION_TIMEOUT_MS
+          )
+        })
+
+        await Promise.race([consume, timeout])
+        const iterToolCalls: ToolCall[] = await result.toolCalls
+        return {
+          content: iterContent,
+          thinking: iterThinking,
+          toolCalls: iterToolCalls,
+          stopReason: iterStopReason,
+        }
+      }
+    )
+
+    fullResponse += content
+    thinkingContent += thinking
+    if (stopReason === 'error' || stopReason === 'cancelled') {
+      // Surface SDK-level errors as a thrown error so the worker's catch
+      // (or the chat IPC's catch) records a real error message.
+      throw new Error(`[AI] completion ended with stopReason=${stopReason}`)
+    }
+
+    if (toolCalls.length === 0) break
+
+    toolCallCount++
+    for (const call of toolCalls) {
+      const toolResult = await executeToolCall(
+        call.name,
+        call.arguments as Record<string, unknown>
+      )
+      conversationHistory.push({ role: 'tool', content: toolResult })
+    }
+    conversationHistory.push({
+      role: 'user',
+      content: 'Based on the tool results above, please continue your response.',
+    })
+  }
+
+  // Persist user + assistant messages into the session.
+  const messages = loadMessages(args.profileSlug, args.sessionSlug)
+  messages.push(
+    {
+      id: Date.now().toString(),
+      role: 'user',
+      content: args.userMessage,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: fullResponse,
+      timestamp: new Date().toISOString(),
+      thinking: thinkingContent,
+    }
+  )
+  saveMessages(args.profileSlug, args.sessionSlug, messages)
+
+  const result = { content: fullResponse, thinking: thinkingContent }
+  options.onDone?.(result)
+  return result
+}
+
+// Top-level tool executor. Currently a no-op (no tools wired in); exists
+// so runCompletion can be called from any module.
+async function executeToolCall(
+  toolName: string,
+  _args: Record<string, unknown>
+): Promise<string> {
+  return JSON.stringify({ error: `Unknown tool: ${toolName}` })
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -203,6 +405,14 @@ app.whenReady().then(async () => {
     return { success: true }
   })
 
+  ipcMain.handle('models:resetCache', async (_, id: string) => {
+    const entry = modelStore.getById(id)
+    if (!entry) {
+      return { success: false, deleted: [], error: 'Unknown model id' }
+    }
+    return resetCache(entry)
+  })
+
   // ─── AI: legacy shims (back-compat for Chat/Settings/Dashboard) ───────
   // Status is now backed by the new buildStatus() snapshot.
   ipcMain.handle('ai:getStatus', () => {
@@ -267,118 +477,24 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Execute tool by name
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function executeToolCall(toolName: string, _args: Record<string, unknown>): Promise<string> {
-    // if (toolName === 'get_documents') {
-    //   return getDocumentsTool.execute()
-    // } else if (toolName === 'search_documents') {
-    //   return searchDocumentsTool.execute(args)
-    // }
-    return JSON.stringify({ error: `Unknown tool: ${toolName}` })
-  }
-
-  // AI Chat with streaming and tool calls
+  // AI Chat with streaming and tool calls. Delegates to runCompletion
+  // (exported above) so the simulation worker can call the same
+  // completion code path without going through IPC.
   ipcMain.handle('ai:sendMessage', async (_event, profileSlug: string, sessionSlug: string, message: string, history: any[], profile?: { name: string; type: string; age?: number; gender?: string }) => {
-    const modelId = getActiveModelId()
-    if (!modelId || !mainWindowRef) {
+    if (!mainWindowRef) {
       return { success: false, error: 'AI model not loaded' }
     }
-
     try {
       ensureMainSession(profileSlug)
-
-      // Set profile for documents store so tools can access user documents
-      // documentsStore.setProfile(profileSlug)
-
-      // Get system prompt based on enabled tools and profile context
-      const toolsPrompt = getToolsSystemPrompt(profile)
-
-      // Build conversation history
-      const conversationHistory = [
-        ...history.map((h: any) => ({ role: h.role, content: h.content })),
-        { role: 'user', content: toolsPrompt + '\n\n' + message }
-      ]
-
-      // Get enabled tools based on Documents tool being enabled
-      // const enabledTools = toolsStore.getEnabledTools()
-      // const hasDocumentsTool = enabledTools.some(t => t.id === '1')
-      // const tools = hasDocumentsTool ? [getDocumentsTool, searchDocumentsTool] : []
-
-      let fullResponse = ''
-      let thinkingContent = ''
-      const maxToolCalls = 3 // Prevent infinite loops
-      let toolCallCount = 0
-
-      while (toolCallCount < maxToolCalls) {
-        const result = completion({
-          modelId: modelId,
-          history: conversationHistory,
-          stream: true,
-          kvCache: true,
-          captureThinking: true,
-          tools: []
-          // tools: tools.length > 0 ? tools : undefined,
-        })
-
-        // Stream tokens and thinking
-        for await (const event of result.events) {
-          switch (event.type) {
-            case 'contentDelta':
-              fullResponse += event.text
-              mainWindowRef!.webContents.send('ai:streamToken', event.text)
-              break
-            case 'thinkingDelta':
-              thinkingContent += event.text
-              mainWindowRef!.webContents.send('ai:streamThinking', event.text)
-              break
-            case 'toolCall':
-              console.log(`[AI] Tool call: ${event.call.name}(${JSON.stringify(event.call.arguments)})`)
-              break
-          }
+      await runCompletion(
+        { profileSlug, sessionSlug, userMessage: message, history, profile },
+        {
+          onToken: (token) => mainWindowRef!.webContents.send('ai:streamToken', token),
+          onThinking: (token) =>
+            mainWindowRef!.webContents.send('ai:streamThinking', token),
+          onDone: () => mainWindowRef!.webContents.send('ai:streamDone', ''),
         }
-
-        // Get tool calls after streaming
-        const toolCalls: ToolCall[] = await result.toolCalls
-
-        if (toolCalls.length === 0) {
-          // No more tool calls, we're done
-          break
-        }
-
-        toolCallCount++
-        console.log(`[AI] Executing ${toolCalls.length} tool call(s)...`)
-
-        // Execute tool calls and add results to history
-        for (const call of toolCalls) {
-          const toolResult = await executeToolCall(call.name, call.arguments as Record<string, unknown>)
-          console.log(`[AI] Tool ${call.name} result:`, toolResult.substring(0, 100))
-          conversationHistory.push({
-            role: 'tool',
-            content: toolResult,
-          })
-        }
-
-        // Add a continuation prompt
-        conversationHistory.push({
-          role: 'user',
-          content: 'Based on the tool results above, please continue your response.',
-        })
-
-        console.log(`[AI] Tool call ${toolCallCount} completed, continuing...`)
-      }
-
-      // Send completion signal
-      mainWindowRef.webContents.send('ai:streamDone', '')
-
-      // Save messages
-      const messages = loadMessages(profileSlug, sessionSlug)
-      messages.push(
-        { id: Date.now().toString(), role: 'user', content: message, timestamp: new Date().toISOString() },
-        { id: (Date.now() + 1).toString(), role: 'assistant', content: fullResponse, timestamp: new Date().toISOString(), thinking: thinkingContent }
       )
-      saveMessages(profileSlug, sessionSlug, messages)
-
       return { success: true }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'
@@ -392,6 +508,14 @@ app.whenReady().then(async () => {
 
   // Register sessions IPC handlers
   registerSessionsIpcHandlers()
+
+  // Initialize simulations store and IPC
+  initSimulations()
+  registerSimulationsIpcHandlers()
+  setSimulationsMainWindowGetter(() => mainWindowRef)
+
+  // Start the background worker that drains queued outcomes
+  startSimulationWorker()
 
   // Register documents IPC handlers
   // registerDocumentsHandlers()
@@ -416,6 +540,16 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', async () => {
+  // If a download is mid-flight, cancel it with clearCache so the
+  // partial file is unlinked at the SDK level. This addresses the
+  // Windows file-handle-leak angle that the QVAC SDK does not handle
+  // for non-cancel errors (see node_modules/@qvac/sdk/.../http.js:377-400).
+  try {
+    await cancelCurrentRequest({ clearCache: true })
+  } catch (e) {
+    console.warn('[qvac] before-quit cancel failed:', e)
+  }
+
   const modelId = getActiveModelId()
   if (modelId) {
     try {

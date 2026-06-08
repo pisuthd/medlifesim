@@ -20,6 +20,8 @@ const api = {
       ipcRenderer.invoke('models:select', id),
     cancel: (opts?: { clearCache?: boolean }): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('models:cancel', opts),
+    resetCache: (id: string): Promise<{ success: boolean; deleted: string[]; error?: string }> =>
+      ipcRenderer.invoke('models:resetCache', id),
     status: (): Promise<ModelStatus> => ipcRenderer.invoke('models:status'),
     pickFile: (): Promise<string | null> => ipcRenderer.invoke('models:pickFile'),
     onProgress: (callback: (progress: ModelLoadProgress) => void) => {
@@ -105,13 +107,34 @@ const api = {
   documents: {
     list: () => ipcRenderer.invoke('documents:list'),
     get: (docId: string) => ipcRenderer.invoke('documents:get', docId),
-    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) => 
+    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) =>
       ipcRenderer.invoke('documents:add', doc),
     update: (docId: string, updates: any) => ipcRenderer.invoke('documents:update', docId, updates),
     delete: (docId: string) => ipcRenderer.invoke('documents:delete', docId),
     search: (query: string) => ipcRenderer.invoke('documents:search', query),
     setProfile: (profileSlug: string) => ipcRenderer.invoke('documents:setProfile', profileSlug),
     processOcr: (imagePath: string) => ipcRenderer.invoke('documents:processOcr', imagePath),
+  },
+
+  simulations: {
+    list: (profileSlug: string) => ipcRenderer.invoke('simulations:list', profileSlug),
+    get: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:get', profileSlug, simId),
+    create: (profileSlug: string, name: string, canvas: any) =>
+      ipcRenderer.invoke('simulations:create', profileSlug, name, canvas),
+    delete: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:delete', profileSlug, simId),
+    requeue: (profileSlug: string, simId: string, outcomeId?: string) =>
+      ipcRenderer.invoke('simulations:requeue', profileSlug, simId, outcomeId),
+    getOutcome: (profileSlug: string, simId: string, outcomeId: string) =>
+      ipcRenderer.invoke('simulations:getOutcome', profileSlug, simId, outcomeId),
+    listOutcomes: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:listOutcomes', profileSlug, simId),
+    onProgress: (callback: (event: any) => void) => {
+      const handler = (_: unknown, e: any) => callback(e)
+      ipcRenderer.on('simulations:progress', handler)
+      return () => ipcRenderer.removeListener('simulations:progress', handler)
+    },
   },
 }
 

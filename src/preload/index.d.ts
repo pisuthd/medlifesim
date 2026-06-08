@@ -84,6 +84,7 @@ export interface ModelsAPI {
   remove: (id: string) => Promise<boolean>
   select: (id: string) => Promise<{ success: boolean; error?: string }>
   cancel: (opts?: { clearCache?: boolean }) => Promise<{ success: boolean }>
+  resetCache: (id: string) => Promise<{ success: boolean; deleted: string[]; error?: string }>
   status: () => Promise<ModelStatus>
   pickFile: () => Promise<string | null>
   onProgress: (callback: (p: ModelLoadProgress) => void) => () => void
@@ -143,6 +144,16 @@ export interface ProfileAPI {
     search: (query: string) => Promise<any[]>
     setProfile: (profileSlug: string) => Promise<{ success: boolean }>
     processOcr: (imagePath: string) => Promise<{ success: boolean; text?: string; error?: string }>
+  }
+  simulations: {
+    list: (profileSlug: string) => Promise<any[]>
+    get: (profileSlug: string, simId: string) => Promise<any>
+    create: (profileSlug: string, name: string, canvas: any) => Promise<any>
+    delete: (profileSlug: string, simId: string) => Promise<{ success: boolean }>
+    requeue: (profileSlug: string, simId: string, outcomeId?: string) => Promise<{ success: boolean; requeued: number }>
+    getOutcome: (profileSlug: string, simId: string, outcomeId: string) => Promise<any>
+    listOutcomes: (profileSlug: string, simId: string) => Promise<any[]>
+    onProgress: (callback: (event: any) => void) => () => void
   }
 }
 
