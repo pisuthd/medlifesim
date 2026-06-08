@@ -14,6 +14,7 @@ import {
   canGenerate,
   describeConnectionRule,
   generateOutcomes,
+  randomTone,
   toPlacedCard,
 } from '../data/simulationCards'
 import { BLUE, MUTED, monoFont } from '../theme'
@@ -108,7 +109,6 @@ export default function StartSimulation() {
     const id = freshId('card')
     const jitterX = Math.round((Math.random() - 0.5) * 80)
     const jitterY = Math.round((Math.random() - 0.5) * 60)
-    const tone: SimTone = 'muted'
     const newCard: CanvasCard = {
       placementId: id,
       id: 'custom-' + category + '-' + id,
@@ -116,7 +116,7 @@ export default function StartSimulation() {
       title: '',
       subtitle: '',
       badge: '',
-      tone,
+      tone: randomTone(id),
       x: 360 + jitterX,
       y: 220 + jitterY,
       collapsed: false,

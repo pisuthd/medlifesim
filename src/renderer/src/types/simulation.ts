@@ -23,7 +23,7 @@ export interface SimCardTemplate {
   subtitle: string
   /** Compact uppercase stat shown above the title. e.g. 'AQI 120–180'. */
   badge: string
-  tone: SimTone
+  tone?: SimTone
 }
 
 /**

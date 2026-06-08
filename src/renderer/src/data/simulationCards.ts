@@ -9,12 +9,10 @@ import type {
 } from '../types/simulation'
 
 /**
- * Pure placeholder data for the simulation builder. No AI, no I/O — the
- * goal is to populate the UI with realistic-looking scenarios so the
- * drag-and-drop flow can be exercised end-to-end.
+ * Pure placeholder data for the simulation builder.
+ * Realistic scenarios for Thailand-focused pilots.
  */
 
-/** Pipeline order — drives the left-to-right layout of the canvas stages. */
 export const CATEGORY_ORDER: SimCategory[] = [
   'environment',
   'subject',
@@ -23,7 +21,6 @@ export const CATEGORY_ORDER: SimCategory[] = [
   'intervention',
 ]
 
-/** Short uppercase labels for the palette section headers and stage headers. */
 export const CATEGORY_LABELS: Record<SimCategory, string> = {
   environment: 'Environment',
   subject: 'Subject',
@@ -32,7 +29,6 @@ export const CATEGORY_LABELS: Record<SimCategory, string> = {
   intervention: 'Intervention',
 }
 
-/** Tag shown on each card in the form `CATEGORY • BADGE`. */
 export const CATEGORY_PREFIX: Record<SimCategory, string> = {
   environment: 'ENV',
   subject: 'SUBJ',
@@ -41,177 +37,179 @@ export const CATEGORY_PREFIX: Record<SimCategory, string> = {
   intervention: 'INT',
 }
 
-/** Hand-tuned palette. Each card keeps an explicit `tone` for the left border. */
 export const PALETTE_CARDS: SimCardTemplate[] = [
   // ── Environment ───────────────────────────────────────────────────────
   {
-    id: 'env-urban-school',
+    id: 'env-urban-school-bkk',
     category: 'environment',
     title: 'Urban School',
-    subtitle: 'City center district',
-    badge: 'AQI 120–180',
-    tone: 'blue',
+    subtitle: 'Public school near main roads',
+    badge: 'High traffic • AQI 160',
   },
   {
-    id: 'env-office',
+    id: 'env-office-highrise',
     category: 'environment',
-    title: 'Office',
-    subtitle: 'High-rise building',
-    badge: '100 sq.m',
-    tone: 'navy',
+    title: 'High-rise Office',
+    subtitle: 'Open-plan bullpen',
+    badge: '100 sq.m • AC',
   },
   {
-    id: 'env-home',
+    id: 'env-family-home',
     category: 'environment',
-    title: 'Home',
-    subtitle: '2 adults + 2 children',
-    badge: '4 members',
-    tone: 'teal',
+    title: 'Multi-gen Family Home',
+    subtitle: 'Bangkok suburb',
+    badge: '4–6 members',
+  },
+  {
+    id: 'env-local-community',
+    category: 'environment',
+    title: 'Local Community',
+    subtitle: 'Semi-urban Northeast',
+    badge: 'Local gathering spots',
   },
 
   // ── Subject ───────────────────────────────────────────────────────────
   {
-    id: 'subj-child',
+    id: 'subj-school-children',
     category: 'subject',
-    title: 'Child',
-    subtitle: '7-year-old boy',
-    badge: 'Age 7 • M',
-    tone: 'teal',
+    title: 'School Children',
+    subtitle: 'Primary students',
+    badge: 'n=30 • Age 7–12',
   },
   {
-    id: 'subj-office-worker',
+    id: 'subj-non-smokers',
     category: 'subject',
-    title: 'Office Worker',
-    subtitle: 'Non-smoker',
-    badge: 'n=15 • employees',
-    tone: 'navy',
+    title: 'Non-Smokers',
+    subtitle: 'Office workers',
+    badge: 'n=15',
   },
   {
-    id: 'subj-elder',
+    id: 'subj-smokers',
     category: 'subject',
-    title: 'Elder',
-    subtitle: 'Home setting',
+    title: 'Smokers',
+    subtitle: 'Office workers',
+    badge: 'n=5',
+  },
+  {
+    id: 'subj-elderly',
+    category: 'subject',
+    title: 'Elderly Parents',
+    subtitle: '65+ with chronic conditions',
     badge: 'Age 70+',
-    tone: 'muted',
+  },
+  {
+    id: 'subj-caregivers',
+    category: 'subject',
+    title: 'Family Caregivers',
+    subtitle: 'Working-age children',
+    badge: 'Age 35–55',
+  },
+  {
+    id: 'subj-teens',
+    category: 'subject',
+    title: 'At-risk Teens',
+    subtitle: '13–19 years',
+    badge: 'Meth/cannabis exposure',
   },
 
   // ── Exposure ──────────────────────────────────────────────────────────
   {
-    id: 'exp-outdoor-activity',
+    id: 'exp-pm25-outdoor',
     category: 'exposure',
-    title: 'Outdoor Activity',
-    subtitle: '2h recess daily',
-    badge: '2h • Outdoor',
-    tone: 'blue',
+    title: 'PM2.5 Outdoor',
+    subtitle: 'Recess & sports',
+    badge: 'Daily outdoor',
   },
   {
-    id: 'exp-indoor-shared',
+    id: 'exp-indoor-smoking',
     category: 'exposure',
-    title: 'Indoor Shared Workspace',
-    subtitle: 'Smoking allowed freely',
-    badge: '8h • Indoor',
-    tone: 'navy',
+    title: 'Indoor Secondhand Smoke',
+    subtitle: 'Shared office air',
+    badge: '8h daily',
   },
   {
-    id: 'exp-ventilated-classroom',
+    id: 'exp-caregiving-load',
     category: 'exposure',
-    title: 'Ventilated Classroom',
-    subtitle: 'HVAC + open windows',
-    badge: '6h • Indoor',
-    tone: 'teal',
+    title: 'Daily Caregiving',
+    subtitle: 'Physical + emotional',
+    badge: 'Ongoing',
+  },
+  {
+    id: 'exp-drug-social',
+    category: 'exposure',
+    title: 'Peer Drug Access',
+    subtitle: 'Meth/cannabis',
+    badge: 'High availability',
   },
 
-  // ── Health state ──────────────────────────────────────────────────────
+  // ── Health State ──────────────────────────────────────────────────────
   {
-    id: 'hs-mild-symptoms',
+    id: 'hs-respiratory-cough',
     category: 'health-state',
-    title: 'Mild Cough',
-    subtitle: 'No fever, productive cough',
-    badge: 'Day 1–3',
-    tone: 'muted',
+    title: 'Respiratory Irritation',
+    subtitle: 'Cough, runny nose',
+    badge: 'PM2.5 related',
   },
   {
-    id: 'hs-severe-symptoms',
+    id: 'hs-burnout-stress',
     category: 'health-state',
-    title: 'Severe Respiratory',
-    subtitle: 'Fever, dyspnea, hypoxia',
-    badge: 'Day 3–7',
-    tone: 'navy',
+    title: 'Caregiver Burnout',
+    subtitle: 'Fatigue + depression',
+    badge: 'Ongoing stress',
+  },
+  {
+    id: 'hs-addiction-early',
+    category: 'health-state',
+    title: 'Early Substance Use',
+    subtitle: 'Aggression, insomnia',
+    badge: 'Meth/cannabis',
   },
   {
     id: 'hs-asymptomatic',
     category: 'health-state',
     title: 'Asymptomatic',
-    subtitle: 'No visible symptoms',
-    badge: 'No onset',
-    tone: 'teal',
+    subtitle: 'No visible issues',
+    badge: 'Baseline',
   },
 
   // ── Intervention ──────────────────────────────────────────────────────
   {
     id: 'int-no-intervention',
     category: 'intervention',
-    title: 'No Intervention',
-    subtitle: 'Continue current practices',
-    badge: 'Baseline',
-    tone: 'muted',
+    title: 'Do Nothing',
+    subtitle: 'Baseline',
+    badge: 'No change',
   },
   {
-    id: 'int-infection-care',
+    id: 'int-air-purifiers-masks',
     category: 'intervention',
-    title: 'Infection-Focused Care',
-    subtitle: 'Testing + isolation protocols',
-    badge: 'Tier 1',
-    tone: 'blue',
+    title: 'Purifiers + Masks',
+    subtitle: 'School policy',
+    badge: 'Air quality',
   },
   {
-    id: 'int-air-quality',
+    id: 'int-no-smoking-policy',
     category: 'intervention',
-    title: 'Air Quality Mitigation',
-    subtitle: 'Purifiers + mask mandate',
-    badge: 'Tier 2',
-    tone: 'teal',
+    title: 'No-Smoking Policy',
+    subtitle: 'Indoor ban',
+    badge: 'Workplace',
   },
   {
-    id: 'int-policy-change',
+    id: 'int-respite-care',
     category: 'intervention',
-    title: 'Policy Change',
-    subtitle: 'Smoking ban + remote work',
-    badge: 'Tier 3',
-    tone: 'navy',
+    title: 'Respite + Support',
+    subtitle: 'Hire help / day care',
+    badge: 'Family',
+  },
+  {
+    id: 'int-education-counseling',
+    category: 'intervention',
+    title: 'Education + Counseling',
+    subtitle: 'School / community',
+    badge: 'Substance prevention',
   },
 ]
 
-/** Hand-tuned baseline numbers per intervention. Higher tier → lower risk. */
-const INTERVENTION_BASELINES: Record<string, { infection: number; severe: number; summary: string }> = {
-  'int-no-intervention': {
-    infection: 30,
-    severe: 8,
-    summary:
-      'Without any mitigation the baseline cohort is expected to see a moderate infection rate with a small severe-case tail.',
-  },
-  'int-air-quality': {
-    infection: 12,
-    severe: 3,
-    summary:
-      'Indoor air purification and masking reduces airborne transmission sharply; severe cases fall below typical cohort baselines.',
-  },
-  'int-policy-change': {
-    infection: 6,
-    severe: 1,
-    summary:
-      'Eliminating shared smoking exposure and shifting to remote work yields the strongest projected drop in both infection and severity.',
-  },
-}
-
-/** Fallback when an unknown intervention id slips in. */
-const UNKNOWN_INTERVENTION = {
-  infection: 20,
-  severe: 5,
-  summary: 'Generic intervention profile — numbers are placeholders pending a real model.',
-}
-
-/** Map tone to a hex color so components don't need to know the palette mapping. */
 export const TONE_COLORS: Record<SimTone, string> = {
   blue: '#1A1AE8',
   teal: '#3EC4C0',
@@ -219,26 +217,36 @@ export const TONE_COLORS: Record<SimTone, string> = {
   muted: '#9999bb',
 }
 
-/** 12% alpha tint of the tone color, used as the stage column header background. */
-export const TONE_TINT = (tone: SimTone): string => {
-  const c = TONE_COLORS[tone]
-  // Hex → rgba. Slightly higher alpha for teal so it stays visible on the white stage.
-  if (tone === 'teal') return 'rgba(62,196,192,0.16)'
-  if (tone === 'muted') return 'rgba(153,153,187,0.14)'
-  // blue / navy
-  if (c.length === 7) return c + '12'
-  return c
+const TONE_VALUES: SimTone[] = ['blue', 'teal', 'navy', 'muted']
+
+export function randomTone(seed: string): SimTone {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+    hash |= 0
+  }
+  return TONE_VALUES[Math.abs(hash) % TONE_VALUES.length]
 }
 
-/**
- * Per-target connection rules. Each entry lists the source categories
- * that are allowed to flow INTO the keyed target. The shape of the DAG
- * is a strict linear chain:
- *
- *   env → subject → exposure → health-state → intervention
- *
- * Every link must be present for a complete outcome.
- */
+export const TONE_TINT = (tone: SimTone): string => {
+  const c = TONE_COLORS[tone]
+  if (tone === 'teal') return 'rgba(62,196,192,0.16)'
+  if (tone === 'muted') return 'rgba(153,153,187,0.14)'
+  return c.length === 7 ? c + '12' : c
+}
+
+/** Simple baseline data per intervention (expandable) */
+const INTERVENTION_BASELINES: Record<string, { risk: number; severe: number; summary: string }> = {
+  'int-no-intervention': { risk: 45, severe: 12, summary: 'No mitigation leads to highest symptom and burden rates.' },
+  'int-air-purifiers-masks': { risk: 18, severe: 4, summary: 'Significant reduction in respiratory symptoms through reduced exposure.' },
+  'int-no-smoking-policy': { risk: 8, severe: 2, summary: 'Strongest improvement by eliminating the source of exposure.' },
+  'int-respite-care': { risk: 22, severe: 6, summary: 'Lower caregiver burden and better elder health outcomes.' },
+  'int-education-counseling': { risk: 28, severe: 9, summary: 'Moderate reduction in early substance use through prevention.' },
+}
+
+const UNKNOWN_INTERVENTION = { risk: 30, severe: 8, summary: 'Placeholder intervention profile.' }
+
+/** Connection rules (strict linear pipeline) */
 const VALID_CONNECTIONS: Record<SimCategory, SimCategory[]> = {
   environment: ['subject'],
   subject: ['exposure'],
@@ -247,84 +255,65 @@ const VALID_CONNECTIONS: Record<SimCategory, SimCategory[]> = {
   intervention: [],
 }
 
-/** True when an output-port of `from` is allowed to feed an input-port of `to`. */
 export function canConnect(from: SimCategory, to: SimCategory): boolean {
   return VALID_CONNECTIONS[from]?.includes(to) ?? false
 }
 
-/**
- * Human-readable explanation of which sources a target accepts. Used as
- * the warning toast text when the user attempts an invalid connection.
- */
 export function describeConnectionRule(target: SimCategory): string {
-  const allowed = (Object.entries(VALID_CONNECTIONS) as [SimCategory, SimCategory[]][])
+  const allowed = Object.entries(VALID_CONNECTIONS)
     .filter(([, targets]) => targets.includes(target))
-    .map(([src]) => CATEGORY_LABELS[src])
-  if (allowed.length === 0) {
-    return `${CATEGORY_LABELS[target]} cannot accept connections.`
-  }
-  return `${CATEGORY_LABELS[target]} can only accept connections from ${allowed.join(' or ')}.`
+    .map(([src]) => CATEGORY_LABELS[src as SimCategory])
+  return allowed.length === 0
+    ? `${CATEGORY_LABELS[target]} cannot accept connections.`
+    : `${CATEGORY_LABELS[target]} can only accept connections from ${allowed.join(' or ')}.`
 }
 
-/**
- * Enumerate every outcome reachable through the connection graph. Walks
- * the linear chain
- *   env → subject → exposure → health-state → intervention
- * via the directed edges in `connections`. Each fully-resolved tuple
- * (env, sub, expo, health, int) produces one outcome.
- *
- * For the example "1 env, 2 sub, 1 expo, 1 health, 2 int, all-to-all
- * connected" this yields 1×2×1×1×2 = 4 outcomes.
- */
+/** Generate all combinatorial outcomes */
 export function generateOutcomes(
   cards: CanvasCard[],
-  connections: Connection[],
+  connections: Connection[]
 ): SimOutcome[] {
   const byId = new Map(cards.map((c) => [c.placementId, c]))
-  const out = new Map<string, string[]>()
-  for (const c of connections) {
-    if (!out.has(c.from)) out.set(c.from, [])
-    out.get(c.from)!.push(c.to)
+  const outgoing = new Map<string, string[]>()
+
+  for (const conn of connections) {
+    if (!outgoing.has(conn.from)) outgoing.set(conn.from, [])
+    outgoing.get(conn.from)!.push(conn.to)
   }
-  function childrenOfCat(id: string, cat: SimCategory): CanvasCard[] {
-    return (out.get(id) ?? [])
+
+  const getChildren = (id: string, cat: SimCategory): CanvasCard[] =>
+    (outgoing.get(id) ?? [])
       .map((toId) => byId.get(toId))
       .filter((c): c is CanvasCard => !!c && c.category === cat)
-  }
 
-  // AQI shift is per-env, so compute once per env loop iteration.
-  function aqiShiftFor(env: CanvasCard): number {
-    const match = env.badge.match(/(\d+)/)
-    if (!match) return 0
-    const aqi = parseInt(match[1], 10)
-    return Math.max(-10, Math.min(10, (aqi - 100) / 5))
-  }
-
-  const envs = cards.filter((c) => c.category === 'environment')
   const results: SimOutcome[] = []
   let idx = 0
+
+  const envs = cards.filter((c) => c.category === 'environment')
+
   for (const env of envs) {
-    const aqiShift = aqiShiftFor(env)
-    for (const sub of childrenOfCat(env.placementId, 'subject')) {
-      for (const expo of childrenOfCat(sub.placementId, 'exposure')) {
-        for (const health of childrenOfCat(expo.placementId, 'health-state')) {
-          for (const int of childrenOfCat(health.placementId, 'intervention')) {
-            const baseline = INTERVENTION_BASELINES[int.id] ?? UNKNOWN_INTERVENTION
-            const infection = Math.max(0, Math.min(100, Math.round(baseline.infection + aqiShift)))
-            const severe = Math.max(0, Math.min(100, Math.round(baseline.severe + aqiShift / 2)))
-            const tone: SimOutcome['tone'] =
-              infection < 15 ? 'good' : infection >= 25 ? 'bad' : 'neutral'
+    for (const subj of getChildren(env.placementId, 'subject')) {
+      for (const expo of getChildren(subj.placementId, 'exposure')) {
+        for (const health of getChildren(expo.placementId, 'health-state')) {
+          for (const intv of getChildren(health.placementId, 'intervention')) {
+            const baseline = INTERVENTION_BASELINES[intv.id] ?? UNKNOWN_INTERVENTION
+
+            const risk = Math.max(0, Math.min(100, baseline.risk))
+            const severe = Math.max(0, Math.min(100, baseline.severe))
+
+            const tone: SimOutcome['tone'] = risk < 15 ? 'good' : risk > 35 ? 'bad' : 'neutral'
+
             results.push({
-              id: `outcome-${idx++}-${env.placementId}-${sub.placementId}-${expo.placementId}-${health.placementId}-${int.placementId}`,
+              id: `outcome-${idx++}`,
               pathLabels: {
                 environment: env.title,
-                subject: sub.title,
+                subject: subj.title,
                 exposure: expo.title,
                 healthState: health.title,
-                intervention: int.title,
+                intervention: intv.title,
               },
-              interventionId: int.id,
-              infectionRate: infection,
+              interventionId: intv.id,
+              infectionRate: risk,      // renamed conceptually to "risk"
               severeCaseRate: severe,
               summary: baseline.summary,
               tone,
@@ -334,29 +323,22 @@ export function generateOutcomes(
       }
     }
   }
+
   return results
 }
 
-/**
- * True when the canvas has at least one complete path through the DAG
- * (env → sub → expo → health → int). Equivalent to "at least one
- * outcome would be generated", so we just delegate.
- */
 export function canGenerate(cards: CanvasCard[], connections: Connection[]): boolean {
   return generateOutcomes(cards, connections).length > 0
 }
 
-/** Convert a freshly-dropped template into a PlacedCard. */
 export function toPlacedCard(template: SimCardTemplate, placementId: string): PlacedCard {
-  return { ...template, placementId }
+  return { ...template, placementId, tone: randomTone(placementId) }
 }
 
-/** True when cards of this category expose a left-edge input port. */
 export function cardHasInput(category: SimCategory): boolean {
   return category !== 'environment'
 }
 
-/** True when cards of this category expose a right-edge output port. */
 export function cardHasOutput(category: SimCategory): boolean {
   return category !== 'intervention'
 }
