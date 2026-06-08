@@ -40,37 +40,32 @@ function outcomeKey(simId: string, outcomeId: string): string {
   return `${simId}::${outcomeId}`
 }
 
-// /** Build the user-turn prompt for a single outcome. */
-// function buildOutcomePrompt(outcome: SimulationOutcome): string {
-//   const p = outcome.pathLabels
-//   return `You are analysing a public-health scenario for a clinician. Estimate the
-// likely health outcome for the path below based on the environment,
-// subject population, exposure, current health state, and proposed
-// intervention. Use evidence-based reasoning and produce a structured
-// response with these sections, in this order:
+/** Build the user-turn prompt for a single outcome. */
+function buildOutcomePrompt(outcome: SimulationOutcome): string {
+  const p = outcome.pathLabels
+  return `You are analysing a public-health scenario for a clinician. Estimate the
+likely health outcome for the path below based on the environment,
+subject population, exposure, current health state, and proposed
+intervention. Use evidence-based reasoning and produce a structured
+response with these sections, in this order:
 
-// 1. SUMMARY (2-3 sentences describing the projected outcome)
-// 2. RISK (estimated 0-100 percentage of adverse events in this subgroup)
-// 3. SEVERE_CASE_RATE (estimated 0-100 percentage of cases that become severe)
-// 4. KEY_DRIVERS (3-5 bullet points explaining the most important factors)
-// 5. RECOMMENDATIONS (2-4 actionable public-health recommendations)
-// 6. UNCERTAINTY (1-2 sentences on what data would most change the estimate)
+1. SUMMARY (2-3 sentences describing the projected outcome)
+2. RISK (estimated 0-100 percentage of adverse events in this subgroup)
+3. SEVERE_CASE_RATE (estimated 0-100 percentage of cases that become severe)
+4. KEY_DRIVERS (3-5 bullet points explaining the most important factors)
+5. RECOMMENDATIONS (2-4 actionable public-health recommendations)
+6. UNCERTAINTY (1-2 sentences on what data would most change the estimate)
 
-// Path:
-// - Environment: ${p.environment}
-// - Subject: ${p.subject}
-// - Exposure: ${p.exposure}
-// - Health State: ${p.healthState}
-// - Intervention: ${p.intervention}
+Path:
+- Environment: ${p.environment}
+- Subject: ${p.subject}
+- Exposure: ${p.exposure}
+- Health State: ${p.healthState}
+- Intervention: ${p.intervention}
 
-// Format the response in clear markdown with the section headings above as
-// level-2 headings (## SUMMARY, ## RISK, etc.). Do not include any text
-// before the SUMMARY section.`
-// }
-
-/** DEBUG: Simple prompt to test the worker flow without AI */
-function buildOutcomePrompt(_outcome: SimulationOutcome): string {
-  return 'hello'
+Format the response in clear markdown with the section headings above as
+level-2 headings (## SUMMARY, ## RISK, etc.). Do not include any text
+before the SUMMARY section.`
 }
 
 async function processOutcome(
@@ -113,7 +108,6 @@ async function processOutcome(
   )
 
   try {
-     console.log(`[sim-worker] before runCompletion ${outcome.id}`)
     await runCompletion({
       profileSlug,
       sessionSlug: outcome.sessionSlug,
