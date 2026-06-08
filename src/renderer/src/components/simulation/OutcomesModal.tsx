@@ -1,34 +1,46 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../../theme'
-import type { OutcomeTone, SimOutcome } from '../../types/simulation'
+import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
+import type { SimPathPreview } from '../../types/simulation'
 
 interface OutcomesModalProps {
-  outcomes: SimOutcome[] | null
+  paths: SimPathPreview[] | null
   onClose: () => void
+  /** Called when the user clicks Proceed. Receives the user-supplied name. */
+  onProceed?: (name: string) => void | Promise<void>
+  /** Disables the Proceed button while a submission is in flight. */
+  submitting?: boolean
+  /** Error from a failed submission (rendered as a red banner). */
+  submitError?: string | null
+  /** Initial value for the name input. */
+  initialName?: string
 }
 
-const TONE_TO_COLOR: Record<OutcomeTone, string> = {
-  good: TEAL,
-  neutral: MUTED,
-  bad: BLUE,
-}
-
-const TONE_TO_LABEL: Record<OutcomeTone, string> = {
-  good: 'Low risk',
-  neutral: 'Moderate risk',
-  bad: 'High risk',
+function defaultName(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `Scenario · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 /**
- * Centered modal dialog that previews every outcome enumerated from the
- * connection graph. Backdrop click and Esc both close. Each outcome
- * carries its full path (env → sub → expo → health → int) as a strip at
- * the top of the card, then the existing infection / severe / summary
- * block underneath.
+ * Centered modal dialog that lists every path enumerated from the canvas
+ * as a queue table. No risk or summary numbers — outcomes are produced by
+ * the AI after the user clicks Proceed.
+ *
+ * Columns: INT → Health State → Exposure → Subject → Environment → Status
+ * Status column renders a "Pending AI" pill for every row.
+ * Footer: Cancel + Proceed (primary BLUE).
  */
-export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps) {
-  const open = outcomes !== null
+export default function OutcomesModal({
+  paths,
+  onClose,
+  onProceed,
+  submitting,
+  submitError,
+  initialName,
+}: OutcomesModalProps) {
+  const open = paths !== null
+  const [name, setName] = useState<string>(initialName ?? defaultName())
 
   // Esc closes — global listener while open.
   useEffect(() => {
@@ -43,9 +55,17 @@ export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // When the modal opens, refresh the default name unless the parent
+  // supplied one.
+  useEffect(() => {
+    if (open && !initialName) setName(defaultName())
+  }, [open, initialName])
+
+  const canProceed = !!(paths && paths.length > 0 && !submitting && onProceed)
+
   return (
     <AnimatePresence>
-      {open && (
+      {open && paths && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -73,7 +93,7 @@ export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps)
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '90%',
-              maxWidth: 1080,
+              maxWidth: 1200,
               maxHeight: '80vh',
               background: '#fff',
               borderRadius: 12,
@@ -102,8 +122,7 @@ export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps)
                   textTransform: 'uppercase',
                 }}
               >
-                Predicted Outcomes
-                {outcomes && outcomes.length > 0 ? ` · ${outcomes.length}` : ''}
+                Queued Outcomes · {paths.length}
               </span>
               <button
                 type="button"
@@ -130,19 +149,153 @@ export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps)
 
             <div
               style={{
-                flex: 1,
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                padding: 20,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: 16,
-                alignContent: 'start',
+                padding: '14px 20px 8px',
+                borderBottom: '1px solid #e0e0f0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
               }}
             >
-              {outcomes &&
-                outcomes.map((o, i) => <OutcomeCard key={o.id} outcome={o} index={i} />)}
+              <span
+                style={{
+                  fontFamily: monoFont,
+                  fontSize: 9,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: MUTED,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Name
+              </span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Scenario name"
+                style={{
+                  flex: 1,
+                  height: 32,
+                  padding: '0 10px',
+                  fontFamily: sansFont,
+                  fontSize: 13,
+                  color: NAVY,
+                  background: '#f7f7fc',
+                  border: '1px solid #e0e0f0',
+                  borderRadius: 4,
+                  outline: 'none',
+                }}
+              />
             </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                padding: 0,
+              }}
+            >
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontFamily: sansFont,
+                  fontSize: 13,
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={thStyle}>INT</th>
+                    <th style={thStyle}>Health State</th>
+                    <th style={thStyle}>Exposure</th>
+                    <th style={thStyle}>Subject</th>
+                    <th style={thStyle}>Environment</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paths.map((p, i) => (
+                    <PathRow key={p.id} path={p} index={i} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {submitError && (
+              <div
+                style={{
+                  padding: '10px 20px',
+                  background: 'rgba(200,48,48,0.08)',
+                  borderTop: '1px solid #f0c0c0',
+                  color: '#a02020',
+                  fontFamily: sansFont,
+                  fontSize: 12,
+                }}
+              >
+                {submitError}
+              </div>
+            )}
+
+            <footer
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: 8,
+                padding: '14px 20px',
+                borderTop: '1px solid #e0e0f0',
+                background: '#fafaff',
+              }}
+            >
+              <motion.button
+                type="button"
+                onClick={onClose}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                style={{
+                  height: 36,
+                  padding: '0 16px',
+                  background: 'transparent',
+                  color: MUTED,
+                  border: '1px solid #e0e0f0',
+                  borderRadius: 6,
+                  fontFamily: monoFont,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                type="button"
+                disabled={!canProceed}
+                onClick={() =>
+                  onProceed && onProceed(name.trim() || defaultName())
+                }
+                whileHover={canProceed ? { scale: 1.02 } : undefined}
+                whileTap={canProceed ? { scale: 0.98 } : undefined}
+                style={{
+                  height: 36,
+                  padding: '0 18px',
+                  background: canProceed ? BLUE : MUTED,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontFamily: monoFont,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  cursor: canProceed ? 'pointer' : 'not-allowed',
+                  opacity: canProceed ? 1 : 0.55,
+                  boxShadow: canProceed ? '0 4px 12px rgba(26,26,232,0.22)' : 'none',
+                }}
+              >
+                {submitting ? 'Submitting…' : 'Proceed'}
+              </motion.button>
+            </footer>
           </motion.section>
         </motion.div>
       )}
@@ -150,167 +303,74 @@ export default function OutcomesModal({ outcomes, onClose }: OutcomesModalProps)
   )
 }
 
-function OutcomeCard({ outcome, index }: { outcome: SimOutcome; index: number }) {
-  const accent = TONE_TO_COLOR[outcome.tone]
+const thStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  textAlign: 'left',
+  fontFamily: monoFont,
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
+  color: MUTED,
+  background: '#f8f8fc',
+  borderBottom: '1px solid #e0e0f0',
+  position: 'sticky',
+  top: 0,
+  zIndex: 1,
+}
+
+function PathRow({ path, index }: { path: SimPathPreview; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.3) }}
+    <tr
       style={{
-        background: '#fff',
-        border: '1px solid #e0e0f0',
-        borderLeft: '3px solid ' + accent,
-        borderRadius: 8,
-        padding: '14px 16px',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
+        borderBottom: '1px solid #f0f0f8',
+        background: index % 2 === 0 ? '#fff' : '#fafafa',
       }}
     >
-      <PathStrip labels={outcome.pathLabels} />
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 12,
-        }}
-      >
+      <td style={tdStyle}>
         <span
           style={{
-            fontFamily: sansFont,
-            fontSize: 14,
-            fontWeight: 600,
+            display: 'inline-block',
+            padding: '2px 8px',
+            background: MUTED + '22',
             color: NAVY,
+            borderRadius: 4,
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: monoFont,
           }}
         >
-          {outcome.pathLabels.intervention}
+          {path.pathLabels.intervention}
         </span>
+      </td>
+      <td style={tdStyle}>{path.pathLabels.healthState}</td>
+      <td style={tdStyle}>{path.pathLabels.exposure}</td>
+      <td style={tdStyle}>{path.pathLabels.subject}</td>
+      <td style={tdStyle}>{path.pathLabels.environment}</td>
+      <td style={{ ...tdStyle, textAlign: 'right' }}>
         <span
           style={{
+            display: 'inline-block',
+            padding: '3px 10px',
+            background: MUTED + '22',
+            color: MUTED,
+            borderRadius: 999,
             fontFamily: monoFont,
             fontSize: 9,
+            fontWeight: 700,
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
-            color: accent,
-            flexShrink: 0,
           }}
         >
-          {TONE_TO_LABEL[outcome.tone]}
+          Pending AI
         </span>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12,
-        }}
-      >
-        <Metric label="Infection rate" value={outcome.infectionRate} color={accent} />
-        <Metric label="Severe case rate" value={outcome.severeCaseRate} color={accent} />
-      </div>
-
-      <p
-        style={{
-          fontFamily: sansFont,
-          fontSize: 12,
-          color: NAVY,
-          lineHeight: 1.5,
-          margin: 0,
-          opacity: 0.85,
-        }}
-      >
-        {outcome.summary}
-      </p>
-    </motion.div>
+      </td>
+    </tr>
   )
 }
 
-interface PathStripProps {
-  labels: SimOutcome['pathLabels']
-}
-
-/**
- * Tiny breadcrumb-style strip showing the full causal path through the
- * graph for this outcome. Sits at the top of every outcome card so the
- * user can tell at a glance which combination of inputs the prediction
- * is keyed to.
- */
-function PathStrip({ labels }: PathStripProps) {
-  const segments: Array<{ tag: string; name: string }> = [
-    { tag: 'ENV', name: labels.environment },
-    { tag: 'SUBJ', name: labels.subject },
-    { tag: 'EXPO', name: labels.exposure },
-    { tag: 'HEAL', name: labels.healthState },
-    { tag: 'INT', name: labels.intervention },
-  ]
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: 4,
-        fontFamily: monoFont,
-        fontSize: 9,
-        letterSpacing: '0.10em',
-        textTransform: 'uppercase',
-        color: MUTED,
-        lineHeight: 1.4,
-        paddingBottom: 8,
-        borderBottom: '1px dashed #e8e8f0',
-      }}
-    >
-      {segments.map((seg, i) => (
-        <span key={seg.tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: BLUE, fontWeight: 700 }}>{seg.tag}</span>
-          <span style={{ color: NAVY, textTransform: 'none', letterSpacing: 0 }}>{seg.name}</span>
-          {i < segments.length - 1 && <span style={{ color: '#c8c8e0' }}>→</span>}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function Metric({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: number
-  color: string
-}) {
-  return (
-    <div>
-      <div
-        style={{
-          fontFamily: monoFont,
-          fontSize: 9,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          color: MUTED,
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontFamily: monoFont,
-          fontSize: 18,
-          fontWeight: 700,
-          color,
-          lineHeight: 1,
-        }}
-      >
-        {value}
-        <span style={{ fontSize: 12, marginLeft: 2 }}>%</span>
-      </div>
-    </div>
-  )
+const tdStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  color: NAVY,
+  verticalAlign: 'middle',
 }
