@@ -4,14 +4,7 @@ import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
 import { useAI } from '../context/AIContext'
 import PageWrapper from '../components/PageWrapper'
-
-const BLUE = '#1A1AE8'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
 
 interface ChatMessage {
   id: string
@@ -76,13 +69,7 @@ export default function Chat() {
     }
 
     loadMessages()
-
-    // Sim outcome sessions are populated by the background worker after
-    // the user submits a scenario. Poll so the chat shows the AI's reply
-    // once the worker writes messages.json — without forcing a refresh.
-    if (!sessionSlug.startsWith('sim-')) return
-    const interval = setInterval(loadMessages, 3000)
-    return () => clearInterval(interval)
+    
   }, [profile, sessionSlug])
 
   useEffect(() => {

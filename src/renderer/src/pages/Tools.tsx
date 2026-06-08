@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-
-const BLUE = '#1A1AE8'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (

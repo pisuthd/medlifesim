@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
-
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, TEAL, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
 
 interface DocumentItem {
   id: string
