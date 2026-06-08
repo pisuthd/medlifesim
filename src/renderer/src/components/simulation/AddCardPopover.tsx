@@ -206,7 +206,7 @@ function PopoverTile({
   template: SimCardTemplate
   onClick: () => void
 }) {
-  const accent = TONE_COLORS[template.tone]
+  const accent = TONE_COLORS[template.tone ?? 'muted']
   return (
     <button
       type="button"

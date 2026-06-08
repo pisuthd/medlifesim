@@ -3,7 +3,7 @@ import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 import { useAI } from '../context/AIContext'
 
 export default function LoadingScreen({ onComplete }: { onComplete: () => void }) {
-  const { isReady, progress, error, activeModel, reload } = useAI()
+  const { isReady, progress, error, activeModel, reload, resetCache, setError } = useAI()
 
   // When the model finishes loading, advance after a short delay.
   useEffect(() => {
@@ -171,26 +171,58 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  void reload()
-                }}
-                style={{
-                  padding: '12px 24px',
-                  background: BLUE,
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontFamily: monoFont,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                }}
-              >
-                Reload Model
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    void reload()
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    background: BLUE,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontFamily: monoFont,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                  }}
+                >
+                  Reload Model
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!activeModel) return
+                    const r = await resetCache(activeModel.id)
+                    if (r.success) {
+                      void reload()
+                    } else {
+                      setError({
+                        code: 'RESET_CACHE_FAILED',
+                        message: r.error ?? 'Failed to clear cache',
+                        retryable: true,
+                      })
+                    }
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    background: '#fff',
+                    color: BLUE,
+                    border: `1px solid ${BLUE}`,
+                    borderRadius: 8,
+                    fontFamily: monoFont,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                  }}
+                >
+                  Reset &amp; Re-download
+                </button>
+              </div>
             </div>
           ) : (
             <>

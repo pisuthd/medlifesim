@@ -1,25 +1,34 @@
 import { motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
+import CanvasTemplateMenu from './CanvasTemplateMenu'
+import type { SimTemplate } from '../../types/simulation'
 
 interface CanvasToolbarProps {
   cardCount: number
   addOpen: boolean
-  onToggleAdd: () => void 
+  onToggleAdd: () => void
   /** Fires when the user clicks Reset — the parent owns the confirm flow. */
   onRequestReset: () => void
+  /** Fires when the user picks a template from the MedLifeSim dropdown. */
+  onPickTemplate: (template: SimTemplate) => void
+  /** Fires when the user picks "Blank Canvas" from the MedLifeSim dropdown. */
+  onPickBlank: () => void
 }
 
 /**
  * Floating top-left toolbar — the only "header" on the page. Contains
- * the title, the `+ Add Card` toggle, and the `Clear All` button.
- * The `Generate Outcomes` button is its own floating pill in the
- * bottom-right of the page (see `StartSimulation.tsx`).
+ * the title, the MedLifeSim template dropdown, the `+ Add Card` toggle,
+ * and the `Clear All` button. The `Generate Outcomes` button is its
+ * own floating pill in the bottom-right of the page (see
+ * `StartSimulation.tsx`).
  */
 export default function CanvasToolbar({
   cardCount,
   addOpen,
-  onToggleAdd, 
+  onToggleAdd,
   onRequestReset,
+  onPickTemplate,
+  onPickBlank,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -64,6 +73,8 @@ export default function CanvasToolbar({
           MedLifeSim
         </span>
       </div>
+
+      <CanvasTemplateMenu onPick={onPickTemplate} onBlank={onPickBlank} />
 
       <Divider />
 

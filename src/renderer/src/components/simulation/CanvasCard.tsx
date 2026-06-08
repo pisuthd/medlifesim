@@ -118,7 +118,7 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
     }
   }
 
-  const accent = TONE_COLORS[card.tone]
+  const accent = TONE_COLORS[card.tone ?? 'muted']
   const height = card.collapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT
   const hasInput = cardHasInput(card.category)
   const hasOutput = cardHasOutput(card.category)

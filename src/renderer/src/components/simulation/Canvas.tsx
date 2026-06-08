@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { BLUE, MUTED, monoFont, sansFont } from '../../theme'
+import { BLUE, MUTED, monoFont } from '../../theme'
 import CanvasCard, { type PortSide } from './CanvasCard'
 import CanvasLines from './CanvasLines'
 import type { CanvasState } from '../../types/simulation'
