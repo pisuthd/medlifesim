@@ -12,7 +12,7 @@ interface CanvasTemplateMenuProps {
 }
 
 /**
- * Small dropdown menu anchored to the toolbar's "MedLifeSim ▾" button.
+ * Small dropdown menu anchored to the toolbar's "New Scenario ▾" button.
  * Exposes "Blank Canvas" plus every entry in `SIM_TEMPLATES`. The
  * parent owns the confirm-and-apply flow — this component only reports
  * the user's choice.
@@ -76,7 +76,7 @@ export default function CanvasTemplateMenu({ onPick, onBlank }: CanvasTemplateMe
           gap: 6,
         }}
       >
-        MedLifeSim
+        New
         <span style={{ fontSize: 9, marginTop: -1, opacity: 0.8 }}>▾</span>
       </motion.button>
 

@@ -259,10 +259,9 @@ export default function OutcomesModal({
               >
                 <thead>
                   <tr>
-                    <th style={thStyle}>INT</th>
+                    <th style={thStyle}>INTERVENTION</th>
                     <th style={thStyle}>Exposure</th>
-                    <th style={thStyle}>Subject</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Status</th>
+                    <th style={thStyle}>Subject</th> 
                   </tr>
                 </thead>
                 <tbody>
@@ -346,7 +345,7 @@ export default function OutcomesModal({
                   boxShadow: canProceed ? '0 4px 12px rgba(26,26,232,0.22)' : 'none',
                 }}
               >
-                {submitting ? 'Submitting…' : 'Proceed'}
+                {submitting ? 'Submitting…' : 'Submit'}
               </motion.button>
             </footer>
           </motion.section>
@@ -397,25 +396,7 @@ function PathRow({ path, index }: { path: SimPathPreview; index: number }) {
         </span>
       </td>
       <td style={tdStyle}>{path.pathLabels.exposure}</td>
-      <td style={tdStyle}>{path.pathLabels.subject}</td>
-      <td style={{ ...tdStyle, textAlign: 'right' }}>
-        <span
-          style={{
-            display: 'inline-block',
-            padding: '3px 10px',
-            background: MUTED + '22',
-            color: MUTED,
-            borderRadius: 999,
-            fontFamily: monoFont,
-            fontSize: 9,
-            fontWeight: 700,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Pending AI
-        </span>
-      </td>
+      <td style={tdStyle}>{path.pathLabels.subject}</td> 
     </tr>
   )
 }

@@ -6,6 +6,8 @@ import type { SimTemplate } from '../../types/simulation'
 interface CanvasToolbarProps {
   cardCount: number
   addOpen: boolean
+  /** Display name for the scenario (used in the clickable title). */
+  scenarioName?: string
   onToggleAdd: () => void
   /** Fires when the user clicks Reset — the parent owns the confirm flow. */
   onRequestReset: () => void
@@ -13,6 +15,8 @@ interface CanvasToolbarProps {
   onPickTemplate: (template: SimTemplate) => void
   /** Fires when the user picks "Blank Canvas" from the MedLifeSim dropdown. */
   onPickBlank: () => void
+  /** Fires when the user clicks the scenario title (opens edit modal). */
+  onEditScenario?: () => void
 }
 
 /**
@@ -25,10 +29,12 @@ interface CanvasToolbarProps {
 export default function CanvasToolbar({
   cardCount,
   addOpen,
+  scenarioName,
   onToggleAdd,
   onRequestReset,
   onPickTemplate,
   onPickBlank,
+  onEditScenario,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -49,7 +55,20 @@ export default function CanvasToolbar({
         boxShadow: '0 4px 14px rgba(10,10,92,0.06)',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, paddingRight: 8 }}>
+      <button
+        type="button"
+        onClick={onEditScenario}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          lineHeight: 1.15,
+          paddingRight: 8,
+          background: 'none',
+          border: 'none',
+          cursor: onEditScenario ? 'pointer' : 'default',
+          textAlign: 'left',
+        }}
+      >
         <span
           style={{
             fontFamily: monoFont,
@@ -63,16 +82,35 @@ export default function CanvasToolbar({
         </span>
         <span
           style={{
-            fontFamily: sansFont,
-            fontSize: 14,
-            fontWeight: 700,
-            color: NAVY,
-            letterSpacing: '0.02em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
           }}
         >
-          MedLifeSim
+          <span
+            style={{
+              fontFamily: sansFont,
+              fontSize: 14,
+              fontWeight: 700,
+              color: NAVY,
+              letterSpacing: '0.02em',
+            }}
+          >
+            {scenarioName && scenarioName.trim() ? scenarioName : 'MedLifeSim'}
+          </span>
+          {onEditScenario && (
+            <span
+              style={{
+                fontFamily: monoFont,
+                fontSize: 10,
+                color: MUTED,
+              }}
+            >
+              ▾
+            </span>
+          )}
         </span>
-      </div>
+      </button>
 
       <CanvasTemplateMenu onPick={onPickTemplate} onBlank={onPickBlank} />
 
@@ -108,7 +146,7 @@ export default function CanvasToolbar({
         }}
       >
         <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>+</span>
-        Add Card
+        Add
       </motion.button>
 
       <motion.button

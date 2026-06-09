@@ -7,6 +7,7 @@ import {
   Canvas,
   CanvasToolbar,
   ConfirmModal,
+  EditScenarioModal,
   OutcomesModal,
 } from '../components/simulation'
 import type { PortSide } from '../components/simulation/CanvasCard'
@@ -66,10 +67,14 @@ export default function StartSimulation() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   // Toast shown after a successful submission
   const [successToast, setSuccessToast] = useState<{ simId: string; count: number } | null>(null)
+  // Scenario name — editable via the toolbar title click.
+  const [scenarioName, setScenarioName] = useState<string>(defaultName())
   // Scenario description — pre-filled from the chosen template (if any),
   // editable in the OutcomesModal, saved onto the persisted sim, and
   // rendered as the lead paragraph in the report.
   const [description, setDescription] = useState<string>('')
+  // Edit scenario modal open state.
+  const [editScenarioOpen, setEditScenarioOpen] = useState(false)
 
   // Warning toast auto-dismiss: any new warning replaces the old timer.
   useEffect(() => {
@@ -233,6 +238,7 @@ export default function StartSimulation() {
     setPaths(null)
     setSelectedId(null)
     setConnectFrom(null)
+    setScenarioName(defaultName())
     setDescription('')
   }
 
@@ -335,10 +341,12 @@ export default function StartSimulation() {
       <CanvasToolbar
         cardCount={canvas.cards.length}
         addOpen={addOpen}
+        scenarioName={scenarioName || undefined}
         onToggleAdd={() => setAddOpen((v) => !v)}
         onRequestReset={() => setResetOpen(true)}
         onPickTemplate={handleLoadTemplate}
         onPickBlank={() => handleLoadTemplate({ canvas: EMPTY_CANVAS } as SimTemplate)}
+        onEditScenario={() => setEditScenarioOpen(true)}
       />
 
       <AddCardPopover
@@ -411,11 +419,12 @@ export default function StartSimulation() {
         }}
       >
         <span aria-hidden style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>▶</span>
-        Preview
+        Submit to AI
       </motion.button>
 
       <OutcomesModal
         paths={paths}
+        initialName={scenarioName || undefined}
         initialDescription={description}
         onDescriptionChange={setDescription}
         onClose={() => {
@@ -425,6 +434,16 @@ export default function StartSimulation() {
         onProceed={handleProceed}
         submitting={submitting}
         submitError={submitError}
+      />
+
+      <EditScenarioModal
+        open={editScenarioOpen}
+        name={scenarioName}
+        description={description}
+        onNameChange={setScenarioName}
+        onDescriptionChange={setDescription}
+        onClose={() => setEditScenarioOpen(false)}
+        onSave={() => setEditScenarioOpen(false)}
       />
 
       <AnimatePresence>
@@ -557,4 +576,10 @@ function freshId(prefix: string): string {
     return prefix + '-' + crypto.randomUUID()
   }
   return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)
+}
+
+function defaultName(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `Scenario · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
