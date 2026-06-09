@@ -23,8 +23,12 @@ export type OutcomeSectionKey =
 
 export interface ParsedOutcomeReport {
   summary: string
+  /** Central estimate: mean of the range when one was detected, single integer otherwise. */
   risk: number | null
   severeCaseRate: number | null
+  /** [min, max] tuple when the AI used a range like "30-45%"; null for single integers or no data. */
+  riskRange: [number, number] | null
+  severeCaseRateRange: [number, number] | null
   keyDrivers: string[]
   recommendations: string[]
   uncertainty: string
@@ -49,14 +53,20 @@ function clampPercent(n: number): number {
 }
 
 /**
- * Extract a percentage 0..100 from a string. Prefers the **mean** of a
- * numeric range like "30-45%" (or "30 - 45 %", "30–45", "30—45"); falls
- * back to the first single integer if no range is present. The AI uses
- * ranges to express its confidence band, and for risk reporting we use
- * the mean of the band as the central estimate. Returns null if no
- * number is found.
+ * Extract a percentage field as `{ value, range }` from a string.
+ * - When a numeric range like "30-45%" is found, returns the **mean** as
+ *   `value` and the clamped `[min, max]` tuple as `range`.
+ * - When only a single integer is found, returns that integer as `value`
+ *   and `null` for `range`.
+ * - Returns `null` if no number is found.
+ *
+ * Supports `-` (hyphen), `–` (en-dash), and `—` (em-dash) as range
+ * separators, with optional surrounding whitespace and a trailing `%`.
+ * Both bounds are clamped to 0..100.
  */
-function extractPercent(text: string): number | null {
+function extractPercentField(
+  text: string
+): { value: number; range: [number, number] | null } | null {
   if (!text) return null
   // First, look for a range with a hyphen / en-dash / em-dash separator.
   const rangeMatch = text.match(/(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*%?/)
@@ -64,7 +74,9 @@ function extractPercent(text: string): number | null {
     const lo = parseInt(rangeMatch[1], 10)
     const hi = parseInt(rangeMatch[2], 10)
     if (!Number.isNaN(lo) && !Number.isNaN(hi)) {
-      return clampPercent((lo + hi) / 2)
+      const clampedLo = clampPercent(lo)
+      const clampedHi = clampPercent(hi)
+      return { value: (clampedLo + clampedHi) / 2, range: [clampedLo, clampedHi] }
     }
   }
   // Fall back to the first single integer.
@@ -72,7 +84,7 @@ function extractPercent(text: string): number | null {
   if (!singleMatch) return null
   const n = parseInt(singleMatch[1], 10)
   if (Number.isNaN(n)) return null
-  return clampPercent(n)
+  return { value: clampPercent(n), range: null }
 }
 
 /** Convert a chunk of text to a list of bullet points. */
@@ -98,6 +110,8 @@ export function parseOutcomeReport(markdown: string): ParsedOutcomeReport {
     summary: '',
     risk: null,
     severeCaseRate: null,
+    riskRange: null,
+    severeCaseRateRange: null,
     keyDrivers: [],
     recommendations: [],
     uncertainty: '',
@@ -142,10 +156,15 @@ export function parseOutcomeReport(markdown: string): ParsedOutcomeReport {
   // Strip headings from the full text.
   const fullText = markdown.replace(re, '').trim()
 
+  const riskField = extractPercentField(slices.RISK)
+  const severeField = extractPercentField(slices.SEVERE_CASE_RATE)
+
   return {
     summary: collapseParagraph(slices.SUMMARY),
-    risk: extractPercent(slices.RISK),
-    severeCaseRate: extractPercent(slices.SEVERE_CASE_RATE),
+    risk: riskField?.value ?? null,
+    severeCaseRate: severeField?.value ?? null,
+    riskRange: riskField?.range ?? null,
+    severeCaseRateRange: severeField?.range ?? null,
     keyDrivers: extractBullets(slices.KEY_DRIVERS),
     recommendations: extractBullets(slices.RECOMMENDATIONS),
     uncertainty: collapseParagraph(slices.UNCERTAINTY),

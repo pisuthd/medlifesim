@@ -415,10 +415,16 @@ function ReportBody({
                     <td style={tdStyle}>{o.pathLabels.exposure}</td>
                     <td style={tdStyle}>{o.pathLabels.intervention}</td>
                     <td style={tdStyle}>
-                      <RiskBar value={isDone && r ? r.risk : null} />
+                      <RiskBar
+                        value={isDone && r ? r.risk : null}
+                        range={isDone && r ? r.riskRange : null}
+                      />
                     </td>
                     <td style={tdStyle}>
-                      <RiskBar value={isDone && r ? r.severeCaseRate : null} />
+                      <RiskBar
+                        value={isDone && r ? r.severeCaseRate : null}
+                        range={isDone && r ? r.severeCaseRateRange : null}
+                      />
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
                       {isDone ? (
@@ -769,7 +775,14 @@ function ReportBody({
   )
 }
 
-function RiskBar({ value }: { value: number | null }) {
+function RiskBar({
+  value,
+  range,
+}: {
+  value: number | null
+  /** [min, max] tuple when the AI used a range. The bar visualizes 0..max and the label shows "min-max%". */
+  range?: [number, number] | null
+}) {
   if (value === null) {
     return (
       <span
@@ -783,6 +796,12 @@ function RiskBar({ value }: { value: number | null }) {
       </span>
     )
   }
+  // When a range is present, the bar fills to the upper bound (the worst
+  // case) and the label renders the full range. This conveys both the
+  // central estimate and the uncertainty width at a glance.
+  const barMax = range ? range[1] : value
+  const barColor = range ? riskColor(range[1]) : riskColor(value)
+  const label = range ? `${range[0]}\u2013${range[1]}%` : `${value}%`
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div
@@ -796,9 +815,9 @@ function RiskBar({ value }: { value: number | null }) {
       >
         <div
           style={{
-            width: `${value}%`,
+            width: `${barMax}%`,
             height: '100%',
-            background: riskColor(value),
+            background: barColor,
           }}
         />
       </div>
@@ -807,11 +826,11 @@ function RiskBar({ value }: { value: number | null }) {
           fontFamily: monoFont,
           fontSize: 11,
           color: NAVY,
-          minWidth: 32,
+          minWidth: 38,
           textAlign: 'right',
         }}
       >
-        {value}%
+        {label}
       </span>
     </div>
   )
@@ -978,11 +997,14 @@ function SubjectAccordion({
                       style={{
                         fontFamily: monoFont,
                         fontSize: 11,
-                        color: riskColor(r.risk),
+                        color: r.riskRange ? riskColor(r.riskRange[1]) : riskColor(r.risk),
                         fontWeight: 600,
                       }}
                     >
-                      Risk {r.risk}%
+                      Risk{' '}
+                      {r.riskRange
+                        ? `${r.riskRange[0]}\u2013${r.riskRange[1]}%`
+                        : `${r.risk}%`}
                     </span>
                   )}
                 </div>
