@@ -1,7 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { deleteSession } from './sessions'
+import { deleteSession, loadMessages, clearSessionMessages } from './sessions'
+import { enumeratePaths } from '../shared/simulationPaths'
+import { parseOutcomeReport, type ParsedOutcomeReport } from '../shared/outcomeParser'
+import { aggregateOutcomes, type ReportAggregate } from '../shared/outcomeReport'
+import { setProfileModalOpen } from './simulationWorker'
 import type {
   CanvasCard,
   CanvasState,
@@ -56,67 +60,9 @@ function getOutcomePath(
 // ──────────────────────── main-process path enumeration ───────────────────
 
 /**
- * Duplicate of the renderer-only `enumeratePaths` in
- * `src/renderer/src/data/simulationPaths.ts`. The traversal logic is
- * ~12 lines, so we keep it inline here rather than crossing the
- * renderer/main module boundary.
+ * `enumeratePaths` is imported from `src/shared/simulationPaths.ts` so the
+ * renderer and main process use the exact same logic.
  */
-function freshOutcomeId(): string {
-  return 'outcome-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
-}
-
-function enumeratePaths(
-  cards: CanvasCard[],
-  connections: Connection[]
-): SimPathPreview[] {
-  const byId = new Map(cards.map((c) => [c.placementId, c]))
-  const outgoing = new Map<string, string[]>()
-
-  for (const conn of connections) {
-    if (!outgoing.has(conn.from)) outgoing.set(conn.from, [])
-    outgoing.get(conn.from)!.push(conn.to)
-  }
-
-  const getChildren = (id: string, cat: SimCategory): CanvasCard[] =>
-    (outgoing.get(id) ?? [])
-      .map((toId) => byId.get(toId))
-      .filter((c): c is CanvasCard => !!c && c.category === cat)
-
-  const results: SimPathPreview[] = []
-  const envs = cards.filter((c) => c.category === 'environment')
-
-  for (const env of envs) {
-    for (const subj of getChildren(env.placementId, 'subject')) {
-      for (const expo of getChildren(subj.placementId, 'exposure')) {
-        for (const health of getChildren(expo.placementId, 'health-state')) {
-          for (const intv of getChildren(health.placementId, 'intervention')) {
-            results.push({
-              id: freshOutcomeId(),
-              interventionId: intv.id,
-              pathLabels: {
-                environment: env.title,
-                subject: subj.title,
-                exposure: expo.title,
-                healthState: health.title,
-                intervention: intv.title,
-              },
-              placementIds: {
-                environment: env.placementId,
-                subject: subj.placementId,
-                exposure: expo.placementId,
-                healthState: health.placementId,
-                intervention: intv.placementId,
-              },
-              status: 'pending',
-            })
-          }
-        }
-      }
-    }
-  }
-
-  return results
-}
 
 // ────────────────────────── atomic write helper ──────────────────────────
 
@@ -146,6 +92,7 @@ function nowIso(): string {
 export function createSimulation(
   profileSlug: string,
   name: string,
+  description: string,
   canvas: CanvasState
 ): SimulationParent {
   const simId = 'sim-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
@@ -166,6 +113,7 @@ export function createSimulation(
       sessionSlug,
       interventionId: path_.interventionId,
       pathLabels: path_.pathLabels,
+      details: path_.details,
       status: 'pending',
       createdAt: now,
       updatedAt: now,
@@ -177,6 +125,7 @@ export function createSimulation(
     id: simId,
     profileSlug,
     name: name || `Scenario · ${now}`,
+    description: description || undefined,
     createdAt: now,
     updatedAt: now,
     status: 'queued',
@@ -365,6 +314,17 @@ export function requeueOutcome(
       o.status === 'error' && (outcomeId === undefined || o.id === outcomeId)
   )
   for (const o of targets) {
+    // Wipe the prior child-session messages so the new completion starts
+    // from a clean slate — the worker passes `history: []` but the on-disk
+    // messages.json would otherwise grow a stale assistant turn per requeue.
+    try {
+      clearSessionMessages(profileSlug, o.sessionSlug)
+    } catch (err) {
+      console.warn(
+        `[simulations] failed to clear messages for ${o.sessionSlug}:`,
+        err
+      )
+    }
     updateOutcome(profileSlug, simId, o.id, { status: 'pending', error: undefined })
   }
   return { success: true, requeued: targets.length }
@@ -396,9 +356,15 @@ export function registerSimulationsIpcHandlers(): void {
 
   ipcMain.handle(
     'simulations:create',
-    async (_e, profileSlug: string, name: string, canvas: CanvasState) => {
+    async (
+      _e,
+      profileSlug: string,
+      name: string,
+      description: string,
+      canvas: CanvasState
+    ) => {
       try {
-        return createSimulation(profileSlug, name, canvas)
+        return createSimulation(profileSlug, name, description, canvas)
       } catch (err) {
         console.error('[simulations] create failed:', err)
         throw err
@@ -456,6 +422,54 @@ export function registerSimulationsIpcHandlers(): void {
         console.error('[simulations] listOutcomes failed:', err)
         throw err
       }
+    }
+  )
+
+  ipcMain.handle(
+    'simulations:getReport',
+    async (_e, profileSlug: string, simId: string) => {
+      try {
+        const sim = getSimulation(profileSlug, simId)
+        if (!sim) return null
+        const outcomes = listOutcomes(profileSlug, simId)
+        const reports: Record<string, ParsedOutcomeReport | null> = {}
+        for (const o of outcomes) {
+          if (o.status !== 'done') {
+            reports[o.id] = null
+            continue
+          }
+          const msgs = loadMessages(profileSlug, o.sessionSlug)
+          // Find the last assistant message — the AI response.
+          let assistant: { content: string } | undefined
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].role === 'assistant') {
+              assistant = msgs[i]
+              break
+            }
+          }
+          reports[o.id] = assistant
+            ? parseOutcomeReport(assistant.content)
+            : null
+        }
+        const aggregate: ReportAggregate = aggregateOutcomes(
+          outcomes,
+          new Map(Object.entries(reports))
+        )
+        return { sim, outcomes, reports, aggregate }
+      } catch (err) {
+        console.error('[simulations] getReport failed:', err)
+        throw err
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'simulations:setModalOpen',
+    async (_e, profileSlug: string, isOpen: boolean) => {
+      // Tells the simulation worker to skip its tick for this profile
+      // while the builder's pre-submit OutcomesModal is open. See
+      // `setProfileModalOpen` in `simulationWorker.ts` for the gating.
+      setProfileModalOpen(profileSlug, !!isOpen)
     }
   )
 }

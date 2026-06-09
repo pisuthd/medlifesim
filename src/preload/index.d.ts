@@ -148,11 +148,13 @@ export interface ProfileAPI {
   simulations: {
     list: (profileSlug: string) => Promise<any[]>
     get: (profileSlug: string, simId: string) => Promise<any>
-    create: (profileSlug: string, name: string, canvas: any) => Promise<any>
+    create: (profileSlug: string, name: string, description: string, canvas: any) => Promise<any>
     delete: (profileSlug: string, simId: string) => Promise<{ success: boolean }>
     requeue: (profileSlug: string, simId: string, outcomeId?: string) => Promise<{ success: boolean; requeued: number }>
     getOutcome: (profileSlug: string, simId: string, outcomeId: string) => Promise<any>
     listOutcomes: (profileSlug: string, simId: string) => Promise<any[]>
+    getReport: (profileSlug: string, simId: string) => Promise<any>
+    setModalOpen: (profileSlug: string, isOpen: boolean) => Promise<void>
     onProgress: (callback: (event: any) => void) => () => void
   }
 }

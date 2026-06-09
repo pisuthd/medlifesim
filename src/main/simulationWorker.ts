@@ -36,6 +36,23 @@ const POLL_MS = 1500
 let timer: NodeJS.Timeout | null = null
 const inFlight = new Set<string>()
 
+/**
+ * Per-profile "modal open" flag. When a profile's value is `true` the
+ * worker's `tickForProfile` early-bails — the user is reviewing the
+ * pre-submit OutcomesModal in the builder and we shouldn't race them
+ * by streaming outcomes. The renderer signals the open/close transition
+ * via the `simulations:setModalOpen` IPC. We use a Map (not a Set) so
+ * the value can be explicitly `false` if we ever need to distinguish
+ * "explicitly closed" from "never opened", and we `delete` on close to
+ * keep the map bounded.
+ */
+const modalOpenByProfile = new Map<string, boolean>()
+
+export function setProfileModalOpen(profileSlug: string, isOpen: boolean): void {
+  if (isOpen) modalOpenByProfile.set(profileSlug, true)
+  else modalOpenByProfile.delete(profileSlug)
+}
+
 function outcomeKey(simId: string, outcomeId: string): string {
   return `${simId}::${outcomeId}`
 }
@@ -43,9 +60,19 @@ function outcomeKey(simId: string, outcomeId: string): string {
 /** Build the user-turn prompt for a single outcome. */
 function buildOutcomePrompt(outcome: SimulationOutcome): string {
   const p = outcome.pathLabels
+  // Typed structured metadata. `details` is optional for outcomes written
+  // before F.3 shipped; default to empty objects so the prompt still
+  // renders em-dash placeholders.
+  const d = outcome.details ?? {
+    subject: {},
+    exposure: {},
+    intervention: {},
+  } as NonNullable<SimulationOutcome['details']>
+  const sC = (d.subject.comorbidities || []).join(', ') || '—'
+  const doseUnit = [d.exposure.dose, d.exposure.unit].filter(Boolean).join(' ') || '—'
   return `You are analysing a public-health scenario for a clinician. Estimate the
-likely health outcome for the path below based on the environment,
-subject population, exposure, current health state, and proposed
+likely health outcome for the path below based on the subject population,
+exposure (including the setting where risk originates), and proposed
 intervention. Use evidence-based reasoning and produce a structured
 response with these sections, in this order:
 
@@ -57,11 +84,23 @@ response with these sections, in this order:
 6. UNCERTAINTY (1-2 sentences on what data would most change the estimate)
 
 Path:
-- Environment: ${p.environment}
 - Subject: ${p.subject}
+  - Age range: ${d.subject.ageRange || '—'}
+  - Sample size: ${d.subject.sampleSize || '—'}
+  - Region: ${d.subject.region || '—'}
+  - Comorbidities: ${sC}
+  - Context: ${d.subject.context || '—'}
 - Exposure: ${p.exposure}
-- Health State: ${p.healthState}
+  - Dose / unit: ${doseUnit}
+  - Duration: ${d.exposure.duration || '—'}
+  - Frequency: ${d.exposure.frequency || '—'}
+  - Setting: ${d.exposure.setting || '—'}
+  - Context: ${d.exposure.context || '—'}
 - Intervention: ${p.intervention}
+  - Type: ${d.intervention.type || '—'}
+  - Intensity: ${d.intervention.intensity || '—'}
+  - Compliance: ${d.intervention.compliance || '—'}
+  - Context: ${d.intervention.context || '—'}
 
 Format the response in clear markdown with the section headings above as
 level-2 headings (## SUMMARY, ## RISK, etc.). Do not include any text
@@ -164,6 +203,12 @@ async function tickForProfile(profileSlug: string): Promise<void> {
     console.log('[sim-worker] tick deferred: completion in flight')
     return
   }
+
+  // Skip the tick while the builder's pre-submit OutcomesModal is open
+  // (the user is still editing the name / description). The renderer
+  // signals open/close via `simulations:setModalOpen`; closing any
+  // outstanding modal un-blocks us on the next 1.5s poll.
+  if (modalOpenByProfile.get(profileSlug) === true) return
 
   const pending = listPendingOutcomes(profileSlug)
   for (const { simId, outcome } of pending) {

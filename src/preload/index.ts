@@ -120,8 +120,8 @@ const api = {
     list: (profileSlug: string) => ipcRenderer.invoke('simulations:list', profileSlug),
     get: (profileSlug: string, simId: string) =>
       ipcRenderer.invoke('simulations:get', profileSlug, simId),
-    create: (profileSlug: string, name: string, canvas: any) =>
-      ipcRenderer.invoke('simulations:create', profileSlug, name, canvas),
+    create: (profileSlug: string, name: string, description: string, canvas: any) =>
+      ipcRenderer.invoke('simulations:create', profileSlug, name, description, canvas),
     delete: (profileSlug: string, simId: string) =>
       ipcRenderer.invoke('simulations:delete', profileSlug, simId),
     requeue: (profileSlug: string, simId: string, outcomeId?: string) =>
@@ -130,6 +130,10 @@ const api = {
       ipcRenderer.invoke('simulations:getOutcome', profileSlug, simId, outcomeId),
     listOutcomes: (profileSlug: string, simId: string) =>
       ipcRenderer.invoke('simulations:listOutcomes', profileSlug, simId),
+    getReport: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:getReport', profileSlug, simId),
+    setModalOpen: (profileSlug: string, isOpen: boolean) =>
+      ipcRenderer.invoke('simulations:setModalOpen', profileSlug, isOpen),
     onProgress: (callback: (event: any) => void) => {
       const handler = (_: unknown, e: any) => callback(e)
       ipcRenderer.on('simulations:progress', handler)

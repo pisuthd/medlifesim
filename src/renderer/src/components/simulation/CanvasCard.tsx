@@ -9,7 +9,12 @@ import {
   cardHasInput,
   cardHasOutput,
 } from '../../data/simulationCards'
-import type { CanvasCard as CanvasCardType } from '../../types/simulation'
+import type {
+  CanvasCard as CanvasCardType,
+  SimCardExposureFields,
+  SimCardInterventionFields,
+  SimCardSubjectFields,
+} from '../../types/simulation'
 
 export type PortSide = 'in' | 'out'
 
@@ -17,6 +22,9 @@ export interface CanvasCardEdit {
   title: string
   subtitle: string
   badge: string
+  subjectFields?: SimCardSubjectFields
+  exposureFields?: SimCardExposureFields
+  interventionFields?: SimCardInterventionFields
 }
 
 interface CanvasCardProps {
@@ -24,7 +32,7 @@ interface CanvasCardProps {
   selected: boolean
   /** True when this card is the source of an in-flight connection. */
   isConnectSource: boolean
-  /** True when this card is in inline-edit mode (title / subtitle / badge). */
+  /** True when this card is in inline-edit mode. */
   editing: boolean
   onSelect: (placementId: string) => void
   onDelete: (placementId: string) => void
@@ -44,8 +52,13 @@ const EXPANDED_HEIGHT = 110
 /** Height of a collapsed card (title only). */
 const COLLAPSED_HEIGHT = 44
 
-/** Height of a card in inline-edit mode (3 inputs + Save/Cancel row). */
-const EDIT_HEIGHT = 196
+/**
+ * Height of a card in inline-edit mode. Now accommodates the
+ * category-specific typed fields (age range, dose, etc.) on top of
+ * the badge / title / context chrome. The form scrolls internally
+ * if it overflows.
+ */
+const EDIT_HEIGHT = 380
 
 /**
  * A single card on the free-form canvas. The card body is draggable
@@ -77,6 +90,18 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
   const [draftTitle, setDraftTitle] = useState(card.title)
   const [draftSubtitle, setDraftSubtitle] = useState(card.subtitle)
   const [draftBadge, setDraftBadge] = useState(card.badge)
+  // Category-specific typed fields. Drafts are kept in flat string form
+  // (so the user can clear a field and see an empty input) and re-shaped
+  // into the typed shape on save.
+  const [draftSubject, setDraftSubject] = useState<SimCardSubjectFields>(
+    card.subjectFields ?? {}
+  )
+  const [draftExposure, setDraftExposure] = useState<SimCardExposureFields>(
+    card.exposureFields ?? {}
+  )
+  const [draftIntervention, setDraftIntervention] = useState<SimCardInterventionFields>(
+    card.interventionFields ?? {}
+  )
 
   // Whenever the card enters edit mode, seed the draft from the latest
   // card values (handles the case where the card's data changed externally
@@ -86,8 +111,11 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
       setDraftTitle(card.title)
       setDraftSubtitle(card.subtitle)
       setDraftBadge(card.badge)
+      setDraftSubject(card.subjectFields ?? {})
+      setDraftExposure(card.exposureFields ?? {})
+      setDraftIntervention(card.interventionFields ?? {})
     }
-  }, [editing, card.title, card.subtitle, card.badge])
+  }, [editing, card.title, card.subtitle, card.badge, card.subjectFields, card.exposureFields, card.interventionFields])
 
   function handleSave() {
     // Empty title would leave a card with no label — keep the previous
@@ -97,6 +125,14 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
       title: nextTitle,
       subtitle: draftSubtitle,
       badge: draftBadge,
+      subjectFields:
+        card.category === 'subject' ? pruneEmpty(draftSubject) : undefined,
+      exposureFields:
+        card.category === 'exposure' ? pruneEmpty(draftExposure) : undefined,
+      interventionFields:
+        card.category === 'intervention'
+          ? pruneEmpty(draftIntervention)
+          : undefined,
     })
   }
 
@@ -171,12 +207,19 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
     >
       {editing ? (
         <EditForm
+          category={card.category}
           title={draftTitle}
           subtitle={draftSubtitle}
           badge={draftBadge}
+          subject={draftSubject}
+          exposure={draftExposure}
+          intervention={draftIntervention}
           onTitleChange={setDraftTitle}
           onSubtitleChange={setDraftSubtitle}
           onBadgeChange={setDraftBadge}
+          onSubjectChange={setDraftSubject}
+          onExposureChange={setDraftExposure}
+          onInterventionChange={setDraftIntervention}
           onSave={handleSave}
           onCancel={() => onEditCancel(card.placementId)}
           onKeyDown={handleEditKeyDown}
@@ -416,33 +459,119 @@ function Port({ side, active, color, onClick }: PortProps) {
 }
 
 interface EditFormProps {
+  category: 'subject' | 'exposure' | 'intervention'
   title: string
   subtitle: string
   badge: string
+  subject: SimCardSubjectFields
+  exposure: SimCardExposureFields
+  intervention: SimCardInterventionFields
   onTitleChange: (v: string) => void
   onSubtitleChange: (v: string) => void
   onBadgeChange: (v: string) => void
+  onSubjectChange: (v: SimCardSubjectFields) => void
+  onExposureChange: (v: SimCardExposureFields) => void
+  onInterventionChange: (v: SimCardInterventionFields) => void
   onSave: () => void
   onCancel: () => void
   onKeyDown: (e: React.KeyboardEvent) => void
 }
 
 /**
- * Inline edit form for a canvas card. Three stacked inputs (badge, title,
- * subtitle) with Save / Cancel buttons below. Title is auto-focused on
- * mount. Enter saves, Escape cancels — both bubble through `onKeyDown`.
+ * Strip out empty/undefined fields so we don't persist `ageRange: ''`
+ * on every card. Keeps the JSON tidy and the prompt clean.
+ */
+function pruneEmpty<T>(o: T): T {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+    if (v === undefined) continue
+    if (Array.isArray(v) && v.length === 0) continue
+    if (typeof v === 'string' && v.trim() === '') continue
+    out[k] = v
+  }
+  return out as T
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <label
+        style={{
+          fontFamily: monoFont,
+          fontSize: 8,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: MUTED,
+        }}
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+const textInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '3px 6px',
+  border: '1px solid #d0d0e8',
+  borderRadius: 4,
+  fontFamily: sansFont,
+  fontSize: 11,
+  color: NAVY,
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const titleInputStyle: React.CSSProperties = {
+  ...textInputStyle,
+  fontSize: 13,
+  fontWeight: 600,
+  padding: '5px 6px',
+}
+
+const textareaStyle: React.CSSProperties = {
+  ...textInputStyle,
+  fontSize: 10,
+  resize: 'vertical',
+  minHeight: 32,
+  maxHeight: 80,
+  fontFamily: sansFont,
+  lineHeight: 1.35,
+}
+
+/**
+ * Inline edit form for a canvas card. Renders the category-specific
+ * typed fields (age range / dose / type, etc.) on top of the badge /
+ * title / context chrome. The form scrolls internally so it never
+ * overflows the card's height budget.
+ *
+ * Enter saves, Escape cancels — both bubble through `onKeyDown`.
  *
  * Stopping pointer-down propagation on the inputs prevents the body's
  * dnd-kit listeners (or accidental drag) from firing while the user is
  * typing in them.
  */
 function EditForm({
+  category,
   title,
   subtitle,
   badge,
+  subject,
+  exposure,
+  intervention,
   onTitleChange,
   onSubtitleChange,
   onBadgeChange,
+  onSubjectChange,
+  onExposureChange,
+  onInterventionChange,
   onSave,
   onCancel,
   onKeyDown,
@@ -461,88 +590,259 @@ function EditForm({
     return () => clearTimeout(t)
   }, [])
 
-  const inputBase: React.CSSProperties = {
-    width: '100%',
-    border: '1px solid #d0d0e8',
-    borderRadius: 4,
-    fontFamily: sansFont,
-    color: NAVY,
-    outline: 'none',
-    boxSizing: 'border-box',
-  }
-
   return (
     <div
       data-card-edit="1"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        maxHeight: EDIT_HEIGHT - 20,
+        overflowY: 'auto',
+        paddingRight: 2,
+      }}
     >
-      <label
-        style={{
-          fontFamily: monoFont,
-          fontSize: 8,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          color: MUTED,
-        }}
-      >
-        Attribute
-      </label>
-      <input
-        type="text"
-        value={badge}
-        onChange={(e) => onBadgeChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="ENV-1"
-        style={{ ...inputBase, padding: '4px 6px', fontSize: 11 }}
-      />
+      <Field label="Tags">
+        <input
+          type="text"
+          value={badge}
+          onChange={(e) => onBadgeChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="EXPO-1"
+          style={textInputStyle}
+        />
+      </Field>
 
-      <label
-        style={{
-          fontFamily: monoFont,
-          fontSize: 8,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          color: MUTED,
-          marginTop: 2,
-        }}
-      >
-        Title
-      </label>
-      <input
-        ref={titleInputRef}
-        type="text"
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="Card title"
-        style={{ ...inputBase, padding: '5px 6px', fontSize: 13, fontWeight: 600 }}
-      />
+      <Field label="Title">
+        <input
+          ref={titleInputRef}
+          type="text"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Card title"
+          style={titleInputStyle}
+        />
+      </Field>
 
-      <label
-        style={{
-          fontFamily: monoFont,
-          fontSize: 8,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          color: MUTED,
-          marginTop: 2,
-        }}
-      >
-        Note
-      </label>
-      <input
-        type="text"
-        value={subtitle}
-        onChange={(e) => onSubtitleChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="Optional note"
-        style={{ ...inputBase, padding: '4px 6px', fontSize: 10 }}
-      />
+      <Field label="Context">
+        <input
+          type="text"
+          value={subtitle}
+          onChange={(e) => onSubtitleChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Optional context or notes"
+          style={textInputStyle}
+        />
+      </Field>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+      {category === 'subject' && (
+        <>
+          <Field label="Age range">
+            <input
+              type="text"
+              value={subject.ageRange ?? ''}
+              onChange={(e) =>
+                onSubjectChange({ ...subject, ageRange: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. 7-12, 65+, Adults 35-55"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Sample size">
+            <input
+              type="text"
+              value={subject.sampleSize ?? ''}
+              onChange={(e) =>
+                onSubjectChange({ ...subject, sampleSize: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. n=30, n=200"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Region">
+            <input
+              type="text"
+              value={subject.region ?? ''}
+              onChange={(e) =>
+                onSubjectChange({ ...subject, region: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. Bangkok suburbs"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Comorbidities (comma-separated)">
+            <input
+              type="text"
+              value={(subject.comorbidities ?? []).join(', ')}
+              onChange={(e) =>
+                onSubjectChange({
+                  ...subject,
+                  comorbidities: e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. asthma, diabetes"
+              style={textInputStyle}
+            />
+          </Field>
+        </>
+      )}
+
+      {category === 'exposure' && (
+        <>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ flex: 1 }}>
+              <Field label="Dose">
+                <input
+                  type="text"
+                  value={exposure.dose ?? ''}
+                  onChange={(e) =>
+                    onExposureChange({ ...exposure, dose: e.target.value })
+                  }
+                  onKeyDown={onKeyDown}
+                  placeholder="e.g. 35"
+                  style={textInputStyle}
+                />
+              </Field>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Field label="Unit">
+                <input
+                  type="text"
+                  value={exposure.unit ?? ''}
+                  onChange={(e) =>
+                    onExposureChange({ ...exposure, unit: e.target.value })
+                  }
+                  onKeyDown={onKeyDown}
+                  placeholder="e.g. µg/m³"
+                  style={textInputStyle}
+                />
+              </Field>
+            </div>
+          </div>
+          <Field label="Duration">
+            <input
+              type="text"
+              value={exposure.duration ?? ''}
+              onChange={(e) =>
+                onExposureChange({ ...exposure, duration: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. 6h school day, ongoing"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Frequency">
+            <input
+              type="text"
+              value={exposure.frequency ?? ''}
+              onChange={(e) =>
+                onExposureChange({ ...exposure, frequency: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. daily, weekly"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Setting">
+            <input
+              type="text"
+              value={exposure.setting ?? ''}
+              onChange={(e) =>
+                onExposureChange({ ...exposure, setting: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. indoor shared office"
+              style={textInputStyle}
+            />
+          </Field>
+        </>
+      )}
+
+      {category === 'intervention' && (
+        <>
+          <Field label="Type">
+            <input
+              type="text"
+              value={intervention.type ?? ''}
+              onChange={(e) =>
+                onInterventionChange({ ...intervention, type: e.target.value })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. policy, device, education, service"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Intensity">
+            <input
+              type="text"
+              value={intervention.intensity ?? ''}
+              onChange={(e) =>
+                onInterventionChange({
+                  ...intervention,
+                  intensity: e.target.value,
+                })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. school-wide, individual"
+              style={textInputStyle}
+            />
+          </Field>
+          <Field label="Compliance">
+            <input
+              type="text"
+              value={intervention.compliance ?? ''}
+              onChange={(e) =>
+                onInterventionChange({
+                  ...intervention,
+                  compliance: e.target.value,
+                })
+              }
+              onKeyDown={onKeyDown}
+              placeholder="e.g. high, moderate, low"
+              style={textInputStyle}
+            />
+          </Field>
+        </>
+      )}
+
+      <Field label="Detailed context (long-form)">
+        <textarea
+          value={
+            (category === 'subject' && subject.context) ||
+            (category === 'exposure' && exposure.context) ||
+            (category === 'intervention' && intervention.context) ||
+            ''
+          }
+          onChange={(e) => {
+            if (category === 'subject') {
+              onSubjectChange({ ...subject, context: e.target.value })
+            } else if (category === 'exposure') {
+              onExposureChange({ ...exposure, context: e.target.value })
+            } else {
+              onInterventionChange({
+                ...intervention,
+                context: e.target.value,
+              })
+            }
+          }}
+          onKeyDown={onKeyDown}
+          placeholder="Any extra context the model should know…"
+          style={textareaStyle}
+        />
+      </Field>
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
         <button
           type="button"
           data-card-action="1"

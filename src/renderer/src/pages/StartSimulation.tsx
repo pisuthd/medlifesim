@@ -22,6 +22,9 @@ import {
   EMPTY_CANVAS,
   type CanvasCard,
   type CanvasState,
+  type SimCardExposureFields,
+  type SimCardInterventionFields,
+  type SimCardSubjectFields,
   type SimCardTemplate,
   type SimPathPreview,
   type SimTemplate,
@@ -63,6 +66,10 @@ export default function StartSimulation() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   // Toast shown after a successful submission
   const [successToast, setSuccessToast] = useState<{ simId: string; count: number } | null>(null)
+  // Scenario description — pre-filled from the chosen template (if any),
+  // editable in the OutcomesModal, saved onto the persisted sim, and
+  // rendered as the lead paragraph in the report.
+  const [description, setDescription] = useState<string>('')
 
   // Warning toast auto-dismiss: any new warning replaces the old timer.
   useEffect(() => {
@@ -70,6 +77,19 @@ export default function StartSimulation() {
     const t = setTimeout(() => setWarning(null), 3000)
     return () => clearTimeout(t)
   }, [warning])
+
+  // Worker pause gate: while the pre-submit OutcomesModal is open
+  // (`paths !== null`), tell the background worker to skip its ticks for
+  // this profile. Close + unmount both clear the flag so the worker
+  // resumes on its next 1.5s poll.
+  useEffect(() => {
+    if (!profile) return
+    window.api.simulations.setModalOpen(profile.id, paths !== null)
+    return () => {
+      // Best-effort cleanup if the page unmounts while the modal is open.
+      window.api.simulations.setModalOpen(profile.id, false)
+    }
+  }, [profile, paths])
 
   function handleDragEnd(event: DragEndEvent) {
     const data = event.active.data.current as
@@ -109,14 +129,23 @@ export default function StartSimulation() {
     setAddOpen(false)
   }
 
-  /** Persist the edited text for a card and exit edit mode. */
+  /** Persist the edited text and typed fields for a card and exit edit mode. */
   function handleEditCard(
     id: string,
-    updates: { title: string; subtitle: string; badge: string },
+    updates: {
+      title: string
+      subtitle: string
+      badge: string
+      subjectFields?: SimCardSubjectFields
+      exposureFields?: SimCardExposureFields
+      interventionFields?: SimCardInterventionFields
+    },
   ) {
     setCanvas((prev) => ({
       ...prev,
-      cards: prev.cards.map((c) => (c.placementId === id ? { ...c, ...updates } : c)),
+      cards: prev.cards.map((c) =>
+        c.placementId === id ? { ...c, ...updates } : c,
+      ),
     }))
     setEditingId(null)
   }
@@ -204,6 +233,7 @@ export default function StartSimulation() {
     setPaths(null)
     setSelectedId(null)
     setConnectFrom(null)
+    setDescription('')
   }
 
   /**
@@ -225,13 +255,16 @@ export default function StartSimulation() {
     setSelectedId(null)
     setConnectFrom(null)
     setEditingId(null)
+    // Inherit the template's description as a starting point — the user
+    // can still edit it in the OutcomesModal before submitting.
+    setDescription(template.description ?? '')
   }
 
   function cancelTemplateLoad() {
     setPendingTemplate(null)
   }
 
-  async function handleProceed(name: string) {
+  async function handleProceed(name: string, description: string) {
     if (!profile) {
       setSubmitError('No profile selected.')
       return
@@ -239,10 +272,16 @@ export default function StartSimulation() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const result = await window.api.simulations.create(profile.id, name, canvas)
+      const result = await window.api.simulations.create(
+        profile.id,
+        name,
+        description,
+        canvas
+      )
       const count = result?.outcomeCount ?? paths?.length ?? 0
       const simId = result?.id ?? ''
       setPaths(null)
+      setDescription('')
       setSuccessToast({ simId, count })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Submission failed'
@@ -377,6 +416,8 @@ export default function StartSimulation() {
 
       <OutcomesModal
         paths={paths}
+        initialDescription={description}
+        onDescriptionChange={setDescription}
         onClose={() => {
           setPaths(null)
           setSubmitError(null)

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { BLUE, MUTED, monoFont } from '../../theme'
-import CanvasCard, { type PortSide } from './CanvasCard'
+import CanvasCard, { type CanvasCardEdit, type PortSide } from './CanvasCard'
 import CanvasLines from './CanvasLines'
 import type { CanvasState } from '../../types/simulation'
 
@@ -18,7 +18,7 @@ interface CanvasProps {
   onDeleteConnection: (id: string) => void
   onCancelConnect: () => void
   onRequestEdit: (id: string) => void
-  onEditCard: (id: string, updates: { title: string; subtitle: string; badge: string }) => void
+  onEditCard: (id: string, updates: CanvasCardEdit) => void
   onEditCancel: (id: string) => void
 }
 
@@ -413,7 +413,7 @@ function EmptyHint() {
       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#7a7aa0' }}>
         Empty canvas
       </div> 
-      Click + Add Element to add elements, drag them around, then 
+      Click + Add Card to add cards, drag them around, then
       connect their ports to build a pipeline.
     </div>
   )

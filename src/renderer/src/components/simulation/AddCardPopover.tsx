@@ -8,10 +8,8 @@ import {
 } from '../../data/simulationCards'
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
-  environment: 'Where risk originates',
   subject: 'Who is affected',
-  exposure: 'How they are exposed',
-  'health-state': 'What condition they are in',
+  exposure: 'Where risk originates or how they are exposed',
   intervention: 'What actions change outcome',
 }
 import type { SimCardTemplate } from '../../types/simulation'

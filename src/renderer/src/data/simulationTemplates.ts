@@ -4,9 +4,14 @@ import type { CanvasCard, Connection, SimTemplate } from '../types/simulation'
 
 /**
  * Pre-built full-canvas scenarios. Each template ships with pre-connected
- * cards laid out across a 5-column grid (x = 160 / 380 / 600 / 820 / 1040,
+ * cards laid out across a 3-column grid (x = 220 / 540 / 860,
  * y = 220 plus a small vertical offset per row). Templates are loaded
  * from the toolbar's "MedLifeSim ▾" dropdown.
+ *
+ * The 3-step pipeline is `subject → exposure → intervention`. The 4
+ * environment cards from the old 5-column grid have been recategorized
+ * to `exposure` and now sit in the same column as the original
+ * exposure cards.
  *
  * Connection ids follow the convention `conn-<from>-<to>` for stability.
  */
@@ -32,91 +37,79 @@ function conn(id: string, from: string, to: string): Connection {
   return { id, from, to }
 }
 
-const X_ENV = 160
-const X_SUBJ = 380
-const X_EXPO = 600
-const X_HEAL = 820
-const X_INTV = 1040
+const X_SUBJ = 220
+const X_EXPO = 540
+const X_INTV = 860
 const Y = 220
-const Y_BRANCH = 340
 
 // ─── Template 1: High-Rise Office · Secondhand Smoke ──────────────────
+// 2 subjects × 2 exposures × 2 interventions = 8 paths
 const officeSmokeCards: CanvasCard[] = [
-  cardAt('env-office-highrise', '0', X_ENV, Y),
   cardAt('subj-non-smokers', '0', X_SUBJ, Y - 60),
   cardAt('subj-smokers', '0', X_SUBJ, Y + 60),
-  cardAt('exp-indoor-smoking', '0', X_EXPO, Y),
-  cardAt('hs-respiratory-cough', '0', X_HEAL, Y - 60),
-  cardAt('hs-asymptomatic', '0', X_HEAL, Y + 60),
+  // Exposure column holds both the recategorized environment card
+  // (high-rise office = "where risk originates") and the original
+  // exposure card (secondhand smoke).
+  cardAt('env-office-highrise', '0', X_EXPO, Y - 60),
+  cardAt('exp-indoor-smoking', '0', X_EXPO, Y + 60),
   cardAt('int-no-intervention', '0', X_INTV, Y - 60),
   cardAt('int-no-smoking-policy', '0', X_INTV, Y + 60),
 ]
 const officeSmokeConnections: Connection[] = [
-  // env → each subject
-  conn('conn-env-non', officeSmokeCards[0].placementId, officeSmokeCards[1].placementId),
-  conn('conn-env-smk', officeSmokeCards[0].placementId, officeSmokeCards[2].placementId),
-  // each subject → exposure
-  conn('conn-non-expo', officeSmokeCards[1].placementId, officeSmokeCards[3].placementId),
-  conn('conn-smk-expo', officeSmokeCards[2].placementId, officeSmokeCards[3].placementId),
-  // exposure → each health state
-  conn('conn-expo-cough', officeSmokeCards[3].placementId, officeSmokeCards[4].placementId),
-  conn('conn-expo-asymp', officeSmokeCards[3].placementId, officeSmokeCards[5].placementId),
-  // each health state → each intervention (full cartesian)
-  conn('conn-cough-noint', officeSmokeCards[4].placementId, officeSmokeCards[6].placementId),
-  conn('conn-cough-policy', officeSmokeCards[4].placementId, officeSmokeCards[7].placementId),
-  conn('conn-asymp-noint', officeSmokeCards[5].placementId, officeSmokeCards[6].placementId),
-  conn('conn-asymp-policy', officeSmokeCards[5].placementId, officeSmokeCards[7].placementId),
+  // each subject → each exposure
+  conn('conn-non-office', officeSmokeCards[0].placementId, officeSmokeCards[2].placementId),
+  conn('conn-non-smoke', officeSmokeCards[0].placementId, officeSmokeCards[3].placementId),
+  conn('conn-smk-office', officeSmokeCards[1].placementId, officeSmokeCards[2].placementId),
+  conn('conn-smk-smoke', officeSmokeCards[1].placementId, officeSmokeCards[3].placementId),
+  // each exposure → each intervention
+  conn('conn-office-noint', officeSmokeCards[2].placementId, officeSmokeCards[4].placementId),
+  conn('conn-office-policy', officeSmokeCards[2].placementId, officeSmokeCards[5].placementId),
+  conn('conn-smoke-noint', officeSmokeCards[3].placementId, officeSmokeCards[4].placementId),
+  conn('conn-smoke-policy', officeSmokeCards[3].placementId, officeSmokeCards[5].placementId),
 ]
 
 // ─── Template 2: Community · Teen Drug Addiction ──────────────────────
+// 1 subject × 2 exposures × 2 interventions = 4 paths
 const teenDrugsCards: CanvasCard[] = [
-  cardAt('env-local-community', '0', X_ENV, Y),
   cardAt('subj-teens', '0', X_SUBJ, Y),
-  cardAt('exp-drug-social', '0', X_EXPO, Y),
-  cardAt('hs-addiction-early', '0', X_HEAL, Y - 60),
-  cardAt('hs-asymptomatic', '0', X_HEAL, Y + 60),
+  cardAt('env-local-community', '0', X_EXPO, Y - 60),
+  cardAt('exp-drug-social', '0', X_EXPO, Y + 60),
   cardAt('int-no-intervention', '0', X_INTV, Y - 60),
   cardAt('int-education-counseling', '0', X_INTV, Y + 60),
 ]
 const teenDrugsConnections: Connection[] = [
-  conn('conn-env-teen', teenDrugsCards[0].placementId, teenDrugsCards[1].placementId),
-  conn('conn-teen-expo', teenDrugsCards[1].placementId, teenDrugsCards[2].placementId),
-  conn('conn-expo-addict', teenDrugsCards[2].placementId, teenDrugsCards[3].placementId),
-  conn('conn-expo-asymp', teenDrugsCards[2].placementId, teenDrugsCards[4].placementId),
-  conn('conn-addict-noint', teenDrugsCards[3].placementId, teenDrugsCards[5].placementId),
-  conn('conn-addict-edu', teenDrugsCards[3].placementId, teenDrugsCards[6].placementId),
-  conn('conn-asymp-noint', teenDrugsCards[4].placementId, teenDrugsCards[5].placementId),
-  conn('conn-asymp-edu', teenDrugsCards[4].placementId, teenDrugsCards[6].placementId),
+  conn('conn-teen-community', teenDrugsCards[0].placementId, teenDrugsCards[1].placementId),
+  conn('conn-teen-drugs', teenDrugsCards[0].placementId, teenDrugsCards[2].placementId),
+  conn('conn-community-noint', teenDrugsCards[1].placementId, teenDrugsCards[3].placementId),
+  conn('conn-community-edu', teenDrugsCards[1].placementId, teenDrugsCards[4].placementId),
+  conn('conn-drugs-noint', teenDrugsCards[2].placementId, teenDrugsCards[3].placementId),
+  conn('conn-drugs-edu', teenDrugsCards[2].placementId, teenDrugsCards[4].placementId),
 ]
 
 // ─── Template 3: Family · Elderly Care ─────────────────────────────────
+// 2 subjects × 2 exposures × 2 interventions = 8 paths
 const elderCareCards: CanvasCard[] = [
-  cardAt('env-family-home', '0', X_ENV, Y),
   cardAt('subj-elderly', '0', X_SUBJ, Y - 60),
   cardAt('subj-caregivers', '0', X_SUBJ, Y + 60),
-  cardAt('exp-caregiving-load', '0', X_EXPO, Y),
-  cardAt('hs-burnout-stress', '0', X_HEAL, Y - 60),
-  cardAt('hs-asymptomatic', '0', X_HEAL, Y + 60),
+  cardAt('env-family-home', '0', X_EXPO, Y - 60),
+  cardAt('exp-caregiving-load', '0', X_EXPO, Y + 60),
   cardAt('int-no-intervention', '0', X_INTV, Y - 60),
   cardAt('int-respite-care', '0', X_INTV, Y + 60),
 ]
 const elderCareConnections: Connection[] = [
-  conn('conn-env-elder', elderCareCards[0].placementId, elderCareCards[1].placementId),
-  conn('conn-env-care', elderCareCards[0].placementId, elderCareCards[2].placementId),
-  conn('conn-elder-care', elderCareCards[1].placementId, elderCareCards[3].placementId),
-  conn('conn-caregiver-care', elderCareCards[2].placementId, elderCareCards[3].placementId),
-  conn('conn-care-burnout', elderCareCards[3].placementId, elderCareCards[4].placementId),
-  conn('conn-care-asymp', elderCareCards[3].placementId, elderCareCards[5].placementId),
-  conn('conn-burnout-noint', elderCareCards[4].placementId, elderCareCards[6].placementId),
-  conn('conn-burnout-respite', elderCareCards[4].placementId, elderCareCards[7].placementId),
-  conn('conn-asymp-noint', elderCareCards[5].placementId, elderCareCards[6].placementId),
-  conn('conn-asymp-respite', elderCareCards[5].placementId, elderCareCards[7].placementId),
+  conn('conn-elder-home', elderCareCards[0].placementId, elderCareCards[2].placementId),
+  conn('conn-elder-care', elderCareCards[0].placementId, elderCareCards[3].placementId),
+  conn('conn-caregiver-home', elderCareCards[1].placementId, elderCareCards[2].placementId),
+  conn('conn-caregiver-care', elderCareCards[1].placementId, elderCareCards[3].placementId),
+  conn('conn-home-noint', elderCareCards[2].placementId, elderCareCards[4].placementId),
+  conn('conn-home-respite', elderCareCards[2].placementId, elderCareCards[5].placementId),
+  conn('conn-care-noint', elderCareCards[3].placementId, elderCareCards[4].placementId),
+  conn('conn-care-respite', elderCareCards[3].placementId, elderCareCards[5].placementId),
 ]
 
 // Touch randomTone so the import isn't dead-code-eliminated (the helper is
-// invoked through toPlacedCard). Mark the constant for clarity.
+// invoked through toPlacedCard).
 void randomTone
-void Y_BRANCH
 
 export const SIM_TEMPLATES: SimTemplate[] = [
   {

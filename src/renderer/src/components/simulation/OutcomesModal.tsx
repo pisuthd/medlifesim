@@ -6,14 +6,18 @@ import type { SimPathPreview } from '../../types/simulation'
 interface OutcomesModalProps {
   paths: SimPathPreview[] | null
   onClose: () => void
-  /** Called when the user clicks Proceed. Receives the user-supplied name. */
-  onProceed?: (name: string) => void | Promise<void>
+  /** Called when the user clicks Proceed. Receives the user-supplied name and description. */
+  onProceed?: (name: string, description: string) => void | Promise<void>
   /** Disables the Proceed button while a submission is in flight. */
   submitting?: boolean
   /** Error from a failed submission (rendered as a red banner). */
   submitError?: string | null
   /** Initial value for the name input. */
   initialName?: string
+  /** Initial value for the description textarea (pre-filled from the template). */
+  initialDescription?: string
+  /** Fires on every keystroke so the parent can persist the value across re-opens. */
+  onDescriptionChange?: (value: string) => void
 }
 
 function defaultName(): string {
@@ -27,7 +31,7 @@ function defaultName(): string {
  * as a queue table. No risk or summary numbers — outcomes are produced by
  * the AI after the user clicks Proceed.
  *
- * Columns: INT → Health State → Exposure → Subject → Environment → Status
+ * Columns: INT → Exposure → Subject → Status
  * Status column renders a "Pending AI" pill for every row.
  * Footer: Cancel + Proceed (primary BLUE).
  */
@@ -38,9 +42,12 @@ export default function OutcomesModal({
   submitting,
   submitError,
   initialName,
+  initialDescription,
+  onDescriptionChange,
 }: OutcomesModalProps) {
   const open = paths !== null
   const [name, setName] = useState<string>(initialName ?? defaultName())
+  const [description, setDescription] = useState<string>(initialDescription ?? '')
 
   // Esc closes — global listener while open.
   useEffect(() => {
@@ -56,10 +63,11 @@ export default function OutcomesModal({
   }, [open, onClose])
 
   // When the modal opens, refresh the default name unless the parent
-  // supplied one.
+  // supplied one. Re-sync description from the parent (template-derived).
   useEffect(() => {
     if (open && !initialName) setName(defaultName())
-  }, [open, initialName])
+    if (open) setDescription(initialDescription ?? '')
+  }, [open, initialName, initialDescription])
 
   const canProceed = !!(paths && paths.length > 0 && !submitting && onProceed)
 
@@ -189,6 +197,53 @@ export default function OutcomesModal({
 
             <div
               style={{
+                padding: '8px 20px 14px',
+                borderBottom: '1px solid #e0e0f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: monoFont,
+                  fontSize: 9,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: MUTED,
+                }}
+              >
+                Description
+              </span>
+              <textarea
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  onDescriptionChange?.(e.target.value)
+                }}
+                placeholder="What is this scenario modelling? (optional — inherited from the template if you loaded one)"
+                maxLength={1000}
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontFamily: sansFont,
+                  fontSize: 13,
+                  color: NAVY,
+                  background: '#f7f7fc',
+                  border: '1px solid #e0e0f0',
+                  borderRadius: 4,
+                  outline: 'none',
+                  resize: 'vertical',
+                  minHeight: 56,
+                  maxHeight: 160,
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div
+              style={{
                 flex: 1,
                 overflow: 'auto',
                 padding: 0,
@@ -205,10 +260,8 @@ export default function OutcomesModal({
                 <thead>
                   <tr>
                     <th style={thStyle}>INT</th>
-                    <th style={thStyle}>Health State</th>
                     <th style={thStyle}>Exposure</th>
                     <th style={thStyle}>Subject</th>
-                    <th style={thStyle}>Environment</th>
                     <th style={{ ...thStyle, textAlign: 'right' }}>Status</th>
                   </tr>
                 </thead>
@@ -272,7 +325,7 @@ export default function OutcomesModal({
                 type="button"
                 disabled={!canProceed}
                 onClick={() =>
-                  onProceed && onProceed(name.trim() || defaultName())
+                  onProceed && onProceed(name.trim() || defaultName(), description.trim())
                 }
                 whileHover={canProceed ? { scale: 1.02 } : undefined}
                 whileTap={canProceed ? { scale: 0.98 } : undefined}
@@ -343,10 +396,8 @@ function PathRow({ path, index }: { path: SimPathPreview; index: number }) {
           {path.pathLabels.intervention}
         </span>
       </td>
-      <td style={tdStyle}>{path.pathLabels.healthState}</td>
       <td style={tdStyle}>{path.pathLabels.exposure}</td>
       <td style={tdStyle}>{path.pathLabels.subject}</td>
-      <td style={tdStyle}>{path.pathLabels.environment}</td>
       <td style={{ ...tdStyle, textAlign: 'right' }}>
         <span
           style={{

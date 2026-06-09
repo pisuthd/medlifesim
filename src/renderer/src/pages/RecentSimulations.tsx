@@ -104,6 +104,10 @@ export default function RecentSimulations() {
     navigate(`/chat?session=${sessionSlug}`)
   }
 
+  function handleOpenReport(simId: string) {
+    navigate(`/simulations/${simId}/report`)
+  }
+
   async function handleRequeueOutcome(simId: string, outcomeId: string) {
     if (!profile) return
     try {
@@ -251,6 +255,7 @@ export default function RecentSimulations() {
               outcomes={outcomesBySim[sim.id] ?? []}
               outcomesLoading={!!outcomesLoading[sim.id]}
               onToggle={() => handleToggle(sim.id)}
+              onOpenReport={() => handleOpenReport(sim.id)}
               onOpenOutcome={handleOpenOutcome}
               onRequeueOutcome={(oid) => handleRequeueOutcome(sim.id, oid)}
               onRequeueAll={() => handleRequeueAll(sim.id)}

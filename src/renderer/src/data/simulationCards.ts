@@ -15,58 +15,84 @@ import type {
  */
 
 export const CATEGORY_ORDER: SimCategory[] = [
-  'environment',
   'subject',
   'exposure',
-  'health-state',
   'intervention',
 ]
 
 export const CATEGORY_LABELS: Record<SimCategory, string> = {
-  environment: 'Environment',
   subject: 'Subject',
   exposure: 'Exposure',
-  'health-state': 'Health State',
   intervention: 'Intervention',
 }
 
 export const CATEGORY_PREFIX: Record<SimCategory, string> = {
-  environment: 'ENV',
   subject: 'SUBJ',
   exposure: 'EXPO',
-  'health-state': 'HEAL',
   intervention: 'INT',
 }
 
 export const PALETTE_CARDS: SimCardTemplate[] = [
-  // ── Environment ───────────────────────────────────────────────────────
+  // ── Exposure (context: where risk originates) ─────────────────────────
   {
     id: 'env-urban-school-bkk',
-    category: 'environment',
+    category: 'exposure',
     title: 'Urban School',
     subtitle: 'Public school near main roads',
     badge: 'High traffic • AQI 160',
+    exposureFields: {
+      dose: '35',
+      unit: 'PM2.5 µg/m³ (avg)',
+      duration: '6h school day',
+      frequency: 'daily',
+      setting: 'outdoor recess + unfiltered classrooms',
+      context: 'Bangkok roadside primary; peak-hour traffic exposure',
+    },
   },
   {
     id: 'env-office-highrise',
-    category: 'environment',
+    category: 'exposure',
     title: 'High-rise Office',
     subtitle: 'Open-plan bullpen',
     badge: '100 sq.m • AC',
+    exposureFields: {
+      dose: '~30',
+      unit: 'm³ per person recirculated',
+      duration: '8h',
+      frequency: 'daily weekday',
+      setting: 'indoor shared office, recirculated AC',
+      context: 'Open-plan bullpen with shared ventilation',
+    },
   },
   {
     id: 'env-family-home',
-    category: 'environment',
+    category: 'exposure',
     title: 'Multi-gen Family Home',
     subtitle: 'Bangkok suburb',
     badge: '4–6 members',
+    exposureFields: {
+      dose: 'variable',
+      unit: '—',
+      duration: 'continuous',
+      frequency: 'daily',
+      setting: 'multi-generational suburban home',
+      context: 'Bangkok suburb; elderly + working-age cohabitants',
+    },
   },
   {
     id: 'env-local-community',
-    category: 'environment',
+    category: 'exposure',
     title: 'Local Community',
     subtitle: 'Semi-urban Northeast',
     badge: 'Local gathering spots',
+    exposureFields: {
+      dose: 'social access',
+      unit: '—',
+      duration: 'after-school + weekend',
+      frequency: 'weekly',
+      setting: 'semi-urban Northeast Thailand',
+      context: 'Temple fairs, market stalls, after-school hangouts',
+    },
   },
 
   // ── Subject ───────────────────────────────────────────────────────────
@@ -76,6 +102,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'School Children',
     subtitle: 'Primary students',
     badge: 'n=30 • Age 7–12',
+    subjectFields: {
+      ageRange: '7-12',
+      sampleSize: 'n=30',
+      region: 'Bangkok metropolitan',
+      comorbidities: [],
+      context: 'Healthy primary school cohort; baseline low risk',
+    },
   },
   {
     id: 'subj-non-smokers',
@@ -83,6 +116,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Non-Smokers',
     subtitle: 'Office workers',
     badge: 'n=15',
+    subjectFields: {
+      ageRange: '25-45',
+      sampleSize: 'n=15',
+      region: 'Bangkok CBD',
+      comorbidities: ['mild asthma (2/15)'],
+      context: 'No personal tobacco use; passive exposure only',
+    },
   },
   {
     id: 'subj-smokers',
@@ -90,6 +130,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Smokers',
     subtitle: 'Office workers',
     badge: 'n=5',
+    subjectFields: {
+      ageRange: '25-45',
+      sampleSize: 'n=5',
+      region: 'Bangkok CBD',
+      comorbidities: [],
+      context: 'Active smokers; ~10 cigarettes/day baseline',
+    },
   },
   {
     id: 'subj-elderly',
@@ -97,6 +144,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Elderly Parents',
     subtitle: '65+ with chronic conditions',
     badge: 'Age 70+',
+    subjectFields: {
+      ageRange: '70+',
+      sampleSize: '—',
+      region: 'Bangkok suburb',
+      comorbidities: ['hypertension', 'type 2 diabetes', 'mild COPD'],
+      context: 'Living with adult children; high baseline vulnerability',
+    },
   },
   {
     id: 'subj-caregivers',
@@ -104,6 +158,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Family Caregivers',
     subtitle: 'Working-age children',
     badge: 'Age 35–55',
+    subjectFields: {
+      ageRange: '35-55',
+      sampleSize: '—',
+      region: 'Bangkok suburb',
+      comorbidities: [],
+      context: 'Working full-time while providing daily eldercare',
+    },
   },
   {
     id: 'subj-teens',
@@ -111,6 +172,13 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'At-risk Teens',
     subtitle: '13–19 years',
     badge: 'Meth/cannabis exposure',
+    subjectFields: {
+      ageRange: '13-19',
+      sampleSize: '—',
+      region: 'Northeast Thailand',
+      comorbidities: [],
+      context: 'School-attending; peer-network risk factors',
+    },
   },
 
   // ── Exposure ──────────────────────────────────────────────────────────
@@ -120,6 +188,14 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'PM2.5 Outdoor',
     subtitle: 'Recess & sports',
     badge: 'Daily outdoor',
+    exposureFields: {
+      dose: '50-120',
+      unit: 'PM2.5 µg/m³',
+      duration: '2h recess + sport',
+      frequency: 'daily',
+      setting: 'outdoor school grounds',
+      context: 'Bangkok burning season exposure pattern',
+    },
   },
   {
     id: 'exp-indoor-smoking',
@@ -127,6 +203,14 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Indoor Secondhand Smoke',
     subtitle: 'Shared office air',
     badge: '8h daily',
+    exposureFields: {
+      dose: '5 colleagues',
+      unit: 'cigarettes/day equivalent',
+      duration: '8h',
+      frequency: 'daily weekday',
+      setting: 'indoor shared office',
+      context: 'Unventilated shared airspace with active smokers',
+    },
   },
   {
     id: 'exp-caregiving-load',
@@ -134,6 +218,14 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Daily Caregiving',
     subtitle: 'Physical + emotional',
     badge: 'Ongoing',
+    exposureFields: {
+      dose: '3-5h/day',
+      unit: 'hands-on care',
+      duration: 'continuous',
+      frequency: 'daily',
+      setting: 'family home',
+      context: 'Medication, bathing, mobility assistance, emotional support',
+    },
   },
   {
     id: 'exp-drug-social',
@@ -141,38 +233,21 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Peer Drug Access',
     subtitle: 'Meth/cannabis',
     badge: 'High availability',
+    exposureFields: {
+      dose: 'social',
+      unit: '—',
+      duration: 'after-school + weekends',
+      frequency: 'weekly',
+      setting: 'community gathering spots',
+      context: 'Easy peer access; no current use',
+    },
   },
 
   // ── Health State ──────────────────────────────────────────────────────
-  {
-    id: 'hs-respiratory-cough',
-    category: 'health-state',
-    title: 'Respiratory Irritation',
-    subtitle: 'Cough, runny nose',
-    badge: 'PM2.5 related',
-  },
-  {
-    id: 'hs-burnout-stress',
-    category: 'health-state',
-    title: 'Caregiver Burnout',
-    subtitle: 'Fatigue + depression',
-    badge: 'Ongoing stress',
-  },
-  {
-    id: 'hs-addiction-early',
-    category: 'health-state',
-    title: 'Early Substance Use',
-    subtitle: 'Aggression, insomnia',
-    badge: 'Meth/cannabis',
-  },
-  {
-    id: 'hs-asymptomatic',
-    category: 'health-state',
-    title: 'Asymptomatic',
-    subtitle: 'No visible issues',
-    badge: 'Baseline',
-  },
-
+  // Removed: health-state is now an implicit property of each Subject card
+  // (baseline context lives in the subject's badge/subtitle). The Exposure
+  // column absorbs the previous Environment column to keep a 3-step
+  // pipeline: Subject → Exposure → Intervention.
   // ── Intervention ──────────────────────────────────────────────────────
   {
     id: 'int-no-intervention',
@@ -180,6 +255,12 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Do Nothing',
     subtitle: 'Baseline',
     badge: 'No change',
+    interventionFields: {
+      type: 'baseline',
+      intensity: '—',
+      compliance: '—',
+      context: 'No policy or behaviour change',
+    },
   },
   {
     id: 'int-air-purifiers-masks',
@@ -187,6 +268,12 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Purifiers + Masks',
     subtitle: 'School policy',
     badge: 'Air quality',
+    interventionFields: {
+      type: 'device + policy',
+      intensity: 'school-wide',
+      compliance: 'moderate',
+      context: 'HEPA purifiers in classrooms + N95 on high-AQI days',
+    },
   },
   {
     id: 'int-no-smoking-policy',
@@ -194,6 +281,12 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'No-Smoking Policy',
     subtitle: 'Indoor ban',
     badge: 'Workplace',
+    interventionFields: {
+      type: 'policy',
+      intensity: 'workplace-wide',
+      compliance: 'high',
+      context: 'Indoor smoking ban with designated outdoor area',
+    },
   },
   {
     id: 'int-respite-care',
@@ -201,6 +294,12 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Respite + Support',
     subtitle: 'Hire help / day care',
     badge: 'Family',
+    interventionFields: {
+      type: 'service',
+      intensity: 'family-level',
+      compliance: 'moderate',
+      context: '2x weekly day care + weekly in-home aide',
+    },
   },
   {
     id: 'int-education-counseling',
@@ -208,6 +307,12 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
     title: 'Education + Counseling',
     subtitle: 'School / community',
     badge: 'Substance prevention',
+    interventionFields: {
+      type: 'education',
+      intensity: 'school-wide + community',
+      compliance: 'moderate',
+      context: 'Curriculum + counsellor office hours + parent workshops',
+    },
   },
 ]
 
@@ -238,10 +343,8 @@ export const TONE_TINT = (tone: SimTone): string => {
 
 /** Connection rules (strict linear pipeline). */
 const VALID_CONNECTIONS: Record<SimCategory, SimCategory[]> = {
-  environment: ['subject'],
   subject: ['exposure'],
-  exposure: ['health-state'],
-  'health-state': ['intervention'],
+  exposure: ['intervention'],
   intervention: [],
 }
 
@@ -263,7 +366,7 @@ export function toPlacedCard(template: SimCardTemplate, placementId: string): Pl
 }
 
 export function cardHasInput(category: SimCategory): boolean {
-  return category !== 'environment'
+  return category !== 'subject'
 }
 
 export function cardHasOutput(category: SimCategory): boolean {

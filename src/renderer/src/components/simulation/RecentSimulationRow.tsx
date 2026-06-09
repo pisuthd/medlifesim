@@ -47,10 +47,9 @@ export function OutcomeRow({ outcome, onOpen, onRequeue }: OutcomeRowProps) {
   const color = OUTCOME_STATUS_COLOR[outcome.status]
   const label = OUTCOME_STATUS_LABEL[outcome.status]
   const summary =
-    `${outcome.pathLabels.environment} · ` +
     `${outcome.pathLabels.subject} · ` +
     `${outcome.pathLabels.exposure} · ` +
-    `${outcome.pathLabels.healthState}`
+    `${outcome.pathLabels.intervention}`
   return (
     <div
       style={{
@@ -144,6 +143,7 @@ interface RecentSimulationRowProps {
   outcomes: SimulationOutcome[]
   outcomesLoading: boolean
   onToggle: () => void
+  onOpenReport: () => void
   onOpenOutcome: (sessionSlug: string) => void
   onRequeueOutcome: (outcomeId: string) => void
   onRequeueAll: () => void
@@ -156,6 +156,7 @@ export default function RecentSimulationRow({
   outcomes,
   outcomesLoading,
   onToggle,
+  onOpenReport,
   onOpenOutcome,
   onRequeueOutcome,
   onRequeueAll,
@@ -250,6 +251,28 @@ export default function RecentSimulationRow({
           style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}
           onClick={(e) => e.stopPropagation()}
         >
+          {sim.outcomeCount > 0 && (
+            <button
+              onClick={onOpenReport}
+              title="View report"
+              style={{
+                padding: '4px 10px',
+                background: BLUE,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontFamily: monoFont,
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(26,26,232,0.18)',
+              }}
+            >
+              Report
+            </button>
+          )}
           {hasErrors && (
             <button
               onClick={onRequeueAll}
