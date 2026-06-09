@@ -736,17 +736,6 @@ function ReportBody({
         </h4>
         <p
           style={{
-            margin: '10px 0 0 0',
-            fontFamily: sansFont,
-            fontSize: 13,
-            color: NAVY,
-            lineHeight: 1.55,
-          }}
-        >
-          {MEDLIFESIM_DISCLAIMER.generator}
-        </p>
-        <p
-          style={{
             margin: '6px 0 0 0',
             fontFamily: sansFont,
             fontSize: 12,

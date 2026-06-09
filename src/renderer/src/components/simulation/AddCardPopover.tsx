@@ -4,6 +4,7 @@ import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
   PALETTE_CARDS,
+  randomTone,
   TONE_COLORS,
 } from '../../data/simulationCards'
 
@@ -204,7 +205,7 @@ function PopoverTile({
   template: SimCardTemplate
   onClick: () => void
 }) {
-  const accent = TONE_COLORS[template.tone ?? 'muted']
+  const accent = randomTone(template.category) ?? "muted"
   return (
     <button
       type="button"
@@ -212,7 +213,7 @@ function PopoverTile({
       style={{
         background: '#fff',
         border: '1px solid #e0e0f0',
-        borderLeft: '3px solid ' + accent,
+        borderLeft: '3px solid ' + TONE_COLORS[accent],
         borderRadius: 6,
         padding: '8px 10px',
         textAlign: 'left',

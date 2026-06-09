@@ -326,6 +326,11 @@ export const TONE_COLORS: Record<SimTone, string> = {
 const TONE_VALUES: SimTone[] = ['blue', 'teal', 'navy', 'muted']
 
 export function randomTone(seed: string): SimTone {
+
+  if (seed === "intervention") {
+    return "navy"
+  }
+
   let hash = 0
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i)
@@ -362,7 +367,7 @@ export function describeConnectionRule(target: SimCategory): string {
 }
 
 export function toPlacedCard(template: SimCardTemplate, placementId: string): PlacedCard {
-  return { ...template, placementId, tone: randomTone(placementId) }
+  return { ...template, placementId, tone: randomTone(template.category) }
 }
 
 export function cardHasInput(category: SimCategory): boolean {
