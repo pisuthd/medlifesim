@@ -58,7 +58,10 @@ function outcomeKey(simId: string, outcomeId: string): string {
 }
 
 /** Build the user-turn prompt for a single outcome. */
-function buildOutcomePrompt(outcome: SimulationOutcome): string {
+function buildOutcomePrompt(
+  outcome: SimulationOutcome,
+  allSubjects: { id: string; title: string }[]
+): string {
   const p = outcome.pathLabels
   // Typed structured metadata. `details` is optional for outcomes written
   // before F.3 shipped; default to empty objects so the prompt still
@@ -70,6 +73,35 @@ function buildOutcomePrompt(outcome: SimulationOutcome): string {
   } as NonNullable<SimulationOutcome['details']>
   const sC = (d.subject.comorbidities || []).join(', ') || '—'
   const doseUnit = [d.exposure.dose, d.exposure.unit].filter(Boolean).join(' ') || '—'
+
+  // F.14: when the canvas has multiple subjects, the 1.7B model can
+  // pattern-match "smoking + secondhand smoke" → "non-smoker secondhand
+  // smoker" and drop the leading subject constraint. Front-load the
+  // subject list with a STUDYING marker so the population is unambiguous
+  // before the exposure is read. Single-subject canvases are byte-
+  // identical to the pre-F.14 prompt.
+  const pathSubjectTitle = p.subject
+  const orderedSubjects = [
+    ...allSubjects.filter((s) => s.title === pathSubjectTitle),
+    ...allSubjects.filter((s) => s.title !== pathSubjectTitle),
+  ]
+  const subjectsBlock =
+    orderedSubjects.length > 1
+      ? `Subjects in this scenario (the canvas has multiple subject cards;
+analyse ONLY the one marked ← STUDYING THIS SUBJECT — do not
+substitute a different population based on the exposure or
+intervention):
+
+${orderedSubjects
+  .map(
+    (s) =>
+      `- ${s.title}${s.title === pathSubjectTitle ? ' ← STUDYING THIS SUBJECT' : ''}`
+  )
+  .join('\n')}
+
+`
+      : ''
+
   return `You are analysing a public-health scenario for a clinician. Estimate the
 likely health outcome for the path below based on the subject population,
 exposure (including the setting where risk originates), and proposed
@@ -83,7 +115,7 @@ response with these sections, in this order:
 5. RECOMMENDATIONS (2-4 actionable public-health recommendations)
 6. UNCERTAINTY (1-2 sentences on what data would most change the estimate)
 
-Path:
+${subjectsBlock}Path:
 - Subject: ${p.subject}
   - Age range: ${d.subject.ageRange || '—'}
   - Sample size: ${d.subject.sampleSize || '—'}
@@ -147,10 +179,16 @@ async function processOutcome(
   )
 
   try {
+    // F.14: pass the canvas's full subject list so buildOutcomePrompt can
+    // mark the path's subject and disambiguate from sibling subjects.
+    const allSubjects =
+      parentBefore?.canvas.cards
+        .filter((c) => c.category === 'subject')
+        .map((c) => ({ id: c.id, title: c.title })) ?? []
     await runCompletion({
       profileSlug,
       sessionSlug: outcome.sessionSlug,
-      userMessage: buildOutcomePrompt(outcome),
+      userMessage: buildOutcomePrompt(outcome, allSubjects),
       history: [],
     }, {}, 'worker')
     console.log(`[sim-worker] outcome ${outcome.id} done`)
