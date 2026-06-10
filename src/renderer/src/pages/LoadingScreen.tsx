@@ -197,6 +197,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                     if (!activeModel) return
                     const r = await resetCache(activeModel.id)
                     if (r.success) {
+                      alert('Cache deleted. Please close and reopen the app to complete the process.')
                       void reload()
                     } else {
                       setError({
@@ -220,7 +221,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
                     letterSpacing: '0.1em',
                   }}
                 >
-                  Reset &amp; Re-download
+                  Delete Cache
                 </button>
               </div>
             </div>
