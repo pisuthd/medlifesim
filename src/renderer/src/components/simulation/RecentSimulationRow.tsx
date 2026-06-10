@@ -109,7 +109,7 @@ export function OutcomeRow({ outcome, onOpen, onRequeue }: OutcomeRowProps) {
             cursor: 'pointer',
           }}
         >
-          Open
+          Chat
         </button>
         {outcome.status === 'error' && (
           <button
@@ -129,7 +129,7 @@ export function OutcomeRow({ outcome, onOpen, onRequeue }: OutcomeRowProps) {
               cursor: 'pointer',
             }}
           >
-            Requeue
+            Retry
           </button>
         )}
       </div>
@@ -251,7 +251,7 @@ export default function RecentSimulationRow({
           style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {sim.outcomeCount > 0 && (
+          {(sim.outcomeCount > 0) && ( !hasErrors ) && (
             <button
               onClick={onOpenReport}
               title="View report"
@@ -291,7 +291,7 @@ export default function RecentSimulationRow({
                 cursor: 'pointer',
               }}
             >
-              Requeue
+              Retry
             </button>
           )}
           <button

@@ -8,6 +8,15 @@ import {
   TONE_COLORS,
 } from '../../data/simulationCards'
 
+
+const MAX_NAME_LENGTH = 20
+
+function truncate(name: string): string {
+  if (name.length <= MAX_NAME_LENGTH) return name
+  return name.slice(0, MAX_NAME_LENGTH - 3) + '...'
+}
+
+
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   subject: 'Who is affected',
   exposure: 'Where risk originates or how they are exposed',
@@ -70,9 +79,7 @@ export default function AddCardPopover({ open, onPick, onClose }: AddCardPopover
         (c) =>
           c.category === cat &&
           (q === '' ||
-            c.title.toLowerCase().includes(q) ||
-            c.subtitle.toLowerCase().includes(q) ||
-            c.badge.toLowerCase().includes(q)),
+            c.title.toLowerCase().includes(q)),
       )
     }
     return out
@@ -234,7 +241,7 @@ function PopoverTile({
           textTransform: 'uppercase',
         }}
       >
-        {template.badge}
+        {  truncate(template.subjectFields?.context ?? template.exposureFields?.context ?? template.interventionFields?.context ?? "") }
       </span>
       <span
         style={{

@@ -3,6 +3,13 @@ import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
 import CanvasTemplateMenu from './CanvasTemplateMenu'
 import type { SimTemplate } from '../../types/simulation'
 
+const MAX_NAME_LENGTH = 20
+
+function truncate(name: string): string {
+  if (name.length <= MAX_NAME_LENGTH) return name
+  return name.slice(0, MAX_NAME_LENGTH - 3) + '...'
+}
+
 interface CanvasToolbarProps {
   cardCount: number
   addOpen: boolean
@@ -27,11 +34,11 @@ interface CanvasToolbarProps {
  * `StartSimulation.tsx`).
  */
 export default function CanvasToolbar({
-  cardCount,
+  // cardCount,
   addOpen,
   scenarioName,
   onToggleAdd,
-  onRequestReset,
+  // onRequestReset,
   onPickTemplate,
   onPickBlank,
   onEditScenario,
@@ -96,7 +103,7 @@ export default function CanvasToolbar({
               letterSpacing: '0.02em',
             }}
           >
-            {scenarioName && scenarioName.trim() ? scenarioName : 'MedLifeSim'}
+            {scenarioName && scenarioName.trim() ? truncate(scenarioName) : 'MedLifeSim'}
           </span>
           {onEditScenario && (
             <span
@@ -111,10 +118,10 @@ export default function CanvasToolbar({
           )}
         </span>
       </button>
+  
+      <Divider />
 
       <CanvasTemplateMenu onPick={onPickTemplate} onBlank={onPickBlank} />
-
-      <Divider />
 
       <motion.button
         type="button"
@@ -146,37 +153,8 @@ export default function CanvasToolbar({
         }}
       >
         <span style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>+</span>
-        Add
-      </motion.button>
-
-      <motion.button
-        type="button"
-        onClick={onRequestReset}
-        disabled={cardCount === 0}
-        whileHover={cardCount > 0 ? { scale: 1.05 } : undefined}
-        whileTap={cardCount > 0 ? { scale: 0.95 } : undefined}
-        title="Reset canvas"
-        aria-label="Reset canvas"
-        style={{
-          height: 30,
-          padding: '0 12px',
-          background: 'transparent',
-          color: cardCount === 0 ? '#d0d0e8' : MUTED,
-          border: '1px solid ' + (cardCount === 0 ? '#e8e8f0' : '#e0e0f0'),
-          borderRadius: 6,
-          fontFamily: monoFont,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          cursor: cardCount > 0 ? 'pointer' : 'not-allowed',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        Reset
-      </motion.button>
+        Add Card
+      </motion.button> 
     </div>
   )
 }

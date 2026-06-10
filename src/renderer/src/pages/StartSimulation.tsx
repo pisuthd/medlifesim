@@ -138,9 +138,7 @@ export default function StartSimulation() {
   function handleEditCard(
     id: string,
     updates: {
-      title: string
-      subtitle: string
-      badge: string
+      title: string 
       subjectFields?: SimCardSubjectFields
       exposureFields?: SimCardExposureFields
       interventionFields?: SimCardInterventionFields
@@ -419,7 +417,7 @@ export default function StartSimulation() {
         }}
       >
         <span aria-hidden style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>▶</span>
-        Submit to AI
+        Preview
       </motion.button>
 
       <OutcomesModal

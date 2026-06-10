@@ -11,7 +11,7 @@ export type SimTone = 'blue' | 'teal' | 'navy' | 'muted'
 
 /**
  * Category-specific structured metadata that cards can carry alongside the
- * free-form `title / subtitle / badge` chrome. The AI prompt interpolates
+ * free-form `title ` chrome. The AI prompt interpolates
  * these typed fields so the model sees precise age / dose / compliance
  * numbers instead of free-text, which materially improves risk estimation.
  *
@@ -62,8 +62,6 @@ export interface SimCardTemplate {
   id: string
   category: SimCategory
   title: string
-  subtitle: string
-  badge: string
   tone?: SimTone
   /** Category-specific typed fields. All optional. */
   subjectFields?: SimCardSubjectFields

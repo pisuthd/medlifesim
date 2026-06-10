@@ -20,8 +20,6 @@ export type PortSide = 'in' | 'out'
 
 export interface CanvasCardEdit {
   title: string
-  subtitle: string
-  badge: string
   subjectFields?: SimCardSubjectFields
   exposureFields?: SimCardExposureFields
   interventionFields?: SimCardInterventionFields
@@ -55,10 +53,10 @@ const COLLAPSED_HEIGHT = 44
 /**
  * Height of a card in inline-edit mode. Now accommodates the
  * category-specific typed fields (age range, dose, etc.) on top of
- * the badge / title / context chrome. The form scrolls internally
+ * the  title / context chrome. The form scrolls internally
  * if it overflows.
  */
-const EDIT_HEIGHT = 380
+const EDIT_HEIGHT = 340
 
 /**
  * A single card on the free-form canvas. The card body is draggable
@@ -87,9 +85,7 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
 
   // Local draft state for inline edit. Mirrors the card's current values on
   // mount/edit-entry so the user can see and tweak them.
-  const [draftTitle, setDraftTitle] = useState(card.title)
-  const [draftSubtitle, setDraftSubtitle] = useState(card.subtitle)
-  const [draftBadge, setDraftBadge] = useState(card.badge)
+  const [draftTitle, setDraftTitle] = useState(card.title) 
   // Category-specific typed fields. Drafts are kept in flat string form
   // (so the user can clear a field and see an empty input) and re-shaped
   // into the typed shape on save.
@@ -108,23 +104,19 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
   // between mount and the user double-clicking).
   useEffect(() => {
     if (editing) {
-      setDraftTitle(card.title)
-      setDraftSubtitle(card.subtitle)
-      setDraftBadge(card.badge)
+      setDraftTitle(card.title) 
       setDraftSubject(card.subjectFields ?? {})
       setDraftExposure(card.exposureFields ?? {})
       setDraftIntervention(card.interventionFields ?? {})
     }
-  }, [editing, card.title, card.subtitle, card.badge, card.subjectFields, card.exposureFields, card.interventionFields])
+  }, [editing, card.title, card.subjectFields, card.exposureFields, card.interventionFields])
 
   function handleSave() {
     // Empty title would leave a card with no label — keep the previous
-    // title in that case. Subtitle / badge may be empty.
+    // title in that case.
     const nextTitle = draftTitle.trim() === '' ? card.title : draftTitle
     onEdit(card.placementId, {
-      title: nextTitle,
-      subtitle: draftSubtitle,
-      badge: draftBadge,
+      title: nextTitle, 
       subjectFields:
         card.category === 'subject' ? pruneEmpty(draftSubject) : undefined,
       exposureFields:
@@ -208,15 +200,11 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
       {editing ? (
         <EditForm
           category={card.category}
-          title={draftTitle}
-          subtitle={draftSubtitle}
-          badge={draftBadge}
+          title={draftTitle} 
           subject={draftSubject}
           exposure={draftExposure}
           intervention={draftIntervention}
-          onTitleChange={setDraftTitle}
-          onSubtitleChange={setDraftSubtitle}
-          onBadgeChange={setDraftBadge}
+          onTitleChange={setDraftTitle} 
           onSubjectChange={setDraftSubject}
           onExposureChange={setDraftExposure}
           onInterventionChange={setDraftIntervention}
@@ -282,7 +270,7 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
                     >
                       {CATEGORY_PREFIX[card.category]}
                     </span>
-                     {card.badge}
+                     {/* {card.badge} */}
                   </div>
                   <div
                     style={{
@@ -309,7 +297,7 @@ const CanvasCard = forwardRef<HTMLDivElement, CanvasCardProps>(function CanvasCa
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {card.subtitle}
+                    {card.subjectFields?.context ?? card.exposureFields?.context ?? card.interventionFields?.context} 
                   </div>
                 </>
               )}
@@ -460,15 +448,11 @@ function Port({ side, active, color, onClick }: PortProps) {
 
 interface EditFormProps {
   category: 'subject' | 'exposure' | 'intervention'
-  title: string
-  subtitle: string
-  badge: string
+  title: string 
   subject: SimCardSubjectFields
   exposure: SimCardExposureFields
   intervention: SimCardInterventionFields
-  onTitleChange: (v: string) => void
-  onSubtitleChange: (v: string) => void
-  onBadgeChange: (v: string) => void
+  onTitleChange: (v: string) => void 
   onSubjectChange: (v: SimCardSubjectFields) => void
   onExposureChange: (v: SimCardExposureFields) => void
   onInterventionChange: (v: SimCardInterventionFields) => void
@@ -560,15 +544,11 @@ const textareaStyle: React.CSSProperties = {
  */
 function EditForm({
   category,
-  title,
-  subtitle,
-  badge,
+  title, 
   subject,
   exposure,
   intervention,
-  onTitleChange,
-  onSubtitleChange,
-  onBadgeChange,
+  onTitleChange, 
   onSubjectChange,
   onExposureChange,
   onInterventionChange,
@@ -604,17 +584,7 @@ function EditForm({
         overflowY: 'auto',
         paddingRight: 2,
       }}
-    >
-      <Field label="Tags">
-        <input
-          type="text"
-          value={badge}
-          onChange={(e) => onBadgeChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="EXPO-1"
-          style={textInputStyle}
-        />
-      </Field>
+    > 
 
       <Field label="Title">
         <input
@@ -627,17 +597,7 @@ function EditForm({
           style={titleInputStyle}
         />
       </Field>
-
-      <Field label="Context">
-        <input
-          type="text"
-          value={subtitle}
-          onChange={(e) => onSubtitleChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Optional context or notes"
-          style={textInputStyle}
-        />
-      </Field>
+ 
 
       {category === 'subject' && (
         <>
