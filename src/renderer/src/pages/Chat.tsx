@@ -34,8 +34,6 @@ export default function Chat() {
   const [streamingThinking, setStreamingThinking] = useState('')
   const [sessions, setSessions] = useState<Session[]>([])
   const [showSessionDropdown, setShowSessionDropdown] = useState(false)
-  const [showNewSessionModal, setShowNewSessionModal] = useState(false)
-  const [newSessionName, setNewSessionName] = useState('')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -129,17 +127,12 @@ export default function Chat() {
   }
 
   const handleCreateSession = async () => {
-    if (!newSessionName.trim() || !profile) return
+    if (!profile) return
 
-    const slug = newSessionName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+    const slug = `session-${Math.floor(Date.now() / 1000)}`
 
     try {
       await window.api.sessions.create(profile.id, slug)
-      setNewSessionName('')
-      setShowNewSessionModal(false)
       setShowSessionDropdown(false)
       
       const list = await window.api.sessions.list(profile.id)
@@ -202,10 +195,7 @@ export default function Chat() {
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        onClick={() => {
-          setNewSessionName('')
-          setShowNewSessionModal(true)
-        }}
+        onClick={() => { void handleCreateSession() }}
         style={{
           padding: '10px 16px',
           background: BLUE,
@@ -291,91 +281,6 @@ export default function Chat() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: sansFont }}>
       <PageWrapper title={currentSessionName} category="Chat" buttons={buttons}>
-        {/* New Session Modal */}
-        {showNewSessionModal && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 200,
-            }}
-            onClick={() => setShowNewSessionModal(false)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                borderRadius: 12,
-                padding: 24,
-                width: 360,
-              }}
-            >
-              <h3 style={{ fontFamily: sansFont, fontSize: 18, fontWeight: 500, color: NAVY, margin: '0 0 16px 0' }}>
-                New Session
-              </h3>
-              <input
-                id="modal-session-input"
-                type="text"
-                value={newSessionName}
-                onChange={(e) => setNewSessionName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
-                placeholder="Session name"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #e0e0f0',
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontFamily: sansFont,
-                  outline: 'none',
-                  marginBottom: 16,
-                }}
-              />
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => setShowNewSessionModal(false)}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#fff',
-                    border: '1px solid #e0e0f0',
-                    borderRadius: 8,
-                    color: MUTED,
-                    fontFamily: monoFont,
-                    fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  CANCEL
-                </button>
-                <button
-                  onClick={handleCreateSession}
-                  style={{
-                    padding: '10px 20px',
-                    background: newSessionName.trim() ? BLUE : MUTED,
-                    border: 'none',
-                    borderRadius: 8,
-                    color: '#fff',
-                    fontFamily: monoFont,
-                    fontWeight: 700,
-                    fontSize: 11,
-                    cursor: newSessionName.trim() ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  CREATE
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
         {/* Messages */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px 0' , borderTop: '1px solid #e0e0f0'}}>
           {messages.length === 0 && !loading && (
