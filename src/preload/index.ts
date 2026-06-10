@@ -46,6 +46,10 @@ const api = {
     sendMessage: (profileSlug: string, sessionSlug: string, message: string, history: ChatMessage[], profile?: { name: string; type: string; age?: number; gender?: string }) => 
       ipcRenderer.invoke('ai:sendMessage', profileSlug, sessionSlug, message, history, profile),
     
+    // Scenario generation
+    generateScenario: (profileSlug: string, payload: { prompt: string }) =>
+      ipcRenderer.invoke('ai:generateScenario', profileSlug, payload),
+    
     // Event listeners for progress
     onDownloadProgress: (callback: (progress: number) => void) => {
       const handler = (_: any, progress: number) => callback(progress)
@@ -76,7 +80,7 @@ const api = {
       ipcRenderer.on('ai:streamDone', handler)
       return () => ipcRenderer.removeListener('ai:streamDone', handler)
     },
-    
+
     onError: (callback: (error: string) => void) => {
       const handler = (_: any, error: string) => callback(error)
       ipcRenderer.on('ai:error', handler)

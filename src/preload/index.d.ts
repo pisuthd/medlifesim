@@ -112,6 +112,7 @@ export interface ProfileAPI {
     unload: () => Promise<{ success: boolean; error?: string }>
     reload: () => Promise<{ success: boolean; status?: AIStatus; error?: string }>
     sendMessage: (profileSlug: string, sessionSlug: string, message: string, history: ChatMessage[], profile?: { name: string; type: string; age?: number; gender?: string }) => Promise<{ success: boolean; error?: string }>
+    generateScenario: (profileSlug: string, payload: { prompt: string }) => Promise<{ ok: boolean; name?: string; description?: string; error?: string }>
     onDownloadProgress: (callback: (progress: number) => void) => () => void
     onLoadProgress: (callback: (msg: string) => void) => () => void
     onStreamToken: (callback: (token: string) => void) => () => void

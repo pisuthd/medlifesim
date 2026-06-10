@@ -10,6 +10,12 @@ function truncate(name: string): string {
   return name.slice(0, MAX_NAME_LENGTH - 3) + '...'
 }
 
+interface PromptPreset {
+  id: string
+  label: string
+  prompt: string
+}
+
 interface CanvasToolbarProps {
   cardCount: number
   addOpen: boolean
@@ -24,6 +30,12 @@ interface CanvasToolbarProps {
   onPickBlank: () => void
   /** Fires when the user clicks the scenario title (opens edit modal). */
   onEditScenario?: () => void
+  /**
+   * F.15: Fires when the user picks "Prompt to scenario · AI" or one
+   * of the placeholder prompts from the MedLifeSim dropdown. The
+   * parent opens the modal and pre-fills the textarea.
+   */
+  onPromptToScenario: (preset: PromptPreset | null) => void
 }
 
 /**
@@ -42,6 +54,7 @@ export default function CanvasToolbar({
   onPickTemplate,
   onPickBlank,
   onEditScenario,
+  onPromptToScenario,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -121,7 +134,11 @@ export default function CanvasToolbar({
   
       <Divider />
 
-      <CanvasTemplateMenu onPick={onPickTemplate} onBlank={onPickBlank} />
+      <CanvasTemplateMenu
+        onPick={onPickTemplate}
+        onBlank={onPickBlank}
+        onPromptToScenario={onPromptToScenario}
+      />
 
       <motion.button
         type="button"

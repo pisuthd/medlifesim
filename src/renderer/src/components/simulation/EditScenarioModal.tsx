@@ -11,12 +11,6 @@ interface EditScenarioModalProps {
   onSave: () => void
 }
 
-function defaultName(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `Scenario · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
 export default function EditScenarioModal({
   open,
   name,

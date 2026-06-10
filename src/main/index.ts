@@ -10,6 +10,7 @@ import {
   setSimulationsMainWindowGetter,
 } from './simulations'
 import { startSimulationWorker } from './simulationWorker'
+import { registerScenarioGeneratorHandlers } from './scenarioGenerator'
 
 import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
 
@@ -508,6 +509,9 @@ app.whenReady().then(async () => {
 
   // Register sessions IPC handlers
   registerSessionsIpcHandlers()
+
+  // Register scenario generator IPC handler
+  registerScenarioGeneratorHandlers()
 
   // Initialize simulations store and IPC
   initSimulations()
