@@ -73,19 +73,6 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
       context: 'Bangkok suburb; elderly + working-age cohabitants',
     },
   },
-  {
-    id: 'env-local-community',
-    category: 'exposure',
-    title: 'Local Community', 
-    exposureFields: {
-      dose: 'social access',
-      unit: '—',
-      duration: 'after-school + weekend',
-      frequency: 'weekly',
-      setting: 'semi-urban Northeast Thailand',
-      context: 'Temple fairs, market stalls, after-school hangouts',
-    },
-  },
 
   // ── Subject ───────────────────────────────────────────────────────────
   {
@@ -182,6 +169,30 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
       region: 'urban + suburban',
       comorbidities: [],
       context: 'Increased vulnerability to pollution, infection, stress',
+    },
+  },
+  {
+    id: 'subj-emergency-patients',
+    category: 'subject',
+    title: 'Emergency Patients', 
+    subjectFields: {
+      ageRange: 'varied',
+      sampleSize: 'n=multiple',
+      region: 'hospital ER',
+      comorbidities: [],
+      context: 'Incoming trauma + emergency admissions requiring transfusion',
+    },
+  },
+  {
+    id: 'subj-trauma-bleeding',
+    category: 'subject',
+    title: 'Trauma Patients', 
+    subjectFields: {
+      ageRange: '18-65',
+      sampleSize: '—',
+      region: 'ER / ICU',
+      comorbidities: [],
+      context: 'Acute hemorrhage requiring immediate transfusion support',
     },
   },
 
@@ -290,6 +301,19 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
       context: 'Reduced ventilation → viral + mental health impact',
     },
   },
+  {
+    id: 'exp-incompatible-transfusion',
+    category: 'exposure',
+    title: 'Incompatible Blood Transfusion', 
+    exposureFields: {
+      dose: 'ABO mismatch',
+      unit: 'critical error',
+      duration: 'immediate',
+      frequency: 'event-based',
+      setting: 'blood bank → ER transfusion',
+      context: 'Hemolytic reaction triggered after wrong blood type transfusion',
+    },
+  },
 
   // ── Health State ──────────────────────────────────────────────────────
   // Removed: health-state is now an implicit property of each Subject card
@@ -383,8 +407,51 @@ export const PALETTE_CARDS: SimCardTemplate[] = [
       compliance: 'moderate',
       context: 'BP, lung function, metabolic screening',
     },
+  },
+  {
+    id: 'int-no-rescue',
+    category: 'intervention',
+    title: 'No Intervention', 
+    interventionFields: {
+      type: 'none',
+      intensity: 'none',
+      compliance: 'n/a',
+      context: 'Observe natural progression of reaction without treatment',
+    },
+  },
+  {
+    id: 'int-fluid-resuscitation',
+    category: 'intervention',
+    title: 'IV Fluid Resuscitation', 
+    interventionFields: {
+      type: 'supportive',
+      intensity: 'high',
+      compliance: 'standard ICU',
+      context: 'Maintain blood pressure and organ perfusion',
+    },
+  },
+  {
+    id: 'int-exchange-transfusion',
+    category: 'intervention',
+    title: 'Exchange Transfusion', 
+    interventionFields: {
+      type: 'specialized procedure',
+      intensity: 'high',
+      compliance: 'ICU / specialist',
+      context: 'Replace patient blood with compatible donor blood',
+    },
+  },
+  {
+    id: 'int-organ-support',
+    category: 'intervention',
+    title: 'Organ Support Therapy', 
+    interventionFields: {
+      type: 'life support',
+      intensity: 'maximum',
+      compliance: 'ICU',
+      context: 'Support kidney / organ failure due to hemolysis',
+    },
   }
-  
 ]
 
 export const TONE_COLORS: Record<SimTone, string> = {

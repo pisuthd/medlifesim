@@ -61,60 +61,31 @@ const officeSmokeConnections: Connection[] = [
 ]
 
 // ─── Template 2: Community · Teen Drug Addiction ──────────────────────
-// 1 subject × 2 exposures × 2 interventions = 4 paths
+// 1 subject × 1 exposure × 2 interventions = 2 paths
 const teenDrugsCards: CanvasCard[] = [
   cardAt('subj-teens', '0', X_SUBJ, Y),
-  cardAt('env-local-community', '0', X_EXPO, Y - 60),
-  cardAt('exp-drug-social', '0', X_EXPO, Y + 60),
+  cardAt('exp-drug-social', '0', X_EXPO, Y),
   cardAt('int-no-intervention', '0', X_INTV, Y - 60),
   cardAt('int-education-counseling', '0', X_INTV, Y + 60),
 ]
 const teenDrugsConnections: Connection[] = [
-  conn('conn-teen-community', teenDrugsCards[0].placementId, teenDrugsCards[1].placementId),
-  conn('conn-teen-drugs', teenDrugsCards[0].placementId, teenDrugsCards[2].placementId),
-  conn('conn-community-noint', teenDrugsCards[1].placementId, teenDrugsCards[3].placementId),
-  conn('conn-community-edu', teenDrugsCards[1].placementId, teenDrugsCards[4].placementId),
-  conn('conn-drugs-noint', teenDrugsCards[2].placementId, teenDrugsCards[3].placementId),
-  conn('conn-drugs-edu', teenDrugsCards[2].placementId, teenDrugsCards[4].placementId),
-]
-
-// ─── Template 3: Family · Elderly Care ─────────────────────────────────
-// 2 subjects × 2 exposures × 2 interventions = 8 paths
-const elderCareCards: CanvasCard[] = [
-  cardAt('subj-elderly', '0', X_SUBJ, Y - 60),
-  cardAt('subj-caregivers', '0', X_SUBJ, Y + 60),
-  cardAt('env-family-home', '0', X_EXPO, Y - 60),
-  cardAt('exp-caregiving-load', '0', X_EXPO, Y + 60),
-  cardAt('int-no-intervention', '0', X_INTV, Y - 60),
-  cardAt('int-respite-care', '0', X_INTV, Y + 60),
-]
-const elderCareConnections: Connection[] = [
-  conn('conn-elder-home', elderCareCards[0].placementId, elderCareCards[2].placementId),
-  conn('conn-elder-care', elderCareCards[0].placementId, elderCareCards[3].placementId),
-  conn('conn-caregiver-home', elderCareCards[1].placementId, elderCareCards[2].placementId),
-  conn('conn-caregiver-care', elderCareCards[1].placementId, elderCareCards[3].placementId),
-  conn('conn-home-noint', elderCareCards[2].placementId, elderCareCards[4].placementId),
-  conn('conn-home-respite', elderCareCards[2].placementId, elderCareCards[5].placementId),
-  conn('conn-care-noint', elderCareCards[3].placementId, elderCareCards[4].placementId),
-  conn('conn-care-respite', elderCareCards[3].placementId, elderCareCards[5].placementId),
+  conn('conn-teen-drugs', teenDrugsCards[0].placementId, teenDrugsCards[1].placementId),
+  conn('conn-drugs-noint', teenDrugsCards[1].placementId, teenDrugsCards[2].placementId),
+  conn('conn-drugs-edu', teenDrugsCards[1].placementId, teenDrugsCards[3].placementId),
 ]
 
 // ─── Template 4: School · Infectious Outbreak ──────────────────────────
-// 1 subject × 2 exposures × 2 interventions = 4 paths
+// 1 subject × 1 exposure × 2 interventions = 2 paths
 const schoolOutbreakCards: CanvasCard[] = [
   cardAt('subj-school-children', '0', X_SUBJ, Y),
-  cardAt('exp-respiratory-outbreak', '0', X_EXPO, Y - 60),
-  cardAt('exp-indoor-isolation', '0', X_EXPO, Y + 60),
+  cardAt('exp-respiratory-outbreak', '0', X_EXPO, Y),
   cardAt('int-no-intervention', '0', X_INTV, Y - 60),
   cardAt('int-vaccination', '0', X_INTV, Y + 60),
 ]
 const schoolOutbreakConnections: Connection[] = [
   conn('conn-children-outbreak', schoolOutbreakCards[0].placementId, schoolOutbreakCards[1].placementId),
-  conn('conn-children-isolation', schoolOutbreakCards[0].placementId, schoolOutbreakCards[2].placementId),
-  conn('conn-outbreak-noint', schoolOutbreakCards[1].placementId, schoolOutbreakCards[3].placementId),
-  conn('conn-outbreak-vaccine', schoolOutbreakCards[1].placementId, schoolOutbreakCards[4].placementId),
-  conn('conn-isolation-noint', schoolOutbreakCards[2].placementId, schoolOutbreakCards[3].placementId),
-  conn('conn-isolation-vaccine', schoolOutbreakCards[2].placementId, schoolOutbreakCards[4].placementId),
+  conn('conn-outbreak-noint', schoolOutbreakCards[1].placementId, schoolOutbreakCards[2].placementId),
+  conn('conn-outbreak-vaccine', schoolOutbreakCards[1].placementId, schoolOutbreakCards[3].placementId),
 ]
 
 // ─── Template 5: Urban · Metabolic Decline ───────────────────────────
@@ -135,22 +106,26 @@ const urbanMetabolicConnections: Connection[] = [
   conn('conn-pm25-screening', urbanMetabolicCards[2].placementId, urbanMetabolicCards[4].placementId),
 ]
 
-// ─── Template 6: Maternal · Pregnancy Health ──────────────────────────
-// 1 subject × 2 exposures × 2 interventions = 4 paths
-const maternalHealthCards: CanvasCard[] = [
-  cardAt('subj-pregnant', '0', X_SUBJ, Y),
-  cardAt('exp-pm25-outdoor', '0', X_EXPO, Y - 60),
-  cardAt('exp-respiratory-outbreak', '0', X_EXPO, Y + 60),
-  cardAt('int-no-intervention', '0', X_INTV, Y - 60),
-  cardAt('int-clean-air-policy', '0', X_INTV, Y + 60),
+// ─── Template 7: Hospital · Emergency Transfusion ─────────────────────
+// 2 subjects × 1 exposure × 4 interventions = 8 paths
+const emergencyTransfusionCards: CanvasCard[] = [
+  cardAt('subj-emergency-patients', '0', X_SUBJ, Y - 60),
+  cardAt('subj-trauma-bleeding', '0', X_SUBJ, Y + 60),
+  cardAt('exp-incompatible-transfusion', '0', X_EXPO, Y),
+  cardAt('int-no-rescue', '0', X_INTV, Y - 90),
+  cardAt('int-fluid-resuscitation', '0', X_INTV, Y - 30),
+  cardAt('int-exchange-transfusion', '0', X_INTV, Y + 30),
+  cardAt('int-organ-support', '0', X_INTV, Y + 90),
 ]
-const maternalHealthConnections: Connection[] = [
-  conn('conn-pregnant-pm25', maternalHealthCards[0].placementId, maternalHealthCards[1].placementId),
-  conn('conn-pregnant-outbreak', maternalHealthCards[0].placementId, maternalHealthCards[2].placementId),
-  conn('conn-pm25-noint', maternalHealthCards[1].placementId, maternalHealthCards[3].placementId),
-  conn('conn-pm25-cleanair', maternalHealthCards[1].placementId, maternalHealthCards[4].placementId),
-  conn('conn-outbreak-noint', maternalHealthCards[2].placementId, maternalHealthCards[3].placementId),
-  conn('conn-outbreak-cleanair', maternalHealthCards[2].placementId, maternalHealthCards[4].placementId),
+const emergencyTransfusionConnections: Connection[] = [
+  // each subject → exposure
+  conn('conn-emergency-mismatch', emergencyTransfusionCards[0].placementId, emergencyTransfusionCards[2].placementId),
+  conn('conn-trauma-mismatch', emergencyTransfusionCards[1].placementId, emergencyTransfusionCards[2].placementId),
+  // exposure → each intervention
+  conn('conn-mismatch-norescue', emergencyTransfusionCards[2].placementId, emergencyTransfusionCards[3].placementId),
+  conn('conn-mismatch-fluid', emergencyTransfusionCards[2].placementId, emergencyTransfusionCards[4].placementId),
+  conn('conn-mismatch-exchange', emergencyTransfusionCards[2].placementId, emergencyTransfusionCards[5].placementId),
+  conn('conn-mismatch-organ', emergencyTransfusionCards[2].placementId, emergencyTransfusionCards[6].placementId),
 ]
 
 // Touch randomTone so the import isn't dead-code-eliminated (the helper is
@@ -164,6 +139,13 @@ export const SIM_TEMPLATES: SimTemplate[] = [
     description:
       'High-rise office with mixed smoker / non-smoker staff and indoor exposure.',
     canvas: { cards: officeSmokeCards, connections: officeSmokeConnections },
+  }, 
+  {
+    id: 'emergency-transfusion',
+    name: 'Hospital · Emergency Transfusion',
+    description:
+      'Post-adverse-event rescue simulation for incompatible blood transfusion scenarios.',
+    canvas: { cards: emergencyTransfusionCards, connections: emergencyTransfusionConnections },
   },
   {
     id: 'teen-drugs',
@@ -171,13 +153,6 @@ export const SIM_TEMPLATES: SimTemplate[] = [
     description:
       'Semi-urban community with at-risk teens exposed to peer drug access.',
     canvas: { cards: teenDrugsCards, connections: teenDrugsConnections },
-  },
-  {
-    id: 'elder-care',
-    name: 'Family · Elderly Care',
-    description:
-      'Multi-generation home with elderly parents and family caregivers under daily strain.',
-    canvas: { cards: elderCareCards, connections: elderCareConnections },
   },
   {
     id: 'school-outbreak',
@@ -192,12 +167,5 @@ export const SIM_TEMPLATES: SimTemplate[] = [
     description:
       'Office workers with sedentary lifestyle and outdoor air pollution exposure.',
     canvas: { cards: urbanMetabolicCards, connections: urbanMetabolicConnections },
-  },
-  {
-    id: 'maternal-health',
-    name: 'Maternal · Pregnancy Health',
-    description:
-      'Pregnant individuals at high sensitivity to pollution and infectious disease.',
-    canvas: { cards: maternalHealthCards, connections: maternalHealthConnections },
   },
 ]
