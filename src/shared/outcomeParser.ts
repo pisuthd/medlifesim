@@ -171,3 +171,114 @@ export function parseOutcomeReport(markdown: string): ParsedOutcomeReport {
     fullText,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// JSON parser (worker Step 2 contract)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Coerce `risk` / `severeCaseRate` into the same `{ value, range }`
+ * shape the markdown parser uses, regardless of which shape the model
+ * emitted (single number or `[min, max]` tuple).
+ *
+ * **Fraction-vs-percent handling.** The 1.7B model sometimes emits
+ * decimal fractions even though the prompt asks for 0–100 percentages
+ * (e.g. `"risk": [0.30, 0.35]` meaning 30%–35%). To be lenient with
+ * both conventions, any raw value strictly less than 1 is treated as
+ * a fraction and multiplied by 100. Values ≥ 1 are assumed to be
+ * percentages already. So 0.30 → 30, 30 → 30, 0.5 → 50, 50 → 50.
+ */
+function normalisePercentField(raw: unknown): {
+  value: number | null
+  range: [number, number] | null
+} {
+  if (raw === null || raw === undefined) return { value: null, range: null }
+  // Convert decimal fractions to percentages. Leaves values ≥ 1 alone
+  // (they're already in 0–100 percentage form). `1.0` → `1%` is the
+  // chosen convention (most charitable for ambiguous edge cases).
+  const fromMaybeFraction = (n: number): number => (n < 1 ? n * 100 : n)
+  if (Array.isArray(raw)) {
+    const [lo, hi] = raw
+    if (typeof lo !== 'number' || typeof hi !== 'number') return { value: null, range: null }
+    const l = fromMaybeFraction(lo)
+    const h = fromMaybeFraction(hi)
+    return { value: (l + h) / 2, range: [clampPercent(l), clampPercent(h)] }
+  }
+  if (typeof raw === 'number') {
+    const v = fromMaybeFraction(raw)
+    return { value: clampPercent(v), range: null }
+  }
+  return { value: null, range: null }
+}
+
+/**
+ * Parse the worker's per-outcome JSON response into the same
+ * `ParsedOutcomeReport` shape the markdown parser produces, so the
+ * existing `aggregateOutcomes` and report UI keep working without
+ * changes. The model is allowed to emit `risk` as a single number
+ * or a `[min, max]` tuple; both are normalised to the
+ * `{ value, range }` shape.
+ *
+ * Returns `null` if the content is not a parseable JSON object, or
+ * if it doesn't have at least one of the expected fields. The
+ * brace-counted extraction is the same approach the renderer's
+ * `PromptToScenarioModal` uses against the streaming 1.7B model,
+ * which has a habit of wrapping JSON in stray prose.
+ *
+ * The original raw JSON is kept on `fullText` so the renderer can
+ * read the extra `comparisons` field (per-pair deltas) that the
+ * markdown parser never produced.
+ */
+export function parseOutcomeJson(content: string): ParsedOutcomeReport | null {
+  if (!content) return null
+
+  const trimmed = content.trim()
+  let candidate: string | null = null
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] !== '{') continue
+    let depth = 0
+    let endIdx = -1
+    for (let j = i; j < trimmed.length; j++) {
+      if (trimmed[j] === '{') depth++
+      else if (trimmed[j] === '}') {
+        depth--
+        if (depth === 0) {
+          endIdx = j + 1
+          break
+        }
+      }
+    }
+    if (endIdx === -1) continue
+    candidate = trimmed.slice(i, endIdx)
+    break
+  }
+  if (!candidate) return null
+
+  let parsed: any
+  try {
+    parsed = JSON.parse(candidate)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+
+  const risk = normalisePercentField(parsed.risk)
+  const severe = normalisePercentField(parsed.severeCaseRate)
+
+  return {
+    summary: typeof parsed.summary === 'string' ? collapseParagraph(parsed.summary) : '',
+    risk: risk.value,
+    severeCaseRate: severe.value,
+    riskRange: risk.range,
+    severeCaseRateRange: severe.range,
+    keyDrivers: Array.isArray(parsed.keyDrivers)
+      ? parsed.keyDrivers.map((s: unknown) => String(s)).filter(Boolean)
+      : [],
+    recommendations: Array.isArray(parsed.recommendations)
+      ? parsed.recommendations.map((s: unknown) => String(s)).filter(Boolean)
+      : [],
+    uncertainty:
+      typeof parsed.uncertainty === 'string' ? collapseParagraph(parsed.uncertainty) : '',
+    fullText: candidate,
+  }
+}

@@ -73,6 +73,13 @@ export interface CompletionArgs {
   sessionSlug: string
   userMessage: string
   history: { role: string; content: string }[]
+  /**
+   * When provided, sent as a real `{ role: 'system' }` message at the
+   * top of the conversation. If omitted, defaults to the profile
+   * context prompt (`getSystemPrompt(args.profile)`) for backward
+   * compatibility with chat callers that don't pass one.
+   */
+  systemPrompt?: string
   profile?: { name: string; type: string; age?: number; gender?: string }
 }
 
@@ -84,11 +91,18 @@ export async function runCompletion(
   const modelId = getActiveModelId()
   if (!modelId) throw new Error('AI model not loaded')
 
-  const systemPrompt = getSystemPrompt(args.profile)
-  const conversationHistory = [
+  // Real system role. `args.systemPrompt` wins if the caller passed
+  // one (e.g. the simulation worker passes its analysis prompt);
+  // otherwise fall back to the profile-context prompt so chat callers
+  // that don't supply one keep their existing behaviour.
+  const systemPrompt = args.systemPrompt ?? getSystemPrompt(args.profile)
+  const conversationHistory: { role: string; content: string }[] = [
     ...args.history.map((h) => ({ role: h.role, content: h.content })),
-    { role: 'user', content: systemPrompt + '\n\n' + args.userMessage },
   ]
+  if (systemPrompt) {
+    conversationHistory.unshift({ role: 'system', content: systemPrompt })
+  }
+  conversationHistory.push({ role: 'user', content: args.userMessage })
 
   let fullResponse = ''
   let thinkingContent = ''

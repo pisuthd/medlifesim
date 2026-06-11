@@ -10,7 +10,7 @@ export interface AppSettings {
 const SETTINGS_FILE = 'settings.json'
 
 const DEFAULT_SETTINGS: AppSettings = {
-  ctx_size: 4096,
+  ctx_size: 2048,
   workerEnabled: true,
 }
 

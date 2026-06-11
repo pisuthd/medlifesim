@@ -14,7 +14,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 const CTX_SIZES = [2048, 4096, 8192]
 
 export default function AIConfiguration() {
-  const [ctxSize, setCtxSize] = useState(4096)
+  const [ctxSize, setCtxSize] = useState(2048)
   const navigate = useNavigate()
   const { reload, progress, error: aiError, activeModel } = useAI()
   const [isReloading, setIsReloading] = useState(false)

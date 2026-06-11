@@ -6,10 +6,17 @@ import { useProfile } from '../context/ProfileContext'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../theme'
 import type { ParsedOutcomeReport } from '../../../shared/outcomeParser'
 import type { ReportAggregate } from '../../../shared/outcomeReport'
-import type { SimulationOutcome, SimulationParent, SimulationStatus } from '../../../preload/simulation'
+import type {
+  AnalysisPlan,
+  SimulationOutcome,
+  SimulationParent,
+  SimulationStatus,
+} from '../../../preload/simulation'
 import { MEDLIFESIM_DISCLAIMER } from '../../../shared/disclaimer'
 
 interface ReportResponse {
+  /** Cached planning-pass output from the worker. `null` if the worker hasn't planned yet (or the plan was lost on restart). */
+  plan: AnalysisPlan | null
   sim: SimulationParent
   outcomes: SimulationOutcome[]
   reports: Record<string, ParsedOutcomeReport | null>
@@ -194,7 +201,7 @@ function ReportBody({
   outcomesBySubject: Map<string, SimulationOutcome[]>
   modelName: string | null
 }) {
-  const { sim, outcomes, reports, aggregate } = data
+  const { plan, sim, outcomes, reports, aggregate } = data
   const statusColor = STATUS_COLOR[sim.status]
   const statusLabel = STATUS_LABEL[sim.status]
 
@@ -301,6 +308,125 @@ function ReportBody({
           </div>
         </div>
       </div>
+
+      {/* Section 0: Analysis Plan (worker Step 1) — only shown when the
+          worker has produced one in-memory. Missing = "no plan" (single-
+          outcome sims skip step 1, or the worker tried and failed, or
+          the worker was restarted since planning). The per-outcome
+          JSONs still work without it. */}
+      {plan && (
+        <Section
+          eyebrow="00"
+          title="Analysis Plan"
+          caption="generated once per simulation"
+        >
+          <div
+            style={{
+              background: '#fff',
+              border: '1px solid #e0e0f0',
+              borderRadius: 8,
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <p
+              style={{
+                fontFamily: sansFont,
+                fontSize: 15,
+                color: NAVY,
+                lineHeight: 1.55,
+                margin: 0,
+              }}
+            >
+              {plan.summary}
+            </p>
+
+            {plan.comparisons.length > 0 && (
+              <div>
+                <p
+                  style={{
+                    fontFamily: monoFont,
+                    fontSize: 9,
+                    letterSpacing: '0.14em',
+                    color: MUTED,
+                    textTransform: 'uppercase',
+                    margin: '0 0 8px 0',
+                  }}
+                >
+                  Comparison focus
+                </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  {plan.comparisons.map((c, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        gap: 8,
+                        fontFamily: sansFont,
+                        fontSize: 13,
+                        color: NAVY,
+                      }}
+                    >
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          fontFamily: monoFont,
+                          fontSize: 10,
+                          color: TEAL,
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {c.outcomes.join(' ↔ ')}
+                      </span>
+                      <span style={{ color: MUTED }}>—</span>
+                      <span>{c.focus}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {plan.hypotheses.length > 0 && (
+              <div>
+                <p
+                  style={{
+                    fontFamily: monoFont,
+                    fontSize: 9,
+                    letterSpacing: '0.14em',
+                    color: MUTED,
+                    textTransform: 'uppercase',
+                    margin: '0 0 8px 0',
+                  }}
+                >
+                  Hypotheses tested
+                </p>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: 18,
+                    fontFamily: sansFont,
+                    fontSize: 13,
+                    color: NAVY,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {plan.hypotheses.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
 
       {/* Section 1: Executive Summary */}
       <Section
@@ -600,7 +726,7 @@ function ReportBody({
                             textAlign: 'right',
                           }}
                         >
-                          {avg.toFixed(0)}% (n={risks.length})
+                        {avg.toFixed(1)}% (n={risks.length})
                         </span>
                       </div>
                     )
