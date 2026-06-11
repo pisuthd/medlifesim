@@ -81,10 +81,7 @@ export default function WorkerConfiguration() {
       <div style={{ marginBottom: 24 }}>
         <SectionLabel>Simulation Worker</SectionLabel>
         <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED, marginBottom: 16 }}>
-          The background worker drains queued simulation outcomes one at a time and
-          feeds them to the local model. It defers to chat when you're talking to the
-          AI, and recovers any stuck outcomes on startup. Disable it if you want full
-          control over when the model runs.
+          The background worker runs queued simulation outcomes one at a time on the local model. Disable it if you only want chat, or want to control when outcomes are generated.
         </p>
 
         <div style={{ display: 'flex', gap: 12 }}>

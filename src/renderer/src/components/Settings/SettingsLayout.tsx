@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Cpu, Bot, Share2, Info } from 'lucide-react'
+import { Cpu, Activity, Share2, Info } from 'lucide-react'
 import { BLUE, NAVY, sansFont } from '../../theme'
 import AIConfiguration from './AIConfiguration'
 import WorkerConfiguration from './WorkerConfiguration'
@@ -8,7 +8,7 @@ import About from './About'
 
 const tabs = [
   { key: 'ai', label: 'AI Configuration', icon: Cpu },
-  { key: 'worker', label: 'Worker', icon: Bot },
+  { key: 'worker', label: 'Worker', icon: Activity },
   { key: 'shared', label: 'Shared Resources', icon: Share2 },
   { key: 'about', label: 'About', icon: Info },
 ]
