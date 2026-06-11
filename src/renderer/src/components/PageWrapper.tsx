@@ -10,7 +10,7 @@ interface PageWrapperProps {
 
 export default function PageWrapper({ title, category, buttons, children }: PageWrapperProps) {
   return (
-    <div style={{ padding: '32px 48px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: '32px 48px', overflowY: 'auto', height: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
         <div>
           {category && (

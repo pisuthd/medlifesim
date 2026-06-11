@@ -280,13 +280,14 @@ export default function Chat() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: sansFont }}>
-      <PageWrapper title={currentSessionName} category="Chat" buttons={buttons}>
+        <PageWrapper title={currentSessionName} category="Chat" buttons={buttons}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {/* Messages */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '24px 0' , borderTop: '1px solid #e0e0f0'}}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '24px 0', borderTop: '1px solid #e0e0f0', display: 'flex', flexDirection: 'column' }}>
           {messages.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', color: MUTED, padding: 48 }}>
-              <p style={{ fontFamily: monoFont, fontSize: 13 }}>No messages yet</p>
-              <p style={{ fontSize: 14, marginTop: 8 }}>Start a conversation with your health assistant</p>
+            <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', textAlign: 'center', color: MUTED, gap: 8 }}>
+              <p style={{ fontFamily: monoFont, fontSize: 13, margin: 0 }}>No messages yet</p>
+              <p style={{ fontSize: 14, margin: 0 }}>Start a conversation with your health assistant</p>
             </div>
           )}
 
@@ -418,7 +419,7 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isReady ? 'Tell me about your symptoms...' : 'Waiting for model to load…'}
+              placeholder={isReady ? 'Start chat with QVAC MedPsy…' : 'Waiting for model to load…'}
               disabled={loading || !isReady}
               style={{
                 flex: 1,
@@ -453,6 +454,7 @@ export default function Chat() {
               SEND
             </motion.button>
           </div>
+        </div>
         </div>
       </PageWrapper>
     </div>
