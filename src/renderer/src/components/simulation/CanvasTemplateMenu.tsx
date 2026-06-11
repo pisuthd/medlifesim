@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
-import { SCENARIO_PRESETS } from '../../../../shared/scenarioPresets'
 import type { SimTemplate } from '../../types/simulation'
 
 interface PromptPreset {
@@ -144,9 +143,9 @@ export default function CanvasTemplateMenu({
             <div style={{ height: 1, background: '#eeeef8', margin: '4px 6px' }} />
 
             {/* F.15: prompt-to-scenario entry — opens the modal with an
-                empty textarea. */}
+                empty textarea. AI starters are shown inside the modal. */}
             <MenuItem
-              label="Prompt to scenario · AI"
+              label="Prompt to Scenario"
               description="Describe a scenario and let AI generate new cards"
               trailing={<AiPill />}
               onClick={() => {
@@ -154,22 +153,6 @@ export default function CanvasTemplateMenu({
                 setOpen(false)
               }}
             />
-
-            <div style={{ height: 1, background: '#eeeef8', margin: '4px 6px' }} />
-
-            {/* F.15: three placeholder prompts that pre-fill the modal. */}
-            {SCENARIO_PRESETS.map((p) => (
-              <MenuItem
-                key={p.id}
-                label={p.label}
-                description="AI starter"
-                trailing={<AiPill />}
-                onClick={() => {
-                  onPromptToScenario({ id: p.id, label: p.label, prompt: p.prompt })
-                  setOpen(false)
-                }}
-              />
-            ))}
           </motion.div>
         )}
       </AnimatePresence>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
 import { useAI } from '../../context/AIContext'
+import { SCENARIO_PRESETS } from '../../../../shared/scenarioPresets'
 import type { SimCardTemplate } from '../../types/simulation'
 
 /**
@@ -53,6 +54,12 @@ interface PromptToScenarioModalProps {
   profileSlug: string | null
   /** Fired when the user clicks Cancel OR when the first card arrives. */
   onCancel: () => void
+  /**
+   * Fired when the user clicks Generate and the IPC call actually
+   * starts. Parent uses this to flip `promptMounted` on so the
+   * background indicator shows up only when generation is real.
+   */
+  onGenerating: () => void
   /** Fired for every valid card parsed from the streamed JSONL. */
   onCardParsed: (card: SimCardTemplate) => void
   /** Fired once when the stream completes. */
@@ -174,6 +181,7 @@ export default function PromptToScenarioModal({
   presetLabel,
   profileSlug,
   onCancel,
+  onGenerating,
   onCardParsed,
   onApplied,
 }: PromptToScenarioModalProps) {
@@ -316,6 +324,9 @@ export default function PromptToScenarioModal({
     cardsParsedRef.current = 0
     firstCardSeenRef.current = false
     totalCardsThisRunRef.current = 0
+    // Notify parent that generation is real so it can flip
+    // `promptMounted` on (showing the background indicator).
+    onGenerating()
     try {
       const result = await window.api.ai.generateScenario(profileSlug, { prompt: prompt.trim() })
 
@@ -463,6 +474,59 @@ export default function PromptToScenarioModal({
             </span>
           )}
 
+          {/* AI starters — clickable chips that pre-fill the textarea. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span
+              style={{
+                fontFamily: monoFont,
+                fontSize: 9,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: MUTED,
+              }}
+            >
+              Example prompts
+            </span>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 6,
+              }}
+            >
+              {SCENARIO_PRESETS.map((p) => (
+                <motion.button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    if (!busy) {
+                      setPrompt(p.prompt)
+                      setError(null)
+                    }
+                  }}
+                  disabled={busy}
+                  whileHover={busy ? undefined : { scale: 1.02 }}
+                  whileTap={busy ? undefined : { scale: 0.98 }}
+                  style={{
+                    height: 28,
+                    padding: '0 12px',
+                    background: 'transparent',
+                    color: BLUE,
+                    border: '1.5px solid ' + BLUE,
+                    borderRadius: 14,
+                    fontFamily: sansFont,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: busy ? 'not-allowed' : 'pointer',
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  {p.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span
               style={{
@@ -478,7 +542,7 @@ export default function PromptToScenarioModal({
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Young children with persistent nighttime cough. Explore humidifier, OTC medicine, allergen reduction, and pediatrician referral."
+              placeholder="e.g. 3 kids, ages 4-6, in the same class. 2 of them have stomach aches and can't eat for 2 days."
               rows={6}
               maxLength={2000}
               disabled={busy}
@@ -509,8 +573,7 @@ export default function PromptToScenarioModal({
               color: MUTED,
             }}
           >
-            The AI will generate cards as it streams — the modal closes
-            on the first card so you can watch the rest arrive on the canvas.
+            Describe a scenario in plain language. The AI will draft subject, exposure, and intervention cards and place them on the canvas.
           </span>
 
           {error && (

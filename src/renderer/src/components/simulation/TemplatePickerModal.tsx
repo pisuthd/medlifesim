@@ -13,7 +13,7 @@ interface TemplatePickerModalProps {
 // Group templates by category
 type TemplateCategory = 'Community' | 'Workplace' | 'Hospital'
 
-const CATEGORY_ORDER: TemplateCategory[] = ['Community', 'Workplace', 'Hospital']
+const CATEGORY_ORDER: TemplateCategory[] = ['Workplace', 'Hospital', 'Community' ]
 
 function categoryForTemplate(id: string): TemplateCategory {
   if (['teen-drugs', 'school-outbreak', 'urban-metabolic'].includes(id)) return 'Community'

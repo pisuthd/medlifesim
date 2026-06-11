@@ -110,6 +110,11 @@ export default function StartSimulation() {
     exposure: 0,
     intervention: 0,
   })
+  // True once the modal's Generate button has actually fired the
+  // IPC. The parent uses this to decide whether closing the modal
+  // without generating should hide the background indicator too
+  // (otherwise we'd flash a "generating" chip on a no-op close).
+  const promptIsGeneratingRef = useRef(false)
   // Running card count for the current generation. Bumped by
   // `handleAddOneCard`, reset to 0 by `handlePromptToScenario`.
   // Drives the floating "Generating… (N cards)" indicator that
@@ -319,11 +324,26 @@ export default function StartSimulation() {
   function handlePromptToScenario(preset: { id: string; label: string; prompt: string } | null) {
     setPendingPreset(preset)
     setPromptOpen(true)
-    setPromptMounted(true)
-    // Reset per-column placement and card counter for this new
-    // generation.
-    promptColumnIdxRef.current = { subject: 0, exposure: 0, intervention: 0 }
+    // Note: we intentionally do NOT set `promptMounted` here. It
+    // only flips on once the modal actually fires the IPC
+    // (via `onGenerating`). This way a plain "open + close without
+    // generating" doesn't flash the background indicator.
     setPromptCardsCount(0)
+    promptIsGeneratingRef.current = false
+    // Reset per-column placement for this new generation.
+    promptColumnIdxRef.current = { subject: 0, exposure: 0, intervention: 0 }
+  }
+
+  /**
+   * Fired by the modal right before it kicks off the IPC. We flip
+   * `promptMounted` on so the modal stays mounted (and the stream
+   * subscriptions keep firing) for the full duration of the run.
+   * Setting it only here — not in `handlePromptToScenario` — is what
+   * keeps a no-op close from showing the indicator.
+   */
+  function handlePromptGenerating() {
+    promptIsGeneratingRef.current = true
+    setPromptMounted(true)
   }
 
   /**
@@ -575,13 +595,21 @@ export default function StartSimulation() {
         initialPrompt={pendingPreset?.prompt ?? ''}
         presetLabel={pendingPreset?.label}
         profileSlug={profile?.id ?? null}
+        onGenerating={handlePromptGenerating}
         onCancel={() => {
-          // Hide the prompt UI but keep the modal mounted so the
-          // stream subscriptions keep firing in the background
-          // (more cards continue to populate the canvas). The
-          // modal will fully unmount when `handleAppliedGenerated`
-          // fires after the stream is done.
+          // Two cases:
+          //   1. Generation never started (`promptIsGeneratingRef` is
+          //      false) → fully close, no background indicator.
+          //   2. Generation is in-flight → hide the prompt UI but keep
+          //      the modal mounted so the stream subscriptions keep
+          //      firing and the rest of the cards continue to populate
+          //      the canvas. The modal will fully unmount when
+          //      `handleAppliedGenerated` fires after the stream ends.
           setPromptOpen(false)
+          if (!promptIsGeneratingRef.current) {
+            setPromptMounted(false)
+            setPendingPreset(null)
+          }
         }}
         onCardParsed={handleAddOneCard}
         onApplied={handleApplyGeneratedCards}
