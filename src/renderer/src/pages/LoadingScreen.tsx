@@ -129,9 +129,9 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             marginBottom: '40px',
           }}
         >
-          <strong style={{ fontWeight: 500 }}>Your Health Assistant</strong>
+          <strong style={{ fontWeight: 500 }}>Health Decisions</strong>
           <br />
-          At Home
+          To Test & Explore
         </h1>
 
         {/* Progress bar or Error state */}
