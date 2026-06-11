@@ -11,6 +11,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+const CTX_SIZES = [2048, 4096, 8192]
+
 export default function AIConfiguration() {
   const [ctxSize, setCtxSize] = useState(4096)
   const navigate = useNavigate()
@@ -65,17 +67,18 @@ export default function AIConfiguration() {
       </h2>
 
       <div style={{ marginBottom: 24 }}>
+        <SectionLabel>Context Size</SectionLabel>
         <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED, marginBottom: 16 }}>
           Context size determines how much conversation history the AI can process. Higher values allow for longer conversations but use more memory.
         </p>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          {[2048, 4096, 8192].map((size) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {CTX_SIZES.map((size) => (
             <button
               key={size}
               onClick={() => handleCtxSizeChange(size)}
               style={{
-                padding: '10px 20px',
+                padding: '10px 22px',
                 background: ctxSize === size ? BLUE : '#fff',
                 color: ctxSize === size ? '#fff' : NAVY,
                 border: ctxSize === size ? 'none' : '1px solid #e0e0f0',
@@ -91,16 +94,10 @@ export default function AIConfiguration() {
             </button>
           ))}
         </div>
-
-        <p style={{ fontFamily: sansFont, fontSize: 12, color: MUTED, marginTop: 12 }}>
-          Current: {ctxSize} tokens
-          {ctxSize === 2048 && ' (Lightweight, faster)'}
-          {ctxSize === 4096 && ' (Balanced)'}
-          {ctxSize === 8192 && ' (Extended)'}
-        </p>
       </div>
 
       <div>
+        <SectionLabel>Apply Changes</SectionLabel>
         <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED, marginBottom: 16 }}>
           After changing context size, reload the model to apply the new setting.
         </p>

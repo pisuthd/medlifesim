@@ -115,7 +115,7 @@ export function registerScenarioGeneratorHandlers(): void {
           modelId,
           history,
           stream: true,
-          kvCache: false,
+          kvCache: true,
           captureThinking: true,
         })
 
