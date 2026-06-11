@@ -91,14 +91,6 @@ export interface ModelsAPI {
   onError: (callback: (e: ModelErrorPayload) => void) => () => void
 }
 
-export interface Tool {
-  id: string
-  name: string
-  description: string
-  enabled: boolean
-  status: 'available' | 'coming_soon'
-}
-
 export interface ProfileAPI {
   profiles: {
     getAll: () => Promise<Profile[]>
@@ -128,13 +120,10 @@ export interface ProfileAPI {
     loadMessages: (profileSlug: string, sessionSlug: string) => Promise<Message[]>
     saveMessages: (profileSlug: string, sessionSlug: string, messages: Message[]) => Promise<{ success: boolean }>
   }
-  tools: {
-    getAll: () => Promise<Tool[]>
-    setEnabled: (toolId: string, enabled: boolean) => Promise<boolean>
-  }
   settings: {
-    get: () => Promise<{ ctx_size: number }>
+    get: () => Promise<{ ctx_size: number; workerEnabled: boolean }>
     setCtxSize: (ctx_size: number) => Promise<{ success: boolean }>
+    setWorkerEnabled: (enabled: boolean) => Promise<{ success: boolean }>
   }
   documents: {
     list: () => Promise<any[]>

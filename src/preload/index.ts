@@ -98,14 +98,10 @@ const api = {
       ipcRenderer.invoke('sessions:saveMessages', profileSlug, sessionSlug, messages),
   },
   
-  tools: {
-    getAll: () => ipcRenderer.invoke('tools:getAll'),
-    setEnabled: (toolId: string, enabled: boolean) => ipcRenderer.invoke('tools:setEnabled', toolId, enabled),
-  },
-  
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     setCtxSize: (ctx_size: number) => ipcRenderer.invoke('settings:setCtxSize', ctx_size),
+    setWorkerEnabled: (enabled: boolean) => ipcRenderer.invoke('settings:setWorkerEnabled', enabled),
   },
   
   documents: {

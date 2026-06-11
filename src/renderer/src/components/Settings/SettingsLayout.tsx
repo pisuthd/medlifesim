@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Cpu, Share2, Info } from 'lucide-react'
+import { Cpu, Bot, Share2, Info } from 'lucide-react'
 import { BLUE, NAVY, sansFont } from '../../theme'
 import AIConfiguration from './AIConfiguration'
+import WorkerConfiguration from './WorkerConfiguration'
 import SharedResources from './SharedResources'
 import About from './About'
 
 const tabs = [
   { key: 'ai', label: 'AI Configuration', icon: Cpu },
+  { key: 'worker', label: 'Worker', icon: Bot },
   { key: 'shared', label: 'Shared Resources', icon: Share2 },
   { key: 'about', label: 'About', icon: Info },
 ]
@@ -18,6 +20,8 @@ export default function SettingsLayout() {
     switch (activeTab) {
       case 'ai':
         return <AIConfiguration />
+      case 'worker':
+        return <WorkerConfiguration />
       case 'shared':
         return <SharedResources />
       case 'about':

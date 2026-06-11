@@ -9,10 +9,10 @@ import {
   registerSimulationsIpcHandlers,
   setSimulationsMainWindowGetter,
 } from './simulations'
-import { startSimulationWorker } from './simulationWorker'
+import { startSimulationWorker, stopSimulationWorker } from './simulationWorker'
 import { registerScenarioGeneratorHandlers } from './scenarioGenerator'
 
-import { toolsStore, settingsStore, getToolsSystemPrompt } from './toolsStore'
+import { settingsStore, getSystemPrompt } from './toolsStore'
 
 // ============================================
 // QVAC AI Model Management (QVAC-native flow)
@@ -84,10 +84,10 @@ export async function runCompletion(
   const modelId = getActiveModelId()
   if (!modelId) throw new Error('AI model not loaded')
 
-  const toolsPrompt = getToolsSystemPrompt(args.profile)
+  const systemPrompt = getSystemPrompt(args.profile)
   const conversationHistory = [
     ...args.history.map((h) => ({ role: h.role, content: h.content })),
-    { role: 'user', content: toolsPrompt + '\n\n' + args.userMessage },
+    { role: 'user', content: systemPrompt + '\n\n' + args.userMessage },
   ]
 
   let fullResponse = ''
@@ -289,15 +289,6 @@ app.whenReady().then(async () => {
 
   ipcMain.on('ping', () => console.log('pong'))
 
-  // Tools IPC handlers
-  ipcMain.handle('tools:getAll', () => {
-    return toolsStore.getTools()
-  })
-
-  ipcMain.handle('tools:setEnabled', (_, toolId: string, enabled: boolean) => {
-    return toolsStore.setToolEnabled(toolId, enabled)
-  })
-
   // Settings IPC handlers
   ipcMain.handle('settings:get', () => {
     return settingsStore.getSettings()
@@ -305,6 +296,13 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('settings:setCtxSize', (_, ctx_size: number) => {
     settingsStore.setCtxSize(ctx_size)
+    return { success: true }
+  })
+
+  ipcMain.handle('settings:setWorkerEnabled', (_, enabled: boolean) => {
+    settingsStore.setWorkerEnabled(enabled)
+    if (enabled) startSimulationWorker()
+    else stopSimulationWorker()
     return { success: true }
   })
 
@@ -518,8 +516,10 @@ app.whenReady().then(async () => {
   registerSimulationsIpcHandlers()
   setSimulationsMainWindowGetter(() => mainWindowRef)
 
-  // Start the background worker that drains queued outcomes
-  startSimulationWorker()
+  // Start the background worker that drains queued outcomes (only if the
+  // user has the worker enabled in settings; the IPC handler above
+  // starts/stops it on toggle).
+  if (settingsStore.getWorkerEnabled()) startSimulationWorker()
 
   // Register documents IPC handlers
   // registerDocumentsHandlers()
