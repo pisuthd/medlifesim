@@ -11,6 +11,7 @@ import {
   OutcomesModal,
   PROMPT_GENERATED_LAYOUT,
   PromptToScenarioModal,
+  TemplatePickerModal,
 } from '../components/simulation'
 import type { PortSide } from '../components/simulation/CanvasCard'
 import {
@@ -61,6 +62,8 @@ export default function StartSimulation() {
   // Template replacement confirm — when set, the matching template is
   // queued to load once the user confirms discarding the current canvas.
   const [pendingTemplate, setPendingTemplate] = useState<SimTemplate | null>(null)
+  // Choose from template modal state — opens a modal showing all templates.
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   // Inline edit — when set, the matching card is in edit mode and the
   // canvas's other interactions (drag, port clicks) are suppressed.
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -458,6 +461,7 @@ export default function StartSimulation() {
         onRequestReset={() => setResetOpen(true)}
         onPickTemplate={handleLoadTemplate}
         onPickBlank={() => handleLoadTemplate({ canvas: EMPTY_CANVAS } as SimTemplate)}
+        onChooseTemplate={() => setTemplatePickerOpen(true)}
         onEditScenario={() => setEditScenarioOpen(true)}
         onPromptToScenario={handlePromptToScenario}
       />
@@ -466,6 +470,12 @@ export default function StartSimulation() {
         open={addOpen}
         onPick={handleAddTemplate}
         onClose={() => setAddOpen(false)}
+      />
+
+      <TemplatePickerModal
+        open={templatePickerOpen}
+        onPick={handleLoadTemplate}
+        onClose={() => setTemplatePickerOpen(false)}
       />
 
       <ConfirmModal
@@ -532,7 +542,7 @@ export default function StartSimulation() {
         }}
       >
         <span aria-hidden style={{ fontSize: 14, lineHeight: 1, marginTop: -1 }}>▶</span>
-        Preview
+        Preview Outcomes
       </motion.button>
 
       <OutcomesModal

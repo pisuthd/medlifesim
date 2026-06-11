@@ -28,6 +28,8 @@ interface CanvasToolbarProps {
   onPickTemplate: (template: SimTemplate) => void
   /** Fires when the user picks "Blank Canvas" from the MedLifeSim dropdown. */
   onPickBlank: () => void
+  /** Fires when the user picks "Choose from Template" - parent shows modal. */
+  onChooseTemplate: () => void
   /** Fires when the user clicks the scenario title (opens edit modal). */
   onEditScenario?: () => void
   /**
@@ -53,6 +55,7 @@ export default function CanvasToolbar({
   // onRequestReset,
   onPickTemplate,
   onPickBlank,
+  onChooseTemplate,
   onEditScenario,
   onPromptToScenario,
 }: CanvasToolbarProps) {
@@ -137,6 +140,7 @@ export default function CanvasToolbar({
       <CanvasTemplateMenu
         onPick={onPickTemplate}
         onBlank={onPickBlank}
+        onChooseTemplate={onChooseTemplate}
         onPromptToScenario={onPromptToScenario}
       />
 

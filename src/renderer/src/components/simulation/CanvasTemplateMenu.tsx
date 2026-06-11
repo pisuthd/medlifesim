@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
-import { SIM_TEMPLATES } from '../../data/simulationTemplates'
 import { SCENARIO_PRESETS } from '../../../../shared/scenarioPresets'
 import type { SimTemplate } from '../../types/simulation'
 
@@ -16,6 +15,8 @@ interface CanvasTemplateMenuProps {
   onPick: (template: SimTemplate) => void
   /** Fires when the user picks "Blank Canvas". */
   onBlank: () => void
+  /** Fires when the user picks "Choose from template" - parent shows modal. */
+  onChooseTemplate: () => void
   /**
    * Fires when the user picks "Prompt to scenario · AI" (no preset) or
    * one of the placeholder prompts. `null` means "open with empty
@@ -25,30 +26,17 @@ interface CanvasTemplateMenuProps {
   onPromptToScenario: (preset: PromptPreset | null) => void
 }
 
-// Group templates by category
-type TemplateCategory = 'Community' | 'Workplace' | 'Hospital'
-
-const TEMPLATE_CATEGORIES: Record<TemplateCategory, SimTemplate[]> = {
-  Community: SIM_TEMPLATES.filter(t =>
-    ['teen-drugs', 'school-outbreak', 'urban-metabolic'].includes(t.id)
-  ),
-  Workplace: SIM_TEMPLATES.filter(t => t.id === 'office-smoke'),
-  Hospital: SIM_TEMPLATES.filter(t => t.id === 'emergency-transfusion'),
-}
-
-const CATEGORY_LABELS: Record<TemplateCategory, string> = {
-  Community: 'Community',
-  Workplace: 'Workplace',
-  Hospital: 'Hospital',
-}
-
 /**
  * Small dropdown menu anchored to the toolbar's "New Scenario ▾" button.
- * Exposes "Blank Canvas" plus every entry in `SIM_TEMPLATES` grouped by category.
  * The parent owns the confirm-and-apply flow — this component only reports
  * the user's choice.
  */
-export default function CanvasTemplateMenu({ onPick, onBlank, onPromptToScenario }: CanvasTemplateMenuProps) {
+export default function CanvasTemplateMenu({
+  onPick: _onPick,
+  onBlank,
+  onChooseTemplate,
+  onPromptToScenario,
+}: CanvasTemplateMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
@@ -124,7 +112,7 @@ export default function CanvasTemplateMenu({ onPick, onBlank, onPromptToScenario
               position: 'absolute',
               top: 36,
               left: 0,
-              minWidth: 280,
+              minWidth: 240,
               background: '#fff',
               border: '1px solid #e0e0f0',
               borderRadius: 8,
@@ -143,35 +131,15 @@ export default function CanvasTemplateMenu({ onPick, onBlank, onPromptToScenario
             />
             <div style={{ height: 1, background: '#eeeef8', margin: '4px 6px' }} />
 
-            {/* Template categories */}
-            {(Object.keys(TEMPLATE_CATEGORIES) as TemplateCategory[]).map((category) => (
-              <div key={category}>
-                <div
-                  style={{
-                    padding: '6px 10px 2px',
-                    fontFamily: monoFont,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: MUTED,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {CATEGORY_LABELS[category]}
-                </div>
-                {TEMPLATE_CATEGORIES[category].map((t) => (
-                  <MenuItem
-                    key={t.id}
-                    label={t.name}
-                    description={t.description}
-                    onClick={() => {
-                      onPick(t)
-                      setOpen(false)
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
+            {/* Choose from template - parent shows modal */}
+            <MenuItem
+              label="Choose from Template"
+              description="Pick a pre-built scenario"
+              onClick={() => {
+                onChooseTemplate()
+                setOpen(false)
+              }}
+            />
 
             <div style={{ height: 1, background: '#eeeef8', margin: '4px 6px' }} />
 
