@@ -39,7 +39,11 @@ export default function ModelSelector({ onComplete }: { onComplete: (entry: Mode
     }
   }
 
-  const handleAdd = async (entry: { name: string; source: string }) => {
+  const handleAdd = async (entry: {
+    name: string
+    source: string
+    description?: string
+  }) => {
     setAddError('')
     setSubmitting(true)
     try {
@@ -381,6 +385,7 @@ export default function ModelSelector({ onComplete }: { onComplete: (entry: Mode
           )}
         </div>
       </motion.div>
+
     </div>
   )
 }

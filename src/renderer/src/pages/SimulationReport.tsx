@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PageWrapper from '../components/PageWrapper'
+import TranslationPicker from '../components/TranslationPicker'
 import { useProfile } from '../context/ProfileContext'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../theme'
 import type { ParsedOutcomeReport } from '../../../shared/outcomeParser'
@@ -11,6 +12,7 @@ import type {
   SimulationParent,
   SimulationStatus,
 } from '../../../preload/simulation'
+import type { SupportedTargetLang } from '../../../preload/index.d'
 import { MEDLIFESIM_DISCLAIMER } from '../../../shared/disclaimer'
 
 interface ReportResponse {
@@ -57,6 +59,29 @@ export default function SimulationReport() {
   const [error, setError] = useState<string | null>(null)
   const [modelName, setModelName] = useState<string | null>(null)
   const [loraName, setLoraName] = useState<string | null>(null)
+  // In-place translation state. `translateTo` records the user's
+  // current pick (or `null` for "show original"); `translatedData`
+  // is the overlay applied on top of the original `data` so the
+  // page re-renders in the chosen language. `translating` flips to
+  // true while the IPC is in flight — it drives the spinner's
+  // label and the "block re-pick" prop on the picker.
+  const [translateTo, setTranslateTo] = useState<SupportedTargetLang | null>(null)
+  const [translatedData, setTranslatedData] = useState<ReportResponse | null>(null)
+  const [translating, setTranslating] = useState(false)
+  const [translateError, setTranslateError] = useState<string | null>(null)
+  const [supportedLangs, setSupportedLangs] = useState<Array<{ code: SupportedTargetLang; label: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    // Fetch the supported-language list once on mount — used for the
+    // "Translated to <label>" pill in the report header.
+    window.api.translation.supportedLanguages().then((langs) => {
+      if (!cancelled) setSupportedLangs(langs)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -97,6 +122,44 @@ export default function SimulationReport() {
     }
   }, [profile, simId])
 
+  /**
+   * Translate handler — called when the user picks a non-`null`
+   * language in the Translate popover. `null` (= "Show original")
+   * is handled inline in the page (just clears the overlay).
+   *
+   * On success, sets `translateTo` to the new language and
+   * `translatedData` to the Bergamot result. On failure, surfaces
+   * the error and reverts `translateTo` so the page stays English.
+   */
+  const handleTranslate = async (lang: SupportedTargetLang) => {
+    if (!profile || !simId) return
+    setTranslateError(null)
+    setTranslating(true)
+    setTranslateTo(lang)
+    try {
+      const result = await window.api.simulations.translateReport(
+        profile.id,
+        simId,
+        lang,
+      )
+      setTranslatedData(result)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setTranslateError(msg)
+      // Revert: page stays in English.
+      setTranslateTo(null)
+      setTranslatedData(null)
+    } finally {
+      setTranslating(false)
+    }
+  }
+
+  const handleShowOriginal = () => {
+    setTranslateError(null)
+    setTranslateTo(null)
+    setTranslatedData(null)
+  }
+
   // Group outcomes by subject for the per-subject accordion.
   const outcomesBySubject = useMemo(() => {
     if (!data) return new Map<string, SimulationOutcome[]>()
@@ -129,7 +192,17 @@ export default function SimulationReport() {
       category="MedLifeSim"
       buttons={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <ExportButton profileId={profile.id} simId={simId ?? ''} />
+          <TranslateButton
+            value={translateTo}
+            translating={translating}
+            onTranslate={handleTranslate}
+            onShowOriginal={handleShowOriginal}
+          />
+          <ExportButton
+            profileId={profile.id}
+            simId={simId ?? ''}
+            displayData={data ? (translatedData ?? data) : null}
+          />
           <button
             onClick={() => navigate('/recent-simulations')}
             style={{
@@ -194,7 +267,59 @@ export default function SimulationReport() {
           Simulation not found.
         </div>
       )}
-      {data && <ReportBody data={data} outcomesBySubject={outcomesBySubject} modelName={modelName} loraName={loraName} />}
+      {/* Surface translation errors as a small inline banner at the
+          top of the page. The picker button itself doesn't render
+          errors; it stays focused on state. */}
+      {translateError && (
+        <div
+          role="alert"
+          style={{
+            padding: '10px 14px',
+            background: 'rgba(200,48,48,0.08)',
+            border: '1px solid #f0c0c0',
+            borderRadius: 6,
+            color: '#a02020',
+            fontFamily: sansFont,
+            fontSize: 13,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span>Translation failed: {translateError}</span>
+          <button
+            type="button"
+            onClick={() => setTranslateError(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#a02020',
+              fontFamily: monoFont,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              padding: '2px 6px',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {data && (
+        <ReportBody
+          data={translatedData ?? data}
+          outcomesBySubject={outcomesBySubject}
+          modelName={modelName}
+          loraName={loraName}
+          translateTo={translateTo}
+          translateToLabel={translateTo ? (supportedLangs.find((l) => l.code === translateTo)?.label ?? translateTo) : null}
+          onShowOriginal={handleShowOriginal}
+        />
+      )}
     </PageWrapper>
   )
 }
@@ -204,11 +329,18 @@ function ReportBody({
   outcomesBySubject,
   modelName,
   loraName,
+  translateTo,
+  translateToLabel,
+  onShowOriginal,
 }: {
   data: ReportResponse
   outcomesBySubject: Map<string, SimulationOutcome[]>
   modelName: string | null
   loraName: string | null
+  translateTo: SupportedTargetLang | null
+  translateToLabel: string | null
+  /** Click handler for the "Translated to {label}" pill — clears the overlay. */
+  onShowOriginal: () => void
 }) {
   const { sim, outcomes, reports, aggregate } = data
   const statusColor = STATUS_COLOR[sim.status]
@@ -259,6 +391,36 @@ function ReportBody({
             >
               {sim.name}
             </h2>
+            {translateTo && (
+              <button
+                type="button"
+                onClick={onShowOriginal}
+                title="Click to show the original (English) report"
+                style={{
+                  display: 'inline-block',
+                  marginTop: 6,
+                  padding: '2px 8px',
+                  background: '#dffaf3',
+                  color: TEAL,
+                  border: '1px solid #a0e8d5',
+                  borderRadius: 999,
+                  fontFamily: monoFont,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  ;(e.currentTarget as HTMLButtonElement).style.background = '#bff5e6'
+                }}
+                onMouseLeave={(e) => {
+                  ;(e.currentTarget as HTMLButtonElement).style.background = '#dffaf3'
+                }}
+              >
+                Show original · Translated to {translateToLabel}
+              </button>
+            )}
             {sim.description && (
               <p
                 style={{
@@ -1186,7 +1348,7 @@ const miniTd: React.CSSProperties = {
   fontSize: 12,
 }
 
-// ─────────────────────────── Export button + menu ────────────────────────
+// ─────────────────────────────── Export button ───────────────────────────
 
 type ExportFormat = 'pdf' | 'json' | 'md' | 'csv'
 
@@ -1198,12 +1360,27 @@ const FORMATS: { id: ExportFormat; label: string }[] = [
 ]
 
 /**
- * Small "Export ▾" button that opens a popover menu of format options.
- * Each click calls `window.api.simulations.exportReport(...)`; the
- * main process opens a save dialog, writes the file, and returns the
- * path. We surface success / error / cancel via an inline toast.
+ * Small "Export ▾" button that opens a popover menu of format
+ * options. Each click calls `window.api.simulations.exportReport(...)`;
+ * the main process opens a save dialog, writes the file, and
+ * returns the path. We surface success / error / cancel via an
+ * inline toast.
+ *
+ * The export popover is intentionally **just** a format picker —
+ * translation is now an in-place action driven by the separate
+ * Translate button next to this one. The `displayData` arg is the
+ * page's current view (translated or English); the writer renders
+ * it as-is, with no second translation pass.
  */
-function ExportButton({ profileId, simId }: { profileId: string; simId: string }) {
+function ExportButton({
+  profileId,
+  simId,
+  displayData,
+}: {
+  profileId: string
+  simId: string
+  displayData: ReportResponse | null
+}) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<ExportFormat | null>(null)
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
@@ -1225,14 +1402,22 @@ function ExportButton({ profileId, simId }: { profileId: string; simId: string }
     return () => clearTimeout(t)
   }, [toast])
 
-  const disabled = !simId || busy !== null
+  const disabled = !simId || busy !== null || !displayData
 
   async function pickFormat(f: ExportFormat) {
-    if (disabled) return
+    if (disabled || !displayData) return
     setOpen(false)
     setBusy(f)
     try {
-      const r = await window.api.simulations.exportReport(profileId, simId, f)
+      // Forward the page's current view (translated or English) as
+      // the `data` arg. The main process writes it as-is — no
+      // re-fetch, no second translate pass.
+      const r = await window.api.simulations.exportReport(
+        profileId,
+        simId,
+        f,
+        displayData,
+      )
       if (r.ok && r.path) {
         setToast({ kind: 'ok', text: `Saved to ${r.path}` })
       } else if (r.canceled) {
@@ -1279,9 +1464,11 @@ function ExportButton({ profileId, simId }: { profileId: string; simId: string }
             border: '1px solid #e0e0f0',
             borderRadius: 6,
             boxShadow: '0 6px 18px rgba(10,10,92,0.10)',
-            minWidth: 160,
+            minWidth: 180,
             zIndex: 50,
             padding: 4,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {FORMATS.map((f) => (
@@ -1339,5 +1526,47 @@ function ExportButton({ profileId, simId }: { profileId: string; simId: string }
         </div>
       )}
     </div>
+  )
+}
+
+// ───────────────────────────── Translate button ───────────────────────────
+
+/**
+ * Thin wrapper around `TranslationPicker` that lives in the report
+ * header next to `ExportButton`. The picker is a pure controlled
+ * component: when the user picks a non-`null` language, this
+ * wrapper calls `onTranslate(lang)` (which kicks off the IPC);
+ * when the user picks `null` (= "Show original"), this wrapper
+ * calls `onShowOriginal()` to clear the overlay.
+ *
+ * The in-flight state is the parent's `translating` flag. While
+ * true, the picker's label flips to "Translating to {label}…"
+ * with a spinner, and re-picks are blocked.
+ */
+function TranslateButton({
+  value,
+  translating,
+  onTranslate,
+  onShowOriginal,
+}: {
+  value: SupportedTargetLang | null
+  translating: boolean
+  onTranslate: (lang: SupportedTargetLang) => Promise<void> | void
+  onShowOriginal: () => void
+}) {
+  const handleChange = (next: SupportedTargetLang | null) => {
+    if (next === null) {
+      onShowOriginal()
+    } else {
+      void onTranslate(next)
+    }
+  }
+  return (
+    <TranslationPicker
+      value={value}
+      onChange={handleChange}
+      disabled={translating}
+      translating={translating}
+    />
   )
 }

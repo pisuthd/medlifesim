@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ChatMessage, ModelEntry, ModelLoadProgress, ModelErrorPayload, ModelStatus } from './index.d'
+import type {
+  ChatMessage,
+  ModelEntry,
+  ModelLoadProgress,
+  ModelErrorPayload,
+  ModelStatus,
+  SupportedTargetLang,
+  TranslationStatus,
+} from './index.d'
 
 // Custom APIs for renderer
 const api = {
@@ -13,8 +21,13 @@ const api = {
 
   models: {
     list: (): Promise<ModelEntry[]> => ipcRenderer.invoke('models:list'),
-    add: (entry: { name: string; source: string; description?: string; quantization?: string; params?: string }): Promise<ModelEntry> =>
-      ipcRenderer.invoke('models:add', entry),
+    add: (entry: {
+      name: string
+      source: string
+      description?: string
+      quantization?: string
+      params?: string
+    }): Promise<ModelEntry> => ipcRenderer.invoke('models:add', entry),
     remove: (id: string): Promise<boolean> => ipcRenderer.invoke('models:remove', id),
     select: (id: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('models:select', id),
@@ -135,10 +148,19 @@ const api = {
       ipcRenderer.invoke('simulations:listOutcomes', profileSlug, simId),
     getReport: (profileSlug: string, simId: string) =>
       ipcRenderer.invoke('simulations:getReport', profileSlug, simId),
+    translateReport: (
+      profileSlug: string,
+      simId: string,
+      targetLang: SupportedTargetLang,
+    ) => ipcRenderer.invoke('reports:translate', profileSlug, simId, targetLang),
     setModalOpen: (profileSlug: string, isOpen: boolean) =>
       ipcRenderer.invoke('simulations:setModalOpen', profileSlug, isOpen),
-    exportReport: (profileSlug: string, simId: string, format: 'pdf' | 'json' | 'md' | 'csv') =>
-      ipcRenderer.invoke('reports:export', profileSlug, simId, format),
+    exportReport: (
+      profileSlug: string,
+      simId: string,
+      format: 'pdf' | 'json' | 'md' | 'csv',
+      data?: any,
+    ) => ipcRenderer.invoke('reports:export', profileSlug, simId, format, data ?? null),
     onProgress: (callback: (event: any) => void) => {
       const handler = (_: unknown, e: any) => callback(e)
       ipcRenderer.on('simulations:progress', handler)
@@ -176,6 +198,42 @@ const api = {
     get: (id: string) => ipcRenderer.invoke('loras:get', id),
     delete: (id: string) => ipcRenderer.invoke('loras:delete', id),
     import: (): Promise<any> => ipcRenderer.invoke('loras:import'),
+  },
+
+  p2p: {
+    status: (): Promise<any> => ipcRenderer.invoke('p2p:status'),
+    providerStart: (): Promise<{ success: boolean; publicKey?: string; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerStart'),
+    providerStop: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerStop'),
+    providerSetEnabled: (enabled: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerSetEnabled', enabled),
+    consumerSetEnabled: (enabled: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:consumerSetEnabled', enabled),
+    peersList: (): Promise<{ peers: any[] }> => ipcRenderer.invoke('p2p:peersList'),
+    peersAdd: (input: { name: string; publicKey: string }): Promise<{ success: boolean; peer?: any; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersAdd', input),
+    peersRemove: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersRemove', id),
+    peersConnect: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersConnect', id),
+    peersDisconnect: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersDisconnect'),
+    onStatus: (callback: (s: any) => void) => {
+      const handler = (_: unknown, s: any) => callback(s)
+      ipcRenderer.on('p2p:status', handler)
+      return () => ipcRenderer.removeListener('p2p:status', handler)
+    },
+  },
+
+  translation: {
+    supportedLanguages: (): Promise<Array<{ code: SupportedTargetLang; label: string }>> =>
+      ipcRenderer.invoke('translation:supportedLanguages'),
+    status: (): Promise<TranslationStatus> => ipcRenderer.invoke('translation:status'),
+    load: (lang: SupportedTargetLang): Promise<{ success: boolean; modelId?: string; error?: string }> =>
+      ipcRenderer.invoke('translation:load', lang),
+    unload: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('translation:unload'),
   },
 }
 
