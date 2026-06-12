@@ -72,6 +72,9 @@ export default function RecentSimulations() {
         setOutcomesBySim((prev) => {
           const list = prev[event.simId]
           if (!list) return prev
+          // Planning-pass events use `outcomeId: ''` so no outcome in
+          // the list matches — the map call below leaves outcomes
+          // untouched, which is exactly what we want.
           return {
             ...prev,
             [event.simId]: list.map((o) =>
@@ -123,6 +126,10 @@ export default function RecentSimulations() {
           ),
         }
       })
+      // The server decremented the parent's errorCount; refresh so the
+      // row reads the new count immediately rather than waiting for the
+      // next progress event.
+      await loadSims()
     } catch (err) {
       console.error('Failed to requeue outcome:', err)
     }
@@ -132,7 +139,9 @@ export default function RecentSimulations() {
     if (!profile) return
     try {
       await window.api.simulations.requeue(profile.id, simId)
-      await loadOutcomes(simId)
+      // Refresh both the outcomes (now pending) and the parent
+      // (errorCount decremented, status recomputed by bumpCompleted).
+      await Promise.all([loadOutcomes(simId), loadSims()])
     } catch (err) {
       console.error('Failed to requeue all:', err)
     }

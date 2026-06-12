@@ -6,8 +6,6 @@ import { enumeratePaths } from '../shared/simulationPaths'
 import { parseOutcomeReport, parseOutcomeJson, type ParsedOutcomeReport } from '../shared/outcomeParser'
 import { aggregateOutcomes, type ReportAggregate } from '../shared/outcomeReport'
 import { setProfileModalOpen } from './simulationWorker'
-import { getAnalysisPlan } from './planCache'
-import type { AnalysisPlan } from '../preload/simulation'
 import type {
   CanvasCard,
   CanvasState,
@@ -253,8 +251,12 @@ export function bumpCompleted(
   const target = getSimulationJsonPath(profileSlug, simId)
   const current = readJson<SimulationParent>(target)
   if (!current) return null
-  const completedCount = Math.max(0, current.completedCount + delta)
-  const errorCount = Math.max(0, current.errorCount + errorDelta)
+  // Defensive cap at `outcomeCount` so a misbehaving call site cannot
+  // push either count past the number of outcomes (e.g. the previous
+  // `+1, +1` on the worker error path produced "10 / 5" headers).
+  const cap = current.outcomeCount
+  const completedCount = Math.min(cap, Math.max(0, current.completedCount + delta))
+  const errorCount = Math.min(cap, Math.max(0, current.errorCount + errorDelta))
   let status: SimulationStatus = current.status
   if (completedCount + errorCount >= current.outcomeCount && current.outcomeCount > 0) {
     status = errorCount > 0 ? 'partial' : 'completed'
@@ -266,6 +268,51 @@ export function bumpCompleted(
   const merged: SimulationParent = {
     ...current,
     completedCount,
+    errorCount,
+    status,
+    updatedAt: nowIso(),
+  }
+  atomicWriteJson(target, merged)
+  return merged
+}
+
+/**
+ * Recompute the parent's `completedCount` / `errorCount` from the
+ * on-disk outcomes list and persist the result. Idempotent and a
+ * no-op when the counts already match (cost is one read of the
+ * outcomes directory per sim).
+ *
+ * Used to repair old corrupt sims whose parent file
+ * (`completedCount` or `errorCount` drifted away from the actual
+ * outcomes) — the recent-simulation list and the report header
+ * both read these counts from the parent, so a one-time write
+ * fixes the display. New sims keep their counts accurate by
+ * construction since `bumpCompleted` is the only writer.
+ */
+export function recomputeCountsFromOutcomes(
+  profileSlug: string,
+  simId: string
+): SimulationParent | null {
+  const target = getSimulationJsonPath(profileSlug, simId)
+  const current = readJson<SimulationParent>(target)
+  if (!current) return null
+  const outcomes = listOutcomes(profileSlug, simId)
+  const doneCount = outcomes.filter((o) => o.status === 'done').length
+  const errorCount = outcomes.filter((o) => o.status === 'error').length
+  if (current.completedCount === doneCount && current.errorCount === errorCount) {
+    return current
+  }
+  let status: SimulationStatus = current.status
+  if (doneCount + errorCount >= current.outcomeCount && current.outcomeCount > 0) {
+    status = errorCount > 0 ? 'partial' : 'completed'
+  } else if (doneCount > 0 || errorCount > 0) {
+    status = 'processing'
+  } else {
+    status = 'queued'
+  }
+  const merged: SimulationParent = {
+    ...current,
+    completedCount: doneCount,
     errorCount,
     status,
     updatedAt: nowIso(),
@@ -329,6 +376,14 @@ export function requeueOutcome(
     }
     updateOutcome(profileSlug, simId, o.id, { status: 'pending', error: undefined })
   }
+  // Decrement the parent's error count by the number of outcomes we just
+  // requeued. Without this the parent stays in "partial" with a stale
+  // error count after a successful retry run, and the Report button
+  // (gated on `completed`/`partial`) reads "8/8 (4 err)" instead of
+  // landing on "8/8 Completed" when the retries all succeed.
+  if (targets.length > 0) {
+    bumpCompleted(profileSlug, simId, 0, -targets.length)
+  }
   return { success: true, requeued: targets.length }
 }
 
@@ -337,6 +392,15 @@ export function requeueOutcome(
 export function registerSimulationsIpcHandlers(): void {
   ipcMain.handle('simulations:list', async (_e, profileSlug: string) => {
     try {
+      const sims = listSimulations(profileSlug)
+      // Repair any sim whose parent counts drifted away from its
+      // outcomes list. Idempotent and a no-op when counts are
+      // already accurate (see `recomputeCountsFromOutcomes`).
+      for (const sim of sims) {
+        recomputeCountsFromOutcomes(profileSlug, sim.id)
+      }
+      // Re-read after repair so the returned objects reflect the
+      // updated counts/statuses.
       return listSimulations(profileSlug)
     } catch (err) {
       console.error('[simulations] list failed:', err)
@@ -431,18 +495,13 @@ export function registerSimulationsIpcHandlers(): void {
     'simulations:getReport',
     async (_e, profileSlug: string, simId: string) => {
       try {
-        const sim = getSimulation(profileSlug, simId)
+        // Repair the parent's counts first (in case a previous
+        // worker run left them drifted from the outcomes list).
+        // `recomputeCountsFromOutcomes` is a no-op when the counts
+        // are already correct.
+        const sim = recomputeCountsFromOutcomes(profileSlug, simId)
         if (!sim) return null
         const outcomes = listOutcomes(profileSlug, simId)
-
-        // Plan is in-memory only — generated by the worker during
-        // step 1 of the 2-step pipeline. `undefined` = worker hasn't
-        // planned yet, `null` = worker tried and failed, `AnalysisPlan`
-        // = the plan to render.
-        const plan: AnalysisPlan | null | undefined = getAnalysisPlan(
-          profileSlug,
-          simId
-        )
 
         const reports: Record<string, ParsedOutcomeReport | null> = {}
         for (const o of outcomes) {
@@ -459,9 +518,9 @@ export function registerSimulationsIpcHandlers(): void {
               break
             }
           }
-          // Try the new JSON contract first (worker Step 2); fall
-          // back to the legacy markdown parser for outcomes that
-          // pre-date the redesign.
+          // Try the new JSON contract first (worker per-outcome
+          // completion); fall back to the legacy markdown parser
+          // for outcomes that pre-date the redesign.
           reports[o.id] = assistant
             ? parseOutcomeJson(assistant.content) ?? parseOutcomeReport(assistant.content)
             : null
@@ -470,7 +529,7 @@ export function registerSimulationsIpcHandlers(): void {
           outcomes,
           new Map(Object.entries(reports))
         )
-        return { sim, plan: plan ?? null, outcomes, reports, aggregate }
+        return { sim, outcomes, reports, aggregate }
       } catch (err) {
         console.error('[simulations] getReport failed:', err)
         throw err

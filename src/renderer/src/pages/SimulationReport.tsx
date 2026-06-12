@@ -7,7 +7,6 @@ import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../theme'
 import type { ParsedOutcomeReport } from '../../../shared/outcomeParser'
 import type { ReportAggregate } from '../../../shared/outcomeReport'
 import type {
-  AnalysisPlan,
   SimulationOutcome,
   SimulationParent,
   SimulationStatus,
@@ -15,8 +14,6 @@ import type {
 import { MEDLIFESIM_DISCLAIMER } from '../../../shared/disclaimer'
 
 interface ReportResponse {
-  /** Cached planning-pass output from the worker. `null` if the worker hasn't planned yet (or the plan was lost on restart). */
-  plan: AnalysisPlan | null
   sim: SimulationParent
   outcomes: SimulationOutcome[]
   reports: Record<string, ParsedOutcomeReport | null>
@@ -201,7 +198,7 @@ function ReportBody({
   outcomesBySubject: Map<string, SimulationOutcome[]>
   modelName: string | null
 }) {
-  const { plan, sim, outcomes, reports, aggregate } = data
+  const { sim, outcomes, reports, aggregate } = data
   const statusColor = STATUS_COLOR[sim.status]
   const statusLabel = STATUS_LABEL[sim.status]
 
@@ -308,125 +305,6 @@ function ReportBody({
           </div>
         </div>
       </div>
-
-      {/* Section 0: Analysis Plan (worker Step 1) — only shown when the
-          worker has produced one in-memory. Missing = "no plan" (single-
-          outcome sims skip step 1, or the worker tried and failed, or
-          the worker was restarted since planning). The per-outcome
-          JSONs still work without it. */}
-      {plan && (
-        <Section
-          eyebrow="00"
-          title="Analysis Plan"
-          caption="generated once per simulation"
-        >
-          <div
-            style={{
-              background: '#fff',
-              border: '1px solid #e0e0f0',
-              borderRadius: 8,
-              padding: 20,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-            }}
-          >
-            <p
-              style={{
-                fontFamily: sansFont,
-                fontSize: 15,
-                color: NAVY,
-                lineHeight: 1.55,
-                margin: 0,
-              }}
-            >
-              {plan.summary}
-            </p>
-
-            {plan.comparisons.length > 0 && (
-              <div>
-                <p
-                  style={{
-                    fontFamily: monoFont,
-                    fontSize: 9,
-                    letterSpacing: '0.14em',
-                    color: MUTED,
-                    textTransform: 'uppercase',
-                    margin: '0 0 8px 0',
-                  }}
-                >
-                  Comparison focus
-                </p>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
-                  {plan.comparisons.map((c, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: 'flex',
-                        gap: 8,
-                        fontFamily: sansFont,
-                        fontSize: 13,
-                        color: NAVY,
-                      }}
-                    >
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontFamily: monoFont,
-                          fontSize: 10,
-                          color: TEAL,
-                          letterSpacing: '0.06em',
-                        }}
-                      >
-                        {c.outcomes.join(' ↔ ')}
-                      </span>
-                      <span style={{ color: MUTED }}>—</span>
-                      <span>{c.focus}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {plan.hypotheses.length > 0 && (
-              <div>
-                <p
-                  style={{
-                    fontFamily: monoFont,
-                    fontSize: 9,
-                    letterSpacing: '0.14em',
-                    color: MUTED,
-                    textTransform: 'uppercase',
-                    margin: '0 0 8px 0',
-                  }}
-                >
-                  Hypotheses tested
-                </p>
-                <ul
-                  style={{
-                    margin: 0,
-                    paddingLeft: 18,
-                    fontFamily: sansFont,
-                    fontSize: 13,
-                    color: NAVY,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {plan.hypotheses.map((h, i) => (
-                    <li key={i}>{h}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
 
       {/* Section 1: Executive Summary */}
       <Section
@@ -914,9 +792,16 @@ function RiskBar({
   // When a range is present, the bar fills to the upper bound (the worst
   // case) and the label renders the full range. This conveys both the
   // central estimate and the uncertainty width at a glance.
-  const barMax = range ? range[1] : value
-  const barColor = range ? riskColor(range[1]) : riskColor(value)
-  const label = range ? `${range[0]}\u2013${range[1]}%` : `${value}%`
+  // Defensive sort: the parser already returns [lo, hi] but a future
+  // change (or a stale parsed value from before the parser hardening)
+  // could still pass a reversed tuple, in which case the label would
+  // read "45–30%" with the bar filling to 30% — confusing.
+  const lo = range ? Math.min(range[0], range[1]) : null
+  const hi = range ? Math.max(range[0], range[1]) : null
+  const safeRange = lo !== null && hi !== null ? ([lo, hi] as [number, number]) : null
+  const barMax = safeRange ? safeRange[1] : value
+  const barColor = safeRange ? riskColor(safeRange[1]) : riskColor(value)
+  const label = safeRange ? `${safeRange[0]}\u2013${safeRange[1]}%` : `${value}%`
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div
@@ -1108,19 +993,30 @@ function SubjectAccordion({
                     </span>
                   </div>
                   {r && r.risk !== null && (
-                    <span
-                      style={{
-                        fontFamily: monoFont,
-                        fontSize: 11,
-                        color: r.riskRange ? riskColor(r.riskRange[1]) : riskColor(r.risk),
-                        fontWeight: 600,
-                      }}
-                    >
-                      Risk{' '}
-                      {r.riskRange
-                        ? `${r.riskRange[0]}\u2013${r.riskRange[1]}%`
-                        : `${r.risk}%`}
-                    </span>
+                    (() => {
+                      // Defensive sort for the SubjectAccordion label
+                      // (same reason as `RiskBar`).
+                      const rLo = r.riskRange ? Math.min(r.riskRange[0], r.riskRange[1]) : null
+                      const rHi = r.riskRange ? Math.max(r.riskRange[0], r.riskRange[1]) : null
+                      const accBarColor = r.riskRange && rHi !== null
+                        ? riskColor(rHi)
+                        : riskColor(r.risk)
+                      return (
+                        <span
+                          style={{
+                            fontFamily: monoFont,
+                            fontSize: 11,
+                            color: accBarColor,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Risk{' '}
+                          {r.riskRange && rLo !== null && rHi !== null
+                            ? `${rLo}\u2013${rHi}%`
+                            : `${r.risk}%`}
+                        </span>
+                      )
+                    })()
                   )}
                 </div>
                 {r ? (

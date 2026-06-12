@@ -251,7 +251,7 @@ export default function RecentSimulationRow({
           style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {(sim.outcomeCount > 0) && ( !hasErrors ) && (
+          {(sim.status === 'completed' || sim.status === 'partial') && (
             <button
               onClick={onOpenReport}
               title="View report"

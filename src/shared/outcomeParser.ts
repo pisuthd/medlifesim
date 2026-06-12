@@ -71,9 +71,12 @@ function extractPercentField(
   // First, look for a range with a hyphen / en-dash / em-dash separator.
   const rangeMatch = text.match(/(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*%?/)
   if (rangeMatch) {
-    const lo = parseInt(rangeMatch[1], 10)
-    const hi = parseInt(rangeMatch[2], 10)
-    if (!Number.isNaN(lo) && !Number.isNaN(hi)) {
+    const a = parseInt(rangeMatch[1], 10)
+    const b = parseInt(rangeMatch[2], 10)
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      // Defensive sort — the model may emit either ordering.
+      const lo = Math.min(a, b)
+      const hi = Math.max(a, b)
       const clampedLo = clampPercent(lo)
       const clampedHi = clampPercent(hi)
       return { value: (clampedLo + clampedHi) / 2, range: [clampedLo, clampedHi] }
@@ -198,11 +201,14 @@ function normalisePercentField(raw: unknown): {
   // chosen convention (most charitable for ambiguous edge cases).
   const fromMaybeFraction = (n: number): number => (n < 1 ? n * 100 : n)
   if (Array.isArray(raw)) {
-    const [lo, hi] = raw
-    if (typeof lo !== 'number' || typeof hi !== 'number') return { value: null, range: null }
-    const l = fromMaybeFraction(lo)
-    const h = fromMaybeFraction(hi)
-    return { value: (l + h) / 2, range: [clampPercent(l), clampPercent(h)] }
+    const [a, b] = raw
+    if (typeof a !== 'number' || typeof b !== 'number') return { value: null, range: null }
+    const l = fromMaybeFraction(a)
+    const h = fromMaybeFraction(b)
+    // Defensive sort — the model may emit either ordering.
+    const lo = Math.min(l, h)
+    const hi = Math.max(l, h)
+    return { value: (lo + hi) / 2, range: [clampPercent(lo), clampPercent(hi)] }
   }
   if (typeof raw === 'number') {
     const v = fromMaybeFraction(raw)
@@ -254,9 +260,16 @@ export function parseOutcomeJson(content: string): ParsedOutcomeReport | null {
   }
   if (!candidate) return null
 
+  // Strip // line comments — the 1.7B model sometimes annotates its
+  // JSON with comments that strict JSON.parse rejects. We only touch
+  // // ... up to a newline, leaving string contents alone.
+  const stripped = candidate.replace(/\/\/[^\n"\\]*(?:\n|$)/g, (m) =>
+    m.endsWith('\n') ? '\n' : ''
+  )
+
   let parsed: any
   try {
-    parsed = JSON.parse(candidate)
+    parsed = JSON.parse(stripped)
   } catch {
     return null
   }

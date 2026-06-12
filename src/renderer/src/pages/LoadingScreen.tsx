@@ -17,12 +17,12 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
   const statusText = error
     ? 'Error loading model'
     : progress?.phase === 'downloading'
-    ? `Downloading ${modelLabel}… ${percent}%`
-    : progress?.phase === 'loading'
-    ? `Loading ${modelLabel}… ${percent}%`
-    : isReady
-    ? 'Ready'
-    : 'Preparing model…'
+      ? `Downloading ${modelLabel}… ${percent}%`
+      : progress?.phase === 'loading'
+        ? `Loading ${modelLabel}… ${percent}%`
+        : isReady
+          ? 'Ready'
+          : 'Preparing model…'
 
   return (
     <div
@@ -129,9 +129,11 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             marginBottom: '40px',
           }}
         >
-          <strong style={{ fontWeight: 500 }}>Health Sandbox</strong>
+          <strong style={{ fontWeight: 500 }}>
+            Health Simulations
+          </strong>
           <br />
-          Test Before You Decide
+          Explore Outcomes
         </h1>
 
         {/* Progress bar or Error state */}
