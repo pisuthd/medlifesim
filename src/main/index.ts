@@ -320,6 +320,11 @@ app.whenReady().then(async () => {
     return { success: true }
   })
 
+  ipcMain.handle('settings:setMaxCards', (_, maxCards: number) => {
+    settingsStore.setMaxCards(maxCards)
+    return { success: true }
+  })
+
   // Profile IPC handlers
   ipcMain.handle('profiles:getAll', () => {
     return profileStore.getAll()

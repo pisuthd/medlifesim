@@ -34,7 +34,7 @@ import type { SimCardTemplate } from '../../types/simulation'
  * actually mutates the canvas on each `onCardParsed`.
  */
 
-const MAX_CARDS = 12
+const DEFAULT_MAX_CARDS = 12
 const VALID_CATEGORIES = ['subject', 'exposure', 'intervention'] as const
 
 type CardCategory = (typeof VALID_CATEGORIES)[number]
@@ -204,6 +204,31 @@ export default function PromptToScenarioModal({
   const firstCardSeenRef = useRef(false)
   const totalCardsThisRunRef = useRef(0)
 
+  // Max cards the AI may produce for one scenario. Configurable from
+  // Settings → AI Configuration; we load it on mount and keep a ref
+  // in sync so the stream-subscription useEffect (which has a stable
+  // dep list) can read the latest value without re-subscribing.
+  const [maxCards, setMaxCards] = useState(DEFAULT_MAX_CARDS)
+  const maxCardsRef = useRef(maxCards)
+
+  useEffect(() => {
+    window.api.settings
+      .get()
+      .then((settings) => {
+        if (typeof settings.maxCards === 'number') {
+          setMaxCards(settings.maxCards)
+          maxCardsRef.current = settings.maxCards
+        }
+      })
+      .catch((err) =>
+        console.error('[prompt-to-scenario] Failed to load maxCards setting:', err)
+      )
+  }, [])
+
+  useEffect(() => {
+    maxCardsRef.current = maxCards
+  }, [maxCards])
+
   // Reset local state every time the modal opens
   useEffect(() => {
     if (open) {
@@ -248,14 +273,14 @@ export default function PromptToScenarioModal({
       const lines = bufferRef.current.split('\n')
       bufferRef.current = lines.pop() ?? ''
       for (const line of lines) {
-        if (cardsParsedRef.current >= MAX_CARDS) continue
+        if (cardsParsedRef.current >= maxCardsRef.current) continue
         // One line can carry multiple concatenated cards
         // (e.g. `}{}{` chains when the model forgets the `\n`).
         // The parser brace-walks and returns every balanced
         // object it finds.
         const parsedCards = tryParseCardsFromLine(line)
         for (const card of parsedCards) {
-          if (cardsParsedRef.current >= MAX_CARDS) break
+          if (cardsParsedRef.current >= maxCardsRef.current) break
           cardsParsedRef.current += 1
           totalCardsThisRunRef.current += 1
           onCardParsed(card)
@@ -279,10 +304,10 @@ export default function PromptToScenarioModal({
       // Final flush: parse any remaining buffer fragment. A
       // trailing fragment can still hold one or more concatenated
       // cards if the model never emitted the last `\n`.
-      if (bufferRef.current.trim() && cardsParsedRef.current < MAX_CARDS) {
+      if (bufferRef.current.trim() && cardsParsedRef.current < maxCardsRef.current) {
         const parsedCards = tryParseCardsFromLine(bufferRef.current)
         for (const card of parsedCards) {
-          if (cardsParsedRef.current >= MAX_CARDS) break
+          if (cardsParsedRef.current >= maxCardsRef.current) break
           cardsParsedRef.current += 1
           totalCardsThisRunRef.current += 1
           onCardParsed(card)

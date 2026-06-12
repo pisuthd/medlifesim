@@ -121,9 +121,10 @@ export interface ProfileAPI {
     saveMessages: (profileSlug: string, sessionSlug: string, messages: Message[]) => Promise<{ success: boolean }>
   }
   settings: {
-    get: () => Promise<{ ctx_size: number; workerEnabled: boolean }>
+    get: () => Promise<{ ctx_size: number; workerEnabled: boolean; maxCards: number }>
     setCtxSize: (ctx_size: number) => Promise<{ success: boolean }>
     setWorkerEnabled: (enabled: boolean) => Promise<{ success: boolean }>
+    setMaxCards: (maxCards: number) => Promise<{ success: boolean }>
   }
   documents: {
     list: () => Promise<any[]>

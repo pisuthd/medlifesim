@@ -12,9 +12,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 const CTX_SIZES = [2048, 4096, 8192]
+const MAX_CARDS_OPTIONS = [6, 12, 24]
 
 export default function AIConfiguration() {
   const [ctxSize, setCtxSize] = useState(4096)
+  const [maxCards, setMaxCards] = useState(12)
   const navigate = useNavigate()
   const { reload, progress, error: aiError, activeModel } = useAI()
   const [isReloading, setIsReloading] = useState(false)
@@ -25,6 +27,9 @@ export default function AIConfiguration() {
       try {
         const settings = await window.api.settings.get()
         setCtxSize(settings.ctx_size)
+        if (typeof settings.maxCards === 'number') {
+          setMaxCards(settings.maxCards)
+        }
       } catch (error) {
         console.error('Failed to load settings:', error)
       }
@@ -38,6 +43,15 @@ export default function AIConfiguration() {
       await window.api.settings.setCtxSize(newSize)
     } catch (error) {
       console.error('Failed to save ctx_size:', error)
+    }
+  }
+
+  const handleMaxCardsChange = async (value: number) => {
+    setMaxCards(value)
+    try {
+      await window.api.settings.setMaxCards(value)
+    } catch (error) {
+      console.error('Failed to save maxCards:', error)
     }
   }
 
@@ -91,6 +105,36 @@ export default function AIConfiguration() {
               }}
             >
               {size} tokens
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <SectionLabel>Max Cards per Scenario</SectionLabel>
+        <p style={{ fontFamily: sansFont, fontSize: 14, color: MUTED, marginBottom: 16 }}>
+          Caps the number of subject/exposure/intervention cards the AI can generate from a single prompt. Lower values keep scenarios focused; higher values allow more complex multi-part setups.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {MAX_CARDS_OPTIONS.map((value) => (
+            <button
+              key={value}
+              onClick={() => handleMaxCardsChange(value)}
+              style={{
+                padding: '10px 22px',
+                background: maxCards === value ? BLUE : '#fff',
+                color: maxCards === value ? '#fff' : NAVY,
+                border: maxCards === value ? 'none' : '1px solid #e0e0f0',
+                borderRadius: 6,
+                fontFamily: monoFont,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {value} cards
             </button>
           ))}
         </div>

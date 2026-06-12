@@ -102,6 +102,7 @@ const api = {
     get: () => ipcRenderer.invoke('settings:get'),
     setCtxSize: (ctx_size: number) => ipcRenderer.invoke('settings:setCtxSize', ctx_size),
     setWorkerEnabled: (enabled: boolean) => ipcRenderer.invoke('settings:setWorkerEnabled', enabled),
+    setMaxCards: (maxCards: number) => ipcRenderer.invoke('settings:setMaxCards', maxCards),
   },
   
   documents: {

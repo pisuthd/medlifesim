@@ -5,6 +5,7 @@ import { app } from 'electron'
 export interface AppSettings {
   ctx_size: number
   workerEnabled: boolean
+  maxCards: number
 }
 
 const SETTINGS_FILE = 'settings.json'
@@ -12,6 +13,7 @@ const SETTINGS_FILE = 'settings.json'
 const DEFAULT_SETTINGS: AppSettings = {
   ctx_size: 4096,
   workerEnabled: true,
+  maxCards: 12,
 }
 
 function getSettingsFilePath(): string {
@@ -68,6 +70,15 @@ class SettingsStore {
 
   setWorkerEnabled(enabled: boolean): void {
     this.settings.workerEnabled = enabled
+    saveSettings(this.settings)
+  }
+
+  getMaxCards(): number {
+    return this.settings.maxCards
+  }
+
+  setMaxCards(maxCards: number): void {
+    this.settings.maxCards = maxCards
     saveSettings(this.settings)
   }
 
