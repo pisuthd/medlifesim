@@ -129,11 +129,11 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
             marginBottom: '40px',
           }}
         >
-          <strong style={{ fontWeight: 500 }}>
-            Health Simulations
-          </strong>
+          Sandbox for Real-World
           <br />
-          Explore Outcomes
+          <strong style={{ fontWeight: 500 }}>
+            Health Scenarios
+          </strong>
         </h1>
 
         {/* Progress bar or Error state */}
