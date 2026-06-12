@@ -240,7 +240,7 @@ export default function LoRAPicker({
               }}
             >
               <Upload size={14} />
-              {importing ? 'Importing…' : 'Load a fine-tune .gguf file…'}
+              {importing ? 'Importing…' : 'Load a fine-tune file…'}
             </button>
 
             {error && (
