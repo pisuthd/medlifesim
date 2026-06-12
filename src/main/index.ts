@@ -11,6 +11,7 @@ import {
 } from './simulations'
 import { startSimulationWorker, stopSimulationWorker } from './simulationWorker'
 import { registerScenarioGeneratorHandlers } from './scenarioGenerator'
+import * as p2p from './p2p'
 
 import { settingsStore, getSystemPrompt } from './toolsStore'
 
@@ -64,6 +65,14 @@ import {
   resetCache,
 } from './qvac'
 import { modelStore, type ModelEntry, type ModelSourceKind } from './modelStore'
+import {
+  ensureTranslationModelLoaded,
+  getSupportedLanguages,
+  getTranslationStatus,
+  unloadTranslationModel,
+  type SupportedTargetLang,
+  type TranslationStatus,
+} from './translation'
 
 interface ModelsStatus {
   active: {
@@ -79,6 +88,15 @@ interface ModelsStatus {
   available: ModelEntry[]
   activeLora: { id: string | null; name: string | null; path: string | null }
   trainingActive: boolean
+  outcomeModel: {
+    loaded: boolean
+    id: string | null
+    name: string
+    source: string
+    sourceKind: ModelSourceKind | null
+    loadedAt: number | null
+    delegatedTo: { publicKey: string } | null
+  }
 }
 
 let mainWindowRef: BrowserWindow | null = null
@@ -121,9 +139,15 @@ export interface CompletionArgs {
 export async function runCompletion(
   args: CompletionArgs,
   options: CompletionOptions = {},
-  lockKind: 'chat' | 'worker' = 'chat'
+  lockKind: 'chat' | 'worker' = 'chat',
+  modelIdOverride?: string
 ): Promise<{ content: string; thinking: string }> {
-  const modelId = getActiveModelId()
+  // When the caller passes a `modelIdOverride` (e.g. the simulation
+  // worker, which may be using a delegated model id from P2P) use
+  // that id directly. Otherwise fall back to the chat slot's
+  // `currentModelId`. The chat IPC handler does NOT pass an
+  // override, so its behaviour is unchanged.
+  const modelId = modelIdOverride ?? getActiveModelId()
   if (!modelId) throw new Error('AI model not loaded')
 
   // Real system role. `args.systemPrompt` wins if the caller passed
@@ -322,12 +346,19 @@ function createWindow(): void {
 
   mainWindowRef = mainWindow
   setMainWindow(mainWindow)
+  p2p.setMainWindow(mainWindow)
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.medpsy.doctor')
+
+  // Set QVAC_HYPERSWARM_SEED from the persisted provider seed BEFORE
+  // any SDK call touches the swarm. The swarm is a process singleton —
+  // once it's constructed without a seed, setting the env var later
+  // has no effect. No-op if no provider seed has been generated yet.
+  p2p.ensureHyperswarmSeed()
 
   // Bootstrap the QVAC config (sets QVAC_CONFIG_PATH) BEFORE any SDK call.
   ensureQvacConfig()
@@ -442,6 +473,10 @@ app.whenReady().then(async () => {
       modelStore.setLastSelected(entry.id)
       // Drive the download + load.
       await ensureModel(entry)
+      // If the P2P consumer is connected, re-bind the outcomes slot to
+      // the new chat base entry. Done in the background so the chat
+      // model switch itself isn't blocked.
+      void p2p.onChatBaseModelChanged()
       return { success: true }
     } catch (err) {
       const mapped = (err && typeof err === 'object' && 'code' in err)
@@ -638,6 +673,95 @@ app.whenReady().then(async () => {
     return importLoraFromPath(picked, base.id)
   })
 
+  // ─── Translation (Bergamot on-device) ───────────────────────────────
+  // PDF report translation. The translation model is opt-in per export
+  // — we do not load a Bergamot model on boot. The renderer calls
+  // `translation:load(lang)` the first time the user picks a target
+  // language, then `simulations.exportReport(..., 'pdf', translateTo)`.
+
+  ipcMain.handle('translation:supportedLanguages', () => {
+    return getSupportedLanguages()
+  })
+
+  ipcMain.handle('translation:status', (): TranslationStatus => {
+    return getTranslationStatus()
+  })
+
+  ipcMain.handle(
+    'translation:load',
+    async (_e, lang: SupportedTargetLang) => {
+      return ensureTranslationModelLoaded(lang)
+    }
+  )
+
+  ipcMain.handle('translation:unload', async () => {
+    return unloadTranslationModel()
+  })
+
+  // ─── P2P resource sharing ────────────────────────────────────────────
+  // Provider: shares this machine's GPU with a remote peer over a
+  // Hyperswarm DHT. Consumer: delegates simulation outcome
+  // completions to a remote provider. Chat / scenarios are unaffected.
+
+  ipcMain.handle('p2p:status', () => {
+    return p2p.getStatus()
+  })
+
+  ipcMain.handle('p2p:providerStart', async () => {
+    return await p2p.startProvider()
+  })
+
+  ipcMain.handle('p2p:providerStop', async () => {
+    return await p2p.stopProvider()
+  })
+
+  ipcMain.handle('p2p:providerSetEnabled', (_, enabled: boolean) => {
+    settingsStore.setP2pProviderEnabled(enabled)
+    if (enabled) void p2p.startProvider()
+    else void p2p.stopProvider()
+    return { success: true }
+  })
+
+  ipcMain.handle('p2p:consumerSetEnabled', async (_, enabled: boolean) => {
+    settingsStore.setP2pConsumerEnabled(enabled)
+    if (enabled) {
+      const activeId = settingsStore.getP2pActiveConsumerPeerId()
+      const peer = activeId
+        ? settingsStore.getP2pConsumerPeers().find((p) => p.id === activeId)
+        : null
+      if (peer) {
+        return await p2p.connectToPeer(peer)
+      }
+      // No active peer — outcomes will be paused until the user
+      // connects one. Status still flips to enabled.
+      p2p.broadcastStatus()
+      return { success: true }
+    }
+    return await p2p.disconnectFromPeer()
+  })
+
+  ipcMain.handle('p2p:peersList', () => {
+    return { peers: p2p.getPeers() }
+  })
+
+  ipcMain.handle('p2p:peersAdd', (_, input: { name: string; publicKey: string }) => {
+    return p2p.addPeer(input)
+  })
+
+  ipcMain.handle('p2p:peersRemove', async (_, id: string) => {
+    return await p2p.removePeer(id)
+  })
+
+  ipcMain.handle('p2p:peersConnect', async (_, id: string) => {
+    const peer = settingsStore.getP2pConsumerPeers().find((p) => p.id === id)
+    if (!peer) return { success: false, error: 'Unknown peer id' }
+    return await p2p.connectToPeer(peer)
+  })
+
+  ipcMain.handle('p2p:peersDisconnect', async () => {
+    return await p2p.disconnectFromPeer()
+  })
+
   // ─── AI: legacy shims (back-compat for Chat/Settings/Dashboard) ───────
   // Status is now backed by the new buildStatus() snapshot.
   ipcMain.handle('ai:getStatus', () => {
@@ -667,6 +791,7 @@ app.whenReady().then(async () => {
       if (prevId) await unloadCurrent(prevId)
       modelStore.setLastSelected(last.id)
       await ensureModel(last)
+      void p2p.onChatBaseModelChanged()
       return { success: true, status: buildStatus() }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load model'
@@ -696,6 +821,7 @@ app.whenReady().then(async () => {
       const prevId = getActiveModelId()
       if (prevId) await unloadCurrent(prevId)
       await ensureModel(last)
+      void p2p.onChatBaseModelChanged()
       return { success: true, status: buildStatus() }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to reload model'
@@ -747,6 +873,12 @@ app.whenReady().then(async () => {
   // user has the worker enabled in settings; the IPC handler above
   // starts/stops it on toggle).
   if (settingsStore.getWorkerEnabled()) startSimulationWorker()
+
+  // Start the P2P provider if the user has it enabled in settings.
+  // Fire-and-forget — the provider's status surfaces on `p2p:status`.
+  if (settingsStore.getP2pProviderEnabled()) {
+    void p2p.startProvider()
+  }
 
   // Register documents IPC handlers
   // registerDocumentsHandlers()

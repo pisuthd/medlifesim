@@ -46,6 +46,21 @@ let pendingLoraPath: string | null = null
 let currentLoraId: string | null = null
 let currentLoraName: string | null = null
 
+// Outcomes slot. Distinct from the chat slot (`currentModelId`) so the
+// simulation outcome worker can route completions to a remote provider
+// without affecting chat / scenarios. Set by `loadOutcomeModel`; read
+// by `simulationWorker.processOutcome` via `getActiveOutcomeModelId`.
+let currentOutcomeModelId: string | null = null
+let currentOutcomeEntry: ModelEntry | null = null
+let currentOutcomeLoadedAt: number | null = null
+/**
+ * Public key of the provider the outcomes slot is currently
+ * delegated to. Null when the outcomes slot is local. Set by
+ * `setPendingOutcomeDelegate` and consumed by the next
+ * `loadOutcomeModel` call.
+ */
+let pendingOutcomeDelegatePublicKey: string | null = null
+
 // Training lock. When a fine-tune run is in flight we set this so
 // `buildStatus()` reports `active.loaded = false`; that flips the
 // chat input disabled (Chat.tsx `!isReady` branch) and the Model
@@ -529,6 +544,178 @@ export function setTrainingMode(active: boolean): void {
   isTrainingActive = active
 }
 
+// ─────────────────────────── outcomes slot ──────────────────────────────
+
+let currentOutcomeRequestId: string | null = null
+
+/**
+ * Set the provider public key the next `loadOutcomeModel` call should
+ * bind the outcomes slot to. Pass `null` to clear — outcomes then
+ * run on the local base model (the default).
+ *
+ * The `delegate` option lives at the top level of `loadModel`, not
+ * inside `modelConfig`. We pass it directly to `loadModel({...})`
+ * from `loadOutcomeModel`.
+ */
+export function setPendingOutcomeDelegate(publicKey: string | null): void {
+  pendingOutcomeDelegatePublicKey = publicKey
+}
+
+/**
+ * Cancel any in-flight outcomes-slot load. The SDK can hold at most
+ * one load per process; tracking the requestId separately from the
+ * chat slot's `currentRequestId` lets us cancel an outcomes reload
+ * (e.g. user toggles delegate off) without interfering with chat.
+ */
+export async function cancelOutcomeLoad(): Promise<void> {
+  if (!currentOutcomeRequestId) return
+  const id = currentOutcomeRequestId
+  currentOutcomeRequestId = null
+  try {
+    await cancel({ requestId: id })
+  } catch (err) {
+    if (!(err instanceof InferenceCancelledError)) {
+      console.warn('[qvac] cancelOutcomeLoad failed:', err)
+    }
+  }
+}
+
+/**
+ * Load the outcomes slot against the given local model entry. If
+ * `pendingOutcomeDelegatePublicKey` is set, the loadModel call
+ * threads `delegate: { providerPublicKey, timeout, fallbackToLocal }`
+ * so completion() calls on this model route to the remote peer.
+ *
+ * Cancels any in-flight outcomes load, unloads the previous outcomes
+ * model (if any), then drives the new load. Mirrors `ensureModel`'s
+ * shape but never touches the chat slot.
+ */
+export async function loadOutcomeModel(
+  entry: ModelEntry,
+): Promise<{ modelId: string; fromCache: boolean }> {
+  // Cancel + unload any prior outcomes load so we never hold two
+  // model ids at once. The chat slot is untouched.
+  await cancelOutcomeLoad()
+  if (currentOutcomeModelId) {
+    try {
+      await unloadModel({ modelId: currentOutcomeModelId })
+    } catch (e) {
+      console.warn('[qvac] unload previous outcomes model failed:', e)
+    }
+    currentOutcomeModelId = null
+  }
+  // Publish the entry up-front so the renderer's outcomes-slot status
+  // reflects the in-flight selection immediately.
+  currentOutcomeEntry = entry
+  currentOutcomeLoadedAt = null
+  if (entry.sourceKind === 'file') {
+    if (!existsSync(entry.source)) {
+      currentOutcomeEntry = null
+      throw {
+        code: 'FILE_NOT_FOUND',
+        message: `File not found: ${entry.source}`,
+        retryable: false,
+      }
+    }
+    return await loadOutcomeLocal(entry)
+  }
+  return await downloadThenLoadOutcome(entry)
+}
+
+async function loadOutcomeLocal(
+  entry: ModelEntry,
+): Promise<{ modelId: string; fromCache: boolean }> {
+  const delegate = pendingOutcomeDelegatePublicKey
+    ? {
+        providerPublicKey: pendingOutcomeDelegatePublicKey,
+        timeout: 60_000,
+        fallbackToLocal: true,
+      }
+    : undefined
+  const op = loadModel({
+    modelSrc: entry.source,
+    modelType: ModelType.llamacppCompletion,
+    modelConfig: buildModelConfig(),
+    ...(delegate ? { delegate } : {}),
+  })
+  currentOutcomeRequestId = op.requestId
+  try {
+    const modelId = await op
+    currentOutcomeRequestId = null
+    currentOutcomeModelId = modelId
+    currentOutcomeEntry = entry
+    currentOutcomeLoadedAt = Date.now()
+    console.log('[qvac] Outcomes model loaded:', modelId, '(', entry.source, ')')
+    return { modelId, fromCache: false }
+  } catch (err) {
+    currentOutcomeRequestId = null
+    throw mapError(err)
+  }
+}
+
+async function downloadThenLoadOutcome(
+  entry: ModelEntry,
+): Promise<{ modelId: string; fromCache: boolean }> {
+  await downloadAsset({ assetSrc: entry.source })
+  const delegate = pendingOutcomeDelegatePublicKey
+    ? {
+        providerPublicKey: pendingOutcomeDelegatePublicKey,
+        timeout: 60_000,
+        fallbackToLocal: true,
+      }
+    : undefined
+  const op = loadModel({
+    modelSrc: entry.source,
+    modelType: ModelType.llamacppCompletion,
+    modelConfig: buildModelConfig(),
+    ...(delegate ? { delegate } : {}),
+  })
+  currentOutcomeRequestId = op.requestId
+  try {
+    const modelId = await op
+    currentOutcomeRequestId = null
+    currentOutcomeModelId = modelId
+    currentOutcomeEntry = entry
+    currentOutcomeLoadedAt = Date.now()
+    console.log('[qvac] Outcomes URL model loaded:', modelId, '(', entry.source, ')')
+    return { modelId, fromCache: false }
+  } catch (err) {
+    currentOutcomeRequestId = null
+    throw mapError(err)
+  }
+}
+
+/**
+ * Unload the outcomes slot. Idempotent — no-op if nothing is loaded.
+ * Mirrors `unloadCurrent` but scoped to `currentOutcomeModelId`.
+ */
+export async function unloadOutcomeModel(): Promise<void> {
+  const id = currentOutcomeModelId
+  if (!id) return
+  try {
+    await unloadModel({ modelId: id })
+  } catch (e) {
+    console.warn('[qvac] unloadOutcomeModel failed:', e)
+  }
+  if (currentOutcomeModelId === id) {
+    currentOutcomeModelId = null
+    currentOutcomeEntry = null
+    currentOutcomeLoadedAt = null
+  }
+}
+
+export function getActiveOutcomeModelId(): string | null {
+  return currentOutcomeModelId
+}
+
+export function getActiveOutcomeEntry(): ModelEntry | null {
+  return currentOutcomeEntry
+}
+
+export function getOutcomeDelegatePublicKey(): string | null {
+  return pendingOutcomeDelegatePublicKey
+}
+
 export function buildStatus(): {
   active: {
     id: string | null
@@ -543,6 +730,21 @@ export function buildStatus(): {
   available: ReturnType<typeof modelStore.getAll>
   activeLora: { id: string | null; name: string | null; path: string | null }
   trainingActive: boolean
+  /**
+   * Outcomes slot: the model id (and entry) backing the simulation
+   * outcome worker. Distinct from `active` (the chat slot). When
+   * `delegatedTo` is non-null, completions for outcomes route to the
+   * remote peer instead of running locally.
+   */
+  outcomeModel: {
+    loaded: boolean
+    id: string | null
+    name: string
+    source: string
+    sourceKind: ModelSourceKind | null
+    loadedAt: number | null
+    delegatedTo: { publicKey: string } | null
+  }
 } {
   // `loaded` collapses to `false` while a training run holds the
   // single loaded model — the chat and the Model Selector both
@@ -566,5 +768,16 @@ export function buildStatus(): {
       path: pendingLoraPath,
     },
     trainingActive: isTrainingActive,
+    outcomeModel: {
+      loaded: currentOutcomeModelId !== null,
+      id: currentOutcomeEntry?.id ?? null,
+      name: currentOutcomeEntry?.name ?? '',
+      source: currentOutcomeEntry?.source ?? '',
+      sourceKind: currentOutcomeEntry?.sourceKind ?? null,
+      loadedAt: currentOutcomeLoadedAt,
+      delegatedTo: pendingOutcomeDelegatePublicKey
+        ? { publicKey: pendingOutcomeDelegatePublicKey }
+        : null,
+    },
   }
 }

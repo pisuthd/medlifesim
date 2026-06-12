@@ -1,6 +1,7 @@
 import { profileStore } from './profileStore'
 import { runCompletion } from './index'
 import { shouldDefer } from './completionLock'
+import { getActiveOutcomeModelId, getActiveModelId } from './qvac'
 import {
   bumpCompleted,
   broadcastProgress,
@@ -274,6 +275,31 @@ async function processOutcome(
   const systemPrompt = buildPerOutcomeSystemPrompt()
   const userPrompt = buildPerOutcomeUserPrompt(outcome, allSubjects)
 
+  // Outcomes slot first — this is the model id backing the worker,
+  // which is local by default but can be a P2P-delegated model when
+  // the consumer has connected to a peer. Fall back to the chat slot
+  // for backwards compatibility (the worker's old behaviour).
+  const outcomeModelId = getActiveOutcomeModelId() ?? getActiveModelId()
+  if (!outcomeModelId) {
+    // No model available. Mark errored, push progress, and let the
+    // next tick retry. The chat boot gate will load a model on first
+    // launch; the consumer toggles the outcomes slot in Settings.
+    updateOutcome(profileSlug, simId, outcome.id, {
+      status: 'error',
+      error: 'No outcomes model loaded. Load a base model, or connect a P2P peer.',
+    })
+    bumpCompleted(profileSlug, simId, 0, +1)
+    broadcastProgress({
+      simId,
+      outcomeId: outcome.id,
+      status: 'error',
+      error: 'No outcomes model loaded',
+      completedCount: completedBefore + 1,
+      outcomeCount,
+    })
+    return
+  }
+
   try {
     const { content, thinking } = await runCompletion(
       {
@@ -284,7 +310,8 @@ async function processOutcome(
         history: [],
       },
       {},
-      'worker'
+      'worker',
+      outcomeModelId
     )
 
     // Validate the response is parseable JSON in the expected shape.
