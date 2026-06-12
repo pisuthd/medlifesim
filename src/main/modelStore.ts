@@ -36,12 +36,14 @@ const REGISTRY_FILE = 'models.json'
 const LEGACY_MODEL_FILE = 'medpsy-1.7b-q4_k_m-imat.gguf'
 
 const DEFAULT_BUILTIN = {
-  name: 'MedPsy 1.7B (Q4_K_M)',
-  source: 'https://github.com/pisuthd/medpsy-doctor/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf',
+  name: 'MedPsy 1.7B (Q8_0)',
+  source : 'https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true',
+  // source: 'https://github.com/pisuthd/medpsy-doctor/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf',
   sourceKind: 'https' as ModelSourceKind,
-  quantization: 'Q4_K_M',
+  // quantization: 'Q4_K_M',
+  quantization: "Q8_0",
   params: '1.7B',
-  description: 'Default MedPsy medical reasoning model (hosted on GitHub)',
+  description: 'Default MedPsy medical reasoning model (hosted on huggingface)',
   builtin: true,
 }
 

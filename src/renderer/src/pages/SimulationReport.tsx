@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PageWrapper from '../components/PageWrapper'
@@ -56,6 +56,7 @@ export default function SimulationReport() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modelName, setModelName] = useState<string | null>(null)
+  const [loraName, setLoraName] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -72,9 +73,15 @@ export default function SimulationReport() {
         // report", not the model that produced the outcomes).
         try {
           const status = await window.api.models.status()
-          if (!cancelled) setModelName(status?.active?.name || null)
+          if (!cancelled) {
+            setModelName(status?.active?.name || null)
+            setLoraName(status?.activeLora?.name ?? null)
+          }
         } catch {
-          if (!cancelled) setModelName(null)
+          if (!cancelled) {
+            setModelName(null)
+            setLoraName(null)
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -121,24 +128,27 @@ export default function SimulationReport() {
       title="Simulation report"
       category="MedLifeSim"
       buttons={
-        <button
-          onClick={() => navigate('/recent-simulations')}
-          style={{
-            padding: '8px 14px',
-            background: '#fff',
-            color: MUTED,
-            border: '1px solid #e0e0f0',
-            borderRadius: 6,
-            fontFamily: monoFont,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-          }}
-        >
-          ← Back to simulations
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <ExportButton profileId={profile.id} simId={simId ?? ''} />
+          <button
+            onClick={() => navigate('/recent-simulations')}
+            style={{
+              padding: '8px 14px',
+              background: '#fff',
+              color: MUTED,
+              border: '1px solid #e0e0f0',
+              borderRadius: 6,
+              fontFamily: monoFont,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            ← Back to simulations
+          </button>
+        </div>
       }
     >
       {loading && (
@@ -184,7 +194,7 @@ export default function SimulationReport() {
           Simulation not found.
         </div>
       )}
-      {data && <ReportBody data={data} outcomesBySubject={outcomesBySubject} modelName={modelName} />}
+      {data && <ReportBody data={data} outcomesBySubject={outcomesBySubject} modelName={modelName} loraName={loraName} />}
     </PageWrapper>
   )
 }
@@ -193,10 +203,12 @@ function ReportBody({
   data,
   outcomesBySubject,
   modelName,
+  loraName,
 }: {
   data: ReportResponse
   outcomesBySubject: Map<string, SimulationOutcome[]>
   modelName: string | null
+  loraName: string | null
 }) {
   const { sim, outcomes, reports, aggregate } = data
   const statusColor = STATUS_COLOR[sim.status]
@@ -762,6 +774,12 @@ function ReportBody({
           }}
         >
           Model: {modelName ?? 'Unknown'}
+          {loraName && (
+            <span style={{ color: TEAL, marginLeft: 4 }}>
+              {' + '}
+              <strong>{loraName}</strong>
+            </span>
+          )}
         </p>
       </footer>
     </div>
@@ -1166,4 +1184,160 @@ const miniTd: React.CSSProperties = {
   color: NAVY,
   fontFamily: sansFont,
   fontSize: 12,
+}
+
+// ─────────────────────────── Export button + menu ────────────────────────
+
+type ExportFormat = 'pdf' | 'json' | 'md' | 'csv'
+
+const FORMATS: { id: ExportFormat; label: string }[] = [
+  { id: 'pdf', label: 'PDF' },
+  { id: 'json', label: 'JSON' },
+  { id: 'md', label: 'Markdown' },
+  { id: 'csv', label: 'CSV' },
+]
+
+/**
+ * Small "Export ▾" button that opens a popover menu of format options.
+ * Each click calls `window.api.simulations.exportReport(...)`; the
+ * main process opens a save dialog, writes the file, and returns the
+ * path. We surface success / error / cancel via an inline toast.
+ */
+function ExportButton({ profileId, simId }: { profileId: string; simId: string }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState<ExportFormat | null>(null)
+  const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  // Auto-dismiss the toast after 3s.
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3000)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const disabled = !simId || busy !== null
+
+  async function pickFormat(f: ExportFormat) {
+    if (disabled) return
+    setOpen(false)
+    setBusy(f)
+    try {
+      const r = await window.api.simulations.exportReport(profileId, simId, f)
+      if (r.ok && r.path) {
+        setToast({ kind: 'ok', text: `Saved to ${r.path}` })
+      } else if (r.canceled) {
+        // no-op
+      } else {
+        setToast({ kind: 'err', text: r.error ?? 'Export failed' })
+      }
+    } catch (err) {
+      setToast({ kind: 'err', text: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+        style={{
+          padding: '8px 14px',
+          background: open ? NAVY : '#fff',
+          color: open ? '#fff' : NAVY,
+          border: '1px solid ' + (open ? NAVY : '#e0e0f0'),
+          borderRadius: 6,
+          fontFamily: monoFont,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        {busy ? `Exporting ${busy.toUpperCase()}…` : 'Export ▾'}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 6px)',
+            background: '#fff',
+            border: '1px solid #e0e0f0',
+            borderRadius: 6,
+            boxShadow: '0 6px 18px rgba(10,10,92,0.10)',
+            minWidth: 160,
+            zIndex: 50,
+            padding: 4,
+          }}
+        >
+          {FORMATS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => pickFormat(f.id)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 4,
+                color: NAVY,
+                fontFamily: sansFont,
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                ;(e.currentTarget as HTMLButtonElement).style.background = BLUE
+                ;(e.currentTarget as HTMLButtonElement).style.color = '#fff'
+              }}
+              onMouseLeave={(e) => {
+                ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                ;(e.currentTarget as HTMLButtonElement).style.color = NAVY
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            right: 24,
+            bottom: 24,
+            padding: '10px 14px',
+            background: toast.kind === 'ok' ? TEAL : '#c83030',
+            color: '#fff',
+            borderRadius: 6,
+            fontFamily: sansFont,
+            fontSize: 13,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+            zIndex: 200,
+            maxWidth: 480,
+            wordBreak: 'break-all',
+          }}
+        >
+          {toast.text}
+        </div>
+      )}
+    </div>
+  )
 }
