@@ -121,7 +121,7 @@ function CreateProfileForm({
             New profile
           </p>
           <h2 style={{ fontFamily: sansFont, fontSize: 20, fontWeight: 300, color: NAVY, marginBottom: 24, lineHeight: 1.3 }}>
-            Who are you checking<br /><strong style={{ fontWeight: 500 }}>symptoms for?</strong>
+            Who are you creating<br /><strong style={{ fontWeight: 500 }}>this profile for?</strong>
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {profileTypeOptions.map((type, i) => (
