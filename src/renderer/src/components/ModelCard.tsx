@@ -2,8 +2,7 @@ import { motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../theme'
 import type { ModelEntry } from '../../../preload/index.d'
 import {
-  deriveAbbreviation,
-  deriveMetaLine,
+  formatSize,
   type EntryStatus,
 } from '../utils/modelDisplay'
 
@@ -18,15 +17,16 @@ interface ModelCardProps {
 }
 
 /**
- * A single row in the model registry list. Renders an avatar, name, meta
- * line, and a status indicator. The status dot/label flips to
- * "Downloading X%" / "Loading X%" when the entry is the in-flight selection;
- * a CANCEL button replaces the status dot in that state so the user can
- * abort the download from the list.
+ * A single row in the model registry list. Renders an avatar, name,
+ * meta line, a one-line description preview, a size pill, a colored
+ * spec badge, a "Recommended" chip for builtins, and a status dot.
  *
- * The card itself does not draw a progress fill — the App transitions to
- * the full LoadingScreen once a model is picked, so the per-row bar is
- * unnecessary chrome.
+ * The status dot/label flips to "Downloading X%" / "Loading X%" when
+ * the entry is the in-flight selection; a CANCEL button replaces the
+ * status dot in that state so the user can abort the download from
+ * the list. The card itself does not draw a progress fill — the App
+ * transitions to the full LoadingScreen once a model is picked, so
+ * the per-row bar is unnecessary chrome.
  */
 export function ModelCard({
   entry,
@@ -38,6 +38,7 @@ export function ModelCard({
   onRemove,
 }: ModelCardProps) {
   const isInflight = status.tone === 'inflight'
+  const sizeLabel = formatSize(entry.size)
   return (
     <div
       style={{
@@ -65,7 +66,7 @@ export function ModelCard({
           width: '100%',
         }}
       >
-        <div
+        {/* <div
           style={{
             width: 34,
             height: 34,
@@ -81,38 +82,49 @@ export function ModelCard({
           }}
         >
           {deriveAbbreviation(entry)}
-        </div>
+        </div> */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span
+          <div
             style={{
-              display: 'block',
-              fontFamily: sansFont,
-              fontSize: 14,
-              fontWeight: 500,
-              color: NAVY,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
             }}
           >
-            {entry.name}
-          </span>
-          <span
-            style={{
-              display: 'block',
-              fontFamily: monoFont,
-              fontSize: 10,
-              color: MUTED,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              marginTop: 2,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {deriveMetaLine(entry)}
-          </span>
+            <span
+              style={{
+                fontFamily: sansFont,
+                fontSize: 14,
+                fontWeight: 500,
+                color: NAVY,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: 280,
+              }}
+            >
+              {entry.name}
+            </span>
+            {sizeLabel && <Pill label={`Size: ${sizeLabel}`} />} 
+          </div> 
+          {entry.description && (
+            <span
+              style={{
+                display: 'block',
+                fontFamily: sansFont,
+                fontSize: 11,
+                color: MUTED,
+                marginTop: 4,
+                lineHeight: 1.4,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {entry.description}
+            </span>
+          )}
         </div>
         {isInflight ? (
           <button
@@ -193,3 +205,28 @@ export function ModelCard({
     </div>
   )
 }
+
+function Pill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        fontFamily: monoFont,
+        fontSize: 9,
+        fontWeight: 700,
+        color: NAVY,
+        background: '#fff',
+        border: '1px solid #e0e0f0',
+        borderRadius: 999,
+        padding: '2px 8px',
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+ 

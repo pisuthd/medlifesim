@@ -88,7 +88,13 @@ export interface ModelStatus {
 
 export interface ModelsAPI {
   list: () => Promise<ModelEntry[]>
-  add: (entry: { name: string; source: string; description?: string; quantization?: string; params?: string }) => Promise<ModelEntry>
+  add: (entry: {
+    name: string
+    source: string
+    description?: string
+    quantization?: string
+    params?: string
+  }) => Promise<ModelEntry>
   remove: (id: string) => Promise<boolean>
   select: (id: string) => Promise<{ success: boolean; error?: string }>
   /**
@@ -207,6 +213,70 @@ export interface LorasAPI {
   import: () => Promise<LoraEntry | null>
 }
 
+export type SupportedTargetLang =
+  | 'es' | 'fr' | 'de' | 'it' | 'pt'
+  | 'ru' | 'zh' | 'ja' | 'ko'
+  | 'ar' | 'hi'
+  | 'nl' | 'pl' | 'tr' | 'sv' | 'vi'
+  | 'el' | 'he'
+
+export interface TranslationStatus {
+  loaded: boolean
+  targetLang: SupportedTargetLang | null
+  /** Display label for the currently loaded language (e.g. "Español"). */
+  targetLabel: string | null
+  loading: boolean
+  error: string | null
+}
+
+export interface TranslationAPI {
+  supportedLanguages: () => Promise<Array<{ code: SupportedTargetLang; label: string }>>
+  status: () => Promise<TranslationStatus>
+  load: (lang: SupportedTargetLang) => Promise<{ success: boolean; modelId?: string; error?: string }>
+  unload: () => Promise<{ success: boolean; error?: string }>
+}
+
+export interface P2PPeer {
+  id: string
+  name: string
+  publicKey: string
+  createdAt: string
+}
+
+export interface P2PStatus {
+  provider: {
+    enabled: boolean
+    running: boolean
+    starting: boolean
+    publicKey: string | null
+    seedExists: boolean
+    error: string | null
+  }
+  consumer: {
+    enabled: boolean
+    activePeerId: string | null
+    activePeer: P2PPeer | null
+    peers: P2PPeer[]
+    outcomeModelLoaded: boolean
+    delegatedTo: { publicKey: string; peerName: string } | null
+    error: string | null
+  }
+}
+
+export interface P2PAPI {
+  status: () => Promise<P2PStatus>
+  providerStart: () => Promise<{ success: boolean; publicKey?: string; error?: string }>
+  providerStop: () => Promise<{ success: boolean; error?: string }>
+  providerSetEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
+  consumerSetEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
+  peersList: () => Promise<{ peers: P2PPeer[] }>
+  peersAdd: (input: { name: string; publicKey: string }) => Promise<{ success: boolean; peer?: P2PPeer; error?: string }>
+  peersRemove: (id: string) => Promise<{ success: boolean; error?: string }>
+  peersConnect: (id: string) => Promise<{ success: boolean; error?: string }>
+  peersDisconnect: () => Promise<{ success: boolean; error?: string }>
+  onStatus: (callback: (s: P2PStatus) => void) => () => void
+}
+
 export interface ProfileAPI {
   profiles: {
     getAll: () => Promise<Profile[]>
@@ -261,13 +331,40 @@ export interface ProfileAPI {
     getOutcome: (profileSlug: string, simId: string, outcomeId: string) => Promise<any>
     listOutcomes: (profileSlug: string, simId: string) => Promise<any[]>
     getReport: (profileSlug: string, simId: string) => Promise<any>
+    /**
+     * Translate the on-screen report in place. The main process
+     * re-fetches the report, runs it through Bergamot, and returns
+     * a translated `ReportResponse` (chrome in English, user-visible
+     * content in `targetLang`). The renderer overlays this on top of
+     * the original `data` so the user sees a translated page; the
+     * English original is preserved underneath.
+     */
+    translateReport: (
+      profileSlug: string,
+      simId: string,
+      targetLang: SupportedTargetLang,
+    ) => Promise<any>
     setModalOpen: (profileSlug: string, isOpen: boolean) => Promise<void>
-    exportReport: (profileSlug: string, simId: string, format: 'pdf' | 'json' | 'md' | 'csv') => Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /**
+     * Export whatever the page is currently showing. If `data` is
+     * supplied (the typical case for a translated page), the writer
+     * renders it as-is — no re-fetch, no translate. If `data` is
+     * omitted, the writer re-fetches the report from disk and writes
+     * the original English.
+     */
+    exportReport: (
+      profileSlug: string,
+      simId: string,
+      format: 'pdf' | 'json' | 'md' | 'csv',
+      data?: any,
+    ) => Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
     onProgress: (callback: (event: any) => void) => () => void
   }
   datasets: DatasetsAPI
   trainings: TrainingsAPI
   loras: LorasAPI
+  p2p: P2PAPI
+  translation: TranslationAPI
 }
 
 declare global {

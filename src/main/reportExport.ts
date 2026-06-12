@@ -19,6 +19,12 @@ import type {
  *
  * The four writers share a single shape: `{ sim, outcomes, reports, aggregate }`.
  * Only the PDF path needs the BrowserWindow reference (to call `printToPDF`).
+ *
+ * Translation is **not** an export concern anymore — it is performed
+ * in the renderer via the `reports:translate` IPC, and the translated
+ * `ReportData` is passed back to `exportReport` as a `data` arg. The
+ * writer renders whatever `data` it receives, so the same code path
+ * serves both English and translated exports.
  */
 
 export interface ReportData {
@@ -363,7 +369,7 @@ function buildPrintableHtml(data: ReportData): string {
 export async function writePdfExport(
   parentWin: BrowserWindow | null,
   targetPath: string,
-  data: ReportData
+  data: ReportData,
 ): Promise<ExportResult> {
   if (!parentWin || parentWin.isDestroyed()) {
     return { ok: false, error: 'No window' }
@@ -374,6 +380,9 @@ export async function writePdfExport(
     parent: parentWin,
   })
   try {
+    // Render whatever data was passed in. The translation concern
+    // is now handled by the caller (`reports:translate` IPC) and
+    // the translated data is forwarded as the `data` arg.
     const html = buildPrintableHtml(data)
     // Use a data: URL so the hidden window doesn't need to be served
     // from the file system or a local dev server.

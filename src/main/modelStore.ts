@@ -5,8 +5,9 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 /**
  * User-managed model registry persisted at `userData/models.json`.
  *
- * Pre-seeds the MedPsy 1.7B default on first launch and migrates any
- * legacy `*.gguf` files already in `userData` (notably the old
+ * Pre-seeds the curated MedPsy model library on first launch (1.7B Q8_0
+ * for low-spec machines, 4B Q4_K_M for high-spec machines) and migrates
+ * any legacy `*.gguf` files already in `userData` (notably the old
  * `medpsy-1.7b-q4_k_m-imat.gguf` produced by the previous downloader)
  * as `sourceKind: 'file'` entries so users do not have to re-download.
  */
@@ -35,17 +36,40 @@ export interface ModelRegistryFile {
 const REGISTRY_FILE = 'models.json'
 const LEGACY_MODEL_FILE = 'medpsy-1.7b-q4_k_m-imat.gguf'
 
-const DEFAULT_BUILTIN = {
-  name: 'MedPsy 1.7B (Q8_0)',
-  source : 'https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true',
-  // source: 'https://github.com/pisuthd/medpsy-doctor/releases/download/v.0.1.0/medpsy-1.7b-q4_k_m-imat.gguf',
-  sourceKind: 'https' as ModelSourceKind,
-  // quantization: 'Q4_K_M',
-  quantization: "Q8_0",
-  params: '1.7B',
-  description: 'Default MedPsy medical reasoning model (hosted on huggingface)',
-  builtin: true,
-}
+/**
+ * Curated MedPsy builtin presets. These are the only models the app
+ * ships with — users can add custom URL/file entries alongside via
+ * "Add custom model" in the picker.
+ *
+ * Size is the on-disk .gguf byte count, hardcoded so the model card
+ * can render "2.16 GB" without doing a HEAD request on the URL.
+ */
+const BUILTIN_PRESETS: Array<Omit<ModelEntry, 'id' | 'createdAt'>> = [
+  {
+    name: 'MedPsy 1.7B (Q8_0)',
+    source:
+      'https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true',
+    sourceKind: 'https',
+    quantization: 'Q8_0',
+    params: '1.7B',
+    size: 2.16 * 1024 * 1024 * 1024,
+    description:
+      'Default model, runs on 8 GB RAM laptops.',
+    builtin: true,
+  },
+  {
+    name: 'MedPsy 4B (Q8_0)',
+    source:
+      'https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q8_0.gguf?download=true',
+    sourceKind: 'https',
+    quantization: 'Q8_0',
+    params: '4B',
+    size: 4.69 * 1024 * 1024 * 1024,
+    description:
+      'Larger model, requires 16 GB+ RAM and a discrete GPU.',
+    builtin: true,
+  },
+]
 
 export function deriveSourceKind(src: string): ModelSourceKind {
   if (src.startsWith('registry://')) return 'registry'
@@ -108,13 +132,22 @@ class ModelStore {
 
   private preSeedIfEmpty(): void {
     if (this.state.models.length > 0) return
-    const entry: ModelEntry = {
-      id: newId(),
-      ...DEFAULT_BUILTIN,
-      createdAt: new Date().toISOString(),
+    const now = new Date().toISOString()
+    // Default `lastSelectedModelId` to the 1.7B (low-spec) entry so
+    // first-time users on small machines get the right default.
+    let firstEntryId: string | null = null
+    for (const preset of BUILTIN_PRESETS) {
+      const entry: ModelEntry = {
+        id: newId(),
+        ...preset,
+        createdAt: now,
+      }
+      this.state.models.push(entry)
+      if (firstEntryId === null) firstEntryId = entry.id
     }
-    this.state.models.push(entry)
-    this.state.lastSelectedModelId = entry.id
+    if (firstEntryId !== null) {
+      this.state.lastSelectedModelId = firstEntryId
+    }
   }
 
   private scanExistingGguf(): void {
@@ -133,12 +166,14 @@ class ModelStore {
           continue
         }
 
-        // If the URL entry for the default still exists AND the legacy
+        // If the URL entry for a builtin still exists AND the legacy
         // file is present, remove the URL entry to avoid showing both.
         if (filename === LEGACY_MODEL_FILE) {
-          this.state.models = this.state.models.filter(
-            (m) => m.source !== DEFAULT_BUILTIN.source,
-          )
+          for (const preset of BUILTIN_PRESETS) {
+            this.state.models = this.state.models.filter(
+              (m) => m.source !== preset.source,
+            )
+          }
         }
 
         // Skip if a local-file entry with this exact path already exists.
@@ -149,9 +184,10 @@ class ModelStore {
 
         const entry: ModelEntry = {
           id: newId(),
-          name: filename === LEGACY_MODEL_FILE
-            ? 'MedPsy 1.7B (Q4_K_M) — local copy'
-            : filename.replace(/\.gguf$/i, ''),
+          name:
+            filename === LEGACY_MODEL_FILE
+              ? 'MedPsy 1.7B (Q4_K_M) — local copy'
+              : filename.replace(/\.gguf$/i, ''),
           source: absPath,
           sourceKind: 'file',
           size: stat.size,
@@ -185,8 +221,12 @@ class ModelStore {
   }
 
   add(
-    input: Omit<ModelEntry, 'id' | 'createdAt' | 'sourceKind'> & {
+    input: Omit<
+      ModelEntry,
+      'id' | 'createdAt' | 'sourceKind' | 'size'
+    > & {
       sourceKind?: ModelSourceKind
+      size?: number
     },
   ): ModelEntry {
     const sourceKind = input.sourceKind ?? deriveSourceKind(input.source)

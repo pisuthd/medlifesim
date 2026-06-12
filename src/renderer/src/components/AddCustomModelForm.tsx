@@ -3,17 +3,23 @@ import { motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../theme'
 
 interface AddCustomModelFormProps {
-  onComplete: (entry: { name: string; source: string }) => void
+  onComplete: (entry: {
+    name: string
+    source: string
+    description?: string
+  }) => void
   onCancel: () => void
 }
 
 /**
  * Form for adding a custom model entry. Source can be a local .gguf path
- * (entered manually or via the native file picker) or an http(s) URL.
+ * (entered manually or via the native file picker) or an http(s) URL,
+ * with an optional one-line description.
  */
 export function AddCustomModelForm({ onComplete, onCancel }: AddCustomModelFormProps) {
   const [name, setName] = useState('')
   const [source, setSource] = useState('')
+  const [description, setDescription] = useState('')
   const [error, setError] = useState('')
   const [browsing, setBrowsing] = useState(false)
 
@@ -41,7 +47,11 @@ export function AddCustomModelForm({ onComplete, onCancel }: AddCustomModelFormP
       setError('Both name and source are required')
       return
     }
-    onComplete({ name: name.trim(), source: source.trim() })
+    onComplete({
+      name: name.trim(),
+      source: source.trim(),
+      description: description.trim() || undefined,
+    })
   }
 
   const inputStyle: React.CSSProperties = {
@@ -121,7 +131,7 @@ export function AddCustomModelForm({ onComplete, onCancel }: AddCustomModelFormP
         />
       </div>
 
-      <div style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Source</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
@@ -164,6 +174,17 @@ export function AddCustomModelForm({ onComplete, onCancel }: AddCustomModelFormP
         >
           Local .gguf file or remote URL
         </p>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Description (optional)</label>
+        <input
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          style={inputStyle}
+          placeholder="A short one-liner shown in the picker"
+        />
       </div>
 
       {error && (

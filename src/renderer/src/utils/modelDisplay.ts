@@ -47,6 +47,20 @@ export interface EntryState {
   error: { code: string; message: string } | null
 }
 
+/**
+ * Format a byte count as a 2-decimal short human label. Examples:
+ * `2.16 GB`, `1.05 MB`, `512 B`. Returns `null` for missing/zero
+ * values so callers can decide whether to render the pill at all.
+ */
+export function formatSize(bytes: number | null | undefined): string | null {
+  if (!bytes || bytes <= 0) return null
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  if (bytes < 1024 * 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(2)} TB`
+}
+
 export function statusForEntry(entry: ModelEntry, state: EntryState): EntryStatus {
   if (state.error && state.activeId === entry.id) {
     return { color: '#cc0000', label: 'Error', tone: 'error' }

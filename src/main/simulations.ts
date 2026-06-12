@@ -15,6 +15,7 @@ import {
   type ExportResult,
   type ReportData,
 } from './reportExport'
+import { translateReportData, type SupportedTargetLang } from './translation'
 import type {
   CanvasCard,
   CanvasState,
@@ -398,6 +399,56 @@ export function requeueOutcome(
 
 // ────────────────────────────── IPC wiring ───────────────────────────────
 
+/**
+ * Reassemble the `{ sim, outcomes, reports, aggregate }` payload
+ * the renderer fetches via `simulations:getReport`. Shared between
+ * the report IPC and the new `reports:translate` IPC so the two
+ * stay byte-identical.
+ *
+ * Returns `null` when the simulation can't be found (deleted or
+ * never existed) so callers can short-circuit.
+ */
+function assembleReportData(
+  profileSlug: string,
+  simId: string
+): ReportData | null {
+  // Repair the parent's counts first (in case a previous worker
+  // run left them drifted from the outcomes list).
+  // `recomputeCountsFromOutcomes` is a no-op when the counts are
+  // already correct.
+  const sim = recomputeCountsFromOutcomes(profileSlug, simId)
+  if (!sim) return null
+  const outcomes = listOutcomes(profileSlug, simId)
+
+  const reports: Record<string, ParsedOutcomeReport | null> = {}
+  for (const o of outcomes) {
+    if (o.status !== 'done') {
+      reports[o.id] = null
+      continue
+    }
+    const msgs = loadMessages(profileSlug, o.sessionSlug)
+    // Find the last assistant message — the AI response.
+    let assistant: { content: string } | undefined
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant') {
+        assistant = msgs[i]
+        break
+      }
+    }
+    // Try the new JSON contract first (worker per-outcome
+    // completion); fall back to the legacy markdown parser for
+    // outcomes that pre-date the redesign.
+    reports[o.id] = assistant
+      ? parseOutcomeJson(assistant.content) ?? parseOutcomeReport(assistant.content)
+      : null
+  }
+  const aggregate: ReportAggregate = aggregateOutcomes(
+    outcomes,
+    new Map(Object.entries(reports))
+  )
+  return { sim, outcomes, reports, aggregate }
+}
+
 export function registerSimulationsIpcHandlers(): void {
   ipcMain.handle('simulations:list', async (_e, profileSlug: string) => {
     try {
@@ -504,43 +555,31 @@ export function registerSimulationsIpcHandlers(): void {
     'simulations:getReport',
     async (_e, profileSlug: string, simId: string) => {
       try {
-        // Repair the parent's counts first (in case a previous
-        // worker run left them drifted from the outcomes list).
-        // `recomputeCountsFromOutcomes` is a no-op when the counts
-        // are already correct.
-        const sim = recomputeCountsFromOutcomes(profileSlug, simId)
-        if (!sim) return null
-        const outcomes = listOutcomes(profileSlug, simId)
-
-        const reports: Record<string, ParsedOutcomeReport | null> = {}
-        for (const o of outcomes) {
-          if (o.status !== 'done') {
-            reports[o.id] = null
-            continue
-          }
-          const msgs = loadMessages(profileSlug, o.sessionSlug)
-          // Find the last assistant message — the AI response.
-          let assistant: { content: string } | undefined
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (msgs[i].role === 'assistant') {
-              assistant = msgs[i]
-              break
-            }
-          }
-          // Try the new JSON contract first (worker per-outcome
-          // completion); fall back to the legacy markdown parser
-          // for outcomes that pre-date the redesign.
-          reports[o.id] = assistant
-            ? parseOutcomeJson(assistant.content) ?? parseOutcomeReport(assistant.content)
-            : null
-        }
-        const aggregate: ReportAggregate = aggregateOutcomes(
-          outcomes,
-          new Map(Object.entries(reports))
-        )
-        return { sim, outcomes, reports, aggregate }
+        return assembleReportData(profileSlug, simId)
       } catch (err) {
         console.error('[simulations] getReport failed:', err)
+        throw err
+      }
+    }
+  )
+
+  // Translate the report in place. Re-uses the same data-assembly
+  // path as `getReport` (no extra IPC round-trip — the renderer
+  // already has the original data, so it could translate locally
+  // by calling the SDK itself, but centralising it here keeps the
+  // translate logic on the main-process side and lets the renderer
+  // stay pure-render). The Bergamot model is lazy-loaded via
+  // `ensureTranslationModelLoaded` inside `translateReportData`.
+  ipcMain.handle(
+    'reports:translate',
+    async (_e, profileSlug: string, simId: string, targetLang: SupportedTargetLang) => {
+      try {
+        const data = assembleReportData(profileSlug, simId)
+        if (!data) return null
+        const translated = await translateReportData(data, targetLang)
+        return translated
+      } catch (err) {
+        console.error('[simulations] translate failed:', err)
         throw err
       }
     }
@@ -559,44 +598,38 @@ export function registerSimulationsIpcHandlers(): void {
   // Report export — produces JSON / Markdown / CSV / PDF. Driven by the
   // Export button on the individual report page (NOT the list page, which
   // is read-only and only links through to a single report at a time).
+  //
+  // If the caller passes a `data` payload (the typical path now that
+  // translation is an in-place render-side action), the writer renders
+  // it as-is — no re-fetch, no translate. If `data` is omitted, the
+  // writer re-fetches the report from disk and writes the original
+  // English.
   ipcMain.handle(
     'reports:export',
     async (
       _e,
       profileSlug: string,
       simId: string,
-      format: 'pdf' | 'json' | 'md' | 'csv'
+      format: 'pdf' | 'json' | 'md' | 'csv',
+      data: ReportData | null = null
     ): Promise<ExportResult> => {
       try {
-        // 1. Reassemble the same `{ sim, outcomes, reports, aggregate }`
-        //    payload the renderer fetches via `simulations:getReport`.
-        const sim = recomputeCountsFromOutcomes(profileSlug, simId)
-        if (!sim) return { ok: false, error: 'Simulation not found' }
-        const outcomes = listOutcomes(profileSlug, simId)
-        const reports: Record<string, ParsedOutcomeReport | null> = {}
-        for (const o of outcomes) {
-          if (o.status !== 'done') {
-            reports[o.id] = null
-            continue
-          }
-          const msgs = loadMessages(profileSlug, o.sessionSlug)
-          const assistant = [...msgs].reverse().find((m) => m.role === 'assistant')
-          reports[o.id] = assistant
-            ? parseOutcomeJson(assistant.content) ?? parseOutcomeReport(assistant.content)
-            : null
+        // 1. Resolve the data we'll write. Renderer-supplied data
+        //    (the translated overlay) takes precedence; otherwise
+        //    re-fetch from disk.
+        let exportData = data
+        if (!exportData) {
+          const fetched = assembleReportData(profileSlug, simId)
+          if (!fetched) return { ok: false, error: 'Simulation not found' }
+          exportData = fetched
         }
-        const aggregate: ReportAggregate = aggregateOutcomes(
-          outcomes,
-          new Map(Object.entries(reports))
-        )
-        const data: ReportData = { sim, outcomes, reports, aggregate }
 
         // 2. Save dialog.
         const win = mainWindowGetter() ?? BrowserWindow.getFocusedWindow()
         if (!win) return { ok: false, error: 'No window' }
         const result = await dialog.showSaveDialog(win, {
           title: 'Export report',
-          defaultPath: defaultExportFileName(sim, format),
+          defaultPath: defaultExportFileName(exportData.sim, format),
           filters: [
             { name: format.toUpperCase(), extensions: [format] },
             { name: 'All files', extensions: ['*'] },
@@ -609,13 +642,13 @@ export function registerSimulationsIpcHandlers(): void {
         // 3. Dispatch by format.
         switch (format) {
           case 'json':
-            return writeJsonExport(result.filePath, data)
+            return writeJsonExport(result.filePath, exportData)
           case 'md':
-            return writeMarkdownExport(result.filePath, data)
+            return writeMarkdownExport(result.filePath, exportData)
           case 'csv':
-            return writeCsvExport(result.filePath, data)
+            return writeCsvExport(result.filePath, exportData)
           case 'pdf':
-            return writePdfExport(win, result.filePath, data)
+            return writePdfExport(win, result.filePath, exportData)
         }
       } catch (err) {
         console.error('[simulations] export failed:', err)
