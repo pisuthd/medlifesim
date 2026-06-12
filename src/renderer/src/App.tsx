@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ProfileProvider, Profile } from './context/ProfileContext'
 import { AIProvider, useAI } from './context/AIContext'
+import { TrainingProvider } from './context/TrainingContext'
 import LoadingScreen from './pages/LoadingScreen'
 import ModelSelector from './pages/ModelSelector'
 import ProfileSelector from './pages/ProfileSelector'
@@ -13,6 +14,7 @@ import Settings from './pages/Settings'
 import StartSimulation from './pages/StartSimulation'
 import RecentSimulations from './pages/RecentSimulations'
 import SimulationReport from './pages/SimulationReport'
+import Training from './pages/Training'
 import { MUTED, monoFont } from './theme'
 import type { ModelEntry } from '../../preload/index.d'
 
@@ -110,18 +112,21 @@ function App() {
 
         {appState === 'main' && profile && (
           <ProfileProvider initialProfile={profile}>
-            <Routes>
-              <Route path="/" element={<MainLayout profile={profile} />}>
-                <Route index element={<Dashboard />} />
-                <Route path="sessions" element={<Sessions />} />
-                <Route path="chat" element={<Chat />} />
-                <Route path="start-simulation" element={<StartSimulation />} />
-                <Route path="recent-simulations" element={<RecentSimulations />} />
-                <Route path="simulations/:simId/report" element={<SimulationReport />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <TrainingProvider>
+              <Routes>
+                <Route path="/" element={<MainLayout profile={profile} />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="sessions" element={<Sessions />} />
+                  <Route path="chat" element={<Chat />} />
+                  <Route path="start-simulation" element={<StartSimulation />} />
+                  <Route path="recent-simulations" element={<RecentSimulations />} />
+                  <Route path="simulations/:simId/report" element={<SimulationReport />} />
+                  <Route path="training" element={<Training />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </TrainingProvider>
           </ProfileProvider>
         )}
       </HashRouter>

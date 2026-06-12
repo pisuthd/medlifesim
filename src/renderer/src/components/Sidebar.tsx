@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { MessageCircle, LayoutDashboard, History, Settings, Play, FolderOpen } from 'lucide-react'
+import { MessageCircle, LayoutDashboard, History, Settings, Play, FolderOpen, Sliders } from 'lucide-react'
 import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, category: 'account' },
   { path: '/start-simulation', label: 'New Simulation', icon: Play, category: 'account' },
   { path: '/recent-simulations', label: 'Recent Simulations', icon: FolderOpen, category: 'account' },
+  { path: '/training', label: 'Training', icon: Sliders, category: 'account' },
   { path: '/settings', label: 'Settings', icon: Settings, category: 'settings' },
 ]
 

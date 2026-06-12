@@ -1,11 +1,20 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { deleteSession, loadMessages, clearSessionMessages } from './sessions'
 import { enumeratePaths } from '../shared/simulationPaths'
 import { parseOutcomeReport, parseOutcomeJson, type ParsedOutcomeReport } from '../shared/outcomeParser'
 import { aggregateOutcomes, type ReportAggregate } from '../shared/outcomeReport'
 import { setProfileModalOpen } from './simulationWorker'
+import {
+  defaultExportFileName,
+  writeCsvExport,
+  writeJsonExport,
+  writeMarkdownExport,
+  writePdfExport,
+  type ExportResult,
+  type ReportData,
+} from './reportExport'
 import type {
   CanvasCard,
   CanvasState,
@@ -544,6 +553,74 @@ export function registerSimulationsIpcHandlers(): void {
       // while the builder's pre-submit OutcomesModal is open. See
       // `setProfileModalOpen` in `simulationWorker.ts` for the gating.
       setProfileModalOpen(profileSlug, !!isOpen)
+    }
+  )
+
+  // Report export — produces JSON / Markdown / CSV / PDF. Driven by the
+  // Export button on the individual report page (NOT the list page, which
+  // is read-only and only links through to a single report at a time).
+  ipcMain.handle(
+    'reports:export',
+    async (
+      _e,
+      profileSlug: string,
+      simId: string,
+      format: 'pdf' | 'json' | 'md' | 'csv'
+    ): Promise<ExportResult> => {
+      try {
+        // 1. Reassemble the same `{ sim, outcomes, reports, aggregate }`
+        //    payload the renderer fetches via `simulations:getReport`.
+        const sim = recomputeCountsFromOutcomes(profileSlug, simId)
+        if (!sim) return { ok: false, error: 'Simulation not found' }
+        const outcomes = listOutcomes(profileSlug, simId)
+        const reports: Record<string, ParsedOutcomeReport | null> = {}
+        for (const o of outcomes) {
+          if (o.status !== 'done') {
+            reports[o.id] = null
+            continue
+          }
+          const msgs = loadMessages(profileSlug, o.sessionSlug)
+          const assistant = [...msgs].reverse().find((m) => m.role === 'assistant')
+          reports[o.id] = assistant
+            ? parseOutcomeJson(assistant.content) ?? parseOutcomeReport(assistant.content)
+            : null
+        }
+        const aggregate: ReportAggregate = aggregateOutcomes(
+          outcomes,
+          new Map(Object.entries(reports))
+        )
+        const data: ReportData = { sim, outcomes, reports, aggregate }
+
+        // 2. Save dialog.
+        const win = mainWindowGetter() ?? BrowserWindow.getFocusedWindow()
+        if (!win) return { ok: false, error: 'No window' }
+        const result = await dialog.showSaveDialog(win, {
+          title: 'Export report',
+          defaultPath: defaultExportFileName(sim, format),
+          filters: [
+            { name: format.toUpperCase(), extensions: [format] },
+            { name: 'All files', extensions: ['*'] },
+          ],
+        })
+        if (result.canceled || !result.filePath) {
+          return { ok: false, canceled: true }
+        }
+
+        // 3. Dispatch by format.
+        switch (format) {
+          case 'json':
+            return writeJsonExport(result.filePath, data)
+          case 'md':
+            return writeMarkdownExport(result.filePath, data)
+          case 'csv':
+            return writeCsvExport(result.filePath, data)
+          case 'pdf':
+            return writePdfExport(win, result.filePath, data)
+        }
+      } catch (err) {
+        console.error('[simulations] export failed:', err)
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
     }
   )
 }

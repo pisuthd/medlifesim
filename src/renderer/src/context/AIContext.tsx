@@ -18,8 +18,11 @@ interface AIContextValue {
   error: ModelErrorPayload | null
   isReady: boolean
   activeModel: ModelEntry | null
+  activeLora: { id: string | null; name: string | null; path: string | null } | null
+  trainingActive: boolean
   refresh: () => Promise<void>
   select: (id: string) => Promise<void>
+  selectLora: (loraId: string | null) => Promise<void>
   cancel: (clearCache?: boolean) => Promise<void>
   reload: () => Promise<void>
   resetCache: (id: string) => Promise<{ success: boolean; deleted: string[]; error?: string }>
@@ -92,6 +95,20 @@ export function AIProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
+  const selectLora = useCallback(
+    async (loraId: string | null) => {
+      if (!window.api?.models?.selectLora) return
+      setError(null)
+      setProgress(null)
+      const r = await window.api.models.selectLora(loraId)
+      if (!r.success && r.error) {
+        setError({ code: 'SELECT_LORA_FAILED', message: r.error, retryable: true })
+      }
+      await refresh()
+    },
+    [refresh],
+  )
+
   const cancel = useCallback(
     async (clearCache?: boolean) => {
       if (!window.api?.models?.cancel) return
@@ -127,10 +144,27 @@ export function AIProvider({ children }: { children: ReactNode }) {
     status?.active?.id
       ? status.available.find((m) => m.id === status.active!.id) ?? null
       : null
+  const activeLora = status?.activeLora ?? null
+  const trainingActive = !!status?.trainingActive
 
   return (
     <AIContext.Provider
-      value={{ status, progress, error, isReady, activeModel, refresh, select, cancel, reload, resetCache, setError }}
+      value={{
+        status,
+        progress,
+        error,
+        isReady,
+        activeModel,
+        activeLora,
+        trainingActive,
+        refresh,
+        select,
+        selectLora,
+        cancel,
+        reload,
+        resetCache,
+        setError,
+      }}
     >
       {children}
     </AIContext.Provider>

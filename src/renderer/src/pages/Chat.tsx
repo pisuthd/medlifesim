@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
 import { useAI } from '../context/AIContext'
 import PageWrapper from '../components/PageWrapper'
+import LoRAPicker from '../components/LoRAPicker'
 import { BLUE, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
 
 interface ChatMessage {
@@ -414,6 +415,9 @@ export default function Chat() {
               padding: 4,
             }}
           >
+            <div style={{ alignSelf: 'center', borderRight: '1px solid #f0f0f0', paddingRight: 4 }}>
+              <LoRAPicker />
+            </div>
             <textarea
               ref={inputRef}
               value={input}

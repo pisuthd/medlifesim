@@ -142,6 +142,8 @@ interface RecentSimulationRowProps {
   expanded: boolean
   outcomes: SimulationOutcome[]
   outcomesLoading: boolean
+  selected: boolean
+  onSelectToggle: () => void
   onToggle: () => void
   onOpenReport: () => void
   onOpenOutcome: (sessionSlug: string) => void
@@ -155,6 +157,8 @@ export default function RecentSimulationRow({
   expanded,
   outcomes,
   outcomesLoading,
+  selected,
+  onSelectToggle,
   onToggle,
   onOpenReport,
   onOpenOutcome,
@@ -168,19 +172,30 @@ export default function RecentSimulationRow({
   const total = sim.outcomeCount
   const errorCount = sim.errorCount
   const hasErrors = errorCount > 0
+  const canSelect = completed > 0
   return (
     <div style={{ borderBottom: '1px solid #e0e0f0' }}>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 140px 140px 120px 100px',
+          gridTemplateColumns: '32px 1fr 140px 140px 120px 100px',
           alignItems: 'center',
           padding: '14px 16px',
-          background: '#fff',
+          background: selected ? '#f0fafa' : '#fff',
           cursor: 'pointer',
         }}
         onClick={onToggle}
       >
+        <div onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            disabled={!canSelect}
+            onChange={onSelectToggle}
+            title={canSelect ? 'Select for training' : 'No completed outcomes to train on'}
+            aria-label={`Select simulation ${sim.name} for training`}
+          />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span
             style={{

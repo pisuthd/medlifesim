@@ -62,8 +62,12 @@ function outcomeKey(simId: string, outcomeId: string): string {
  * source of truth for role, task, output schema, and format rule.
  * The user prompt deliberately carries none of these so the model
  * doesn't get conflicting instructions.
+ *
+ * Exported so the dataset store can re-emit identical
+ * system+user+assistant triples as SFT JSONL when assembling
+ * fine-tuning data from completed outcomes.
  */
-function buildPerOutcomeSystemPrompt(): string {
+export function buildPerOutcomeSystemPrompt(): string {
   return `You are a senior public-health analyst. The user will describe
 a single path (subject + exposure + intervention) below. Estimate
 the likely health outcome for that path based on the subject
@@ -150,8 +154,12 @@ function tryParseJsonObject(text: string): any | null {
  * the typed Subject / Exposure / Intervention path block. No role,
  * no JSON schema, no format rule — those live entirely in the
  * system prompt.
+ *
+ * Exported alongside `buildPerOutcomeSystemPrompt` so the dataset
+ * store can re-render identical prompts when assembling SFT
+ * training data from completed outcomes.
  */
-function buildPerOutcomeUserPrompt(
+export function buildPerOutcomeUserPrompt(
   outcome: SimulationOutcome,
   allSubjects: { id: string; title: string }[]
 ): string {

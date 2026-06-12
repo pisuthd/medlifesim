@@ -18,6 +18,8 @@ const api = {
     remove: (id: string): Promise<boolean> => ipcRenderer.invoke('models:remove', id),
     select: (id: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('models:select', id),
+    selectLora: (loraId: string | null): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('models:selectLora', loraId),
     cancel: (opts?: { clearCache?: boolean }): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('models:cancel', opts),
     resetCache: (id: string): Promise<{ success: boolean; deleted: string[]; error?: string }> =>
@@ -135,11 +137,45 @@ const api = {
       ipcRenderer.invoke('simulations:getReport', profileSlug, simId),
     setModalOpen: (profileSlug: string, isOpen: boolean) =>
       ipcRenderer.invoke('simulations:setModalOpen', profileSlug, isOpen),
+    exportReport: (profileSlug: string, simId: string, format: 'pdf' | 'json' | 'md' | 'csv') =>
+      ipcRenderer.invoke('reports:export', profileSlug, simId, format),
     onProgress: (callback: (event: any) => void) => {
       const handler = (_: unknown, e: any) => callback(e)
       ipcRenderer.on('simulations:progress', handler)
       return () => ipcRenderer.removeListener('simulations:progress', handler)
     },
+  },
+
+  datasets: {
+    list: () => ipcRenderer.invoke('datasets:list'),
+    get: (id: string) => ipcRenderer.invoke('datasets:get', id),
+    create: (entry: any) => ipcRenderer.invoke('datasets:create', entry),
+    update: (id: string, patch: any, profileSlug: string) =>
+      ipcRenderer.invoke('datasets:update', id, patch, profileSlug),
+    delete: (id: string) => ipcRenderer.invoke('datasets:delete', id),
+    importJsonl: (): Promise<string | null> => ipcRenderer.invoke('datasets:importJsonl'),
+  },
+
+  trainings: {
+    list: () => ipcRenderer.invoke('trainings:list'),
+    get: (id: string) => ipcRenderer.invoke('trainings:get', id),
+    start: (payload: any) => ipcRenderer.invoke('trainings:start', payload),
+    pause: (id: string) => ipcRenderer.invoke('trainings:pause', id),
+    resume: (id: string) => ipcRenderer.invoke('trainings:resume', id),
+    cancelRun: (id: string) => ipcRenderer.invoke('trainings:cancel', id),
+    delete: (id: string) => ipcRenderer.invoke('trainings:delete', id),
+    onProgress: (callback: (p: any) => void) => {
+      const handler = (_: unknown, p: any) => callback(p)
+      ipcRenderer.on('trainings:progress', handler)
+      return () => ipcRenderer.removeListener('trainings:progress', handler)
+    },
+  },
+
+  loras: {
+    list: () => ipcRenderer.invoke('loras:list'),
+    get: (id: string) => ipcRenderer.invoke('loras:get', id),
+    delete: (id: string) => ipcRenderer.invoke('loras:delete', id),
+    import: (): Promise<any> => ipcRenderer.invoke('loras:import'),
   },
 }
 

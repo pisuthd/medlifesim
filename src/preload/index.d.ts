@@ -76,6 +76,14 @@ export interface ModelStatus {
   }
   lastSelectedId: string | null
   available: ModelEntry[]
+  /**
+   * LoRA bound to the currently-loaded base model. `null` when
+   * the user has not picked a LoRA, or when the active model is
+   * the base model with no adapter.
+   */
+  activeLora: { id: string | null; name: string | null; path: string | null }
+  /** True while a fine-tune run is in flight. */
+  trainingActive: boolean
 }
 
 export interface ModelsAPI {
@@ -83,12 +91,120 @@ export interface ModelsAPI {
   add: (entry: { name: string; source: string; description?: string; quantization?: string; params?: string }) => Promise<ModelEntry>
   remove: (id: string) => Promise<boolean>
   select: (id: string) => Promise<{ success: boolean; error?: string }>
+  /**
+   * Switch to a LoRA adapter. Pass `null` to switch back to the
+   * active base model without any adapter. Re-loads the model
+   * (re-using the active base model unless none is loaded, in
+   * which case the lastSelected base model is used).
+   */
+  selectLora: (loraId: string | null) => Promise<{ success: boolean; error?: string }>
   cancel: (opts?: { clearCache?: boolean }) => Promise<{ success: boolean }>
   resetCache: (id: string) => Promise<{ success: boolean; deleted: string[]; error?: string }>
   status: () => Promise<ModelStatus>
   pickFile: () => Promise<string | null>
   onProgress: (callback: (p: ModelLoadProgress) => void) => () => void
   onError: (callback: (e: ModelErrorPayload) => void) => () => void
+}
+
+export interface DatasetCustomDataSource {
+  kind: 'jsonl-text' | 'text' | 'jsonl-file'
+  label: string
+  text?: string
+  path?: string
+}
+
+export interface DatasetEntry {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  sources: {
+    simulationIds: string[]
+    customData: DatasetCustomDataSource[]
+  }
+  sampleCount: number
+  /**
+   * SFT (Supervised Fine-Tuning) JSONL path. `null` if the dataset
+   * has no SFT content (e.g. a Causal-only dataset of plain text).
+   */
+  trainJsonlPath: string | null
+  /**
+   * Causal plain-text path. `null` if the dataset has no plain-text
+   * content (e.g. a SFT-only dataset of simulation outcomes).
+   */
+  trainTxtPath: string | null
+}
+
+export interface DatasetsAPI {
+  list: () => Promise<DatasetEntry[]>
+  get: (id: string) => Promise<DatasetEntry | null>
+  create: (entry: { name: string; sources: { simulationIds: string[]; customData: DatasetCustomDataSource[] }; profileSlug: string }) => Promise<DatasetEntry>
+  update: (id: string, patch: { name?: string; sources?: { simulationIds: string[]; customData: DatasetCustomDataSource[] } }, profileSlug: string) => Promise<DatasetEntry | null>
+  delete: (id: string) => Promise<{ success: boolean }>
+  importJsonl: () => Promise<string | null>
+}
+
+export interface TrainingRunOptions {
+  numberOfEpochs: number
+  learningRate: number
+  loraRank: number
+  loraAlpha: number
+  contextLength: number
+  batchSize: number
+  microBatchSize: number
+  assistantLossOnly: boolean
+}
+
+export interface TrainingRunProgress {
+  epoch: number
+  step: number
+  totalSteps: number
+  loss: number | null
+  eta: number | null
+}
+
+export interface TrainingRun {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  datasetId: string
+  baseModelId: string
+  options: TrainingRunOptions
+  status: 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'canceled'
+  progress: TrainingRunProgress
+  outputLoraPath: string | null
+  loraId: string | null
+  error: string | null
+}
+
+export interface TrainingsAPI {
+  list: () => Promise<TrainingRun[]>
+  get: (id: string) => Promise<TrainingRun | null>
+  start: (payload: { name: string; datasetId: string; baseModelId: string; options: TrainingRunOptions }) => Promise<TrainingRun>
+  pause: (id: string) => Promise<{ success: boolean }>
+  resume: (id: string) => Promise<{ success: boolean }>
+  cancelRun: (id: string) => Promise<{ success: boolean }>
+  delete: (id: string) => Promise<{ success: boolean }>
+  onProgress: (callback: (p: { runId: string; epoch: number; step: number; totalSteps: number; loss: number | null; eta: number | null }) => void) => () => void
+}
+
+export interface LoraEntry {
+  id: string
+  name: string
+  baseModelId: string
+  loraPath: string
+  source: 'training' | 'imported'
+  trainingRunId: string | null
+  createdAt: string
+  sizeBytes?: number
+}
+
+export interface LorasAPI {
+  list: () => Promise<LoraEntry[]>
+  get: (id: string) => Promise<LoraEntry | null>
+  delete: (id: string) => Promise<{ success: boolean; removed?: LoraEntry }>
+  import: () => Promise<LoraEntry | null>
 }
 
 export interface ProfileAPI {
@@ -146,8 +262,12 @@ export interface ProfileAPI {
     listOutcomes: (profileSlug: string, simId: string) => Promise<any[]>
     getReport: (profileSlug: string, simId: string) => Promise<any>
     setModalOpen: (profileSlug: string, isOpen: boolean) => Promise<void>
+    exportReport: (profileSlug: string, simId: string, format: 'pdf' | 'json' | 'md' | 'csv') => Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
     onProgress: (callback: (event: any) => void) => () => void
   }
+  datasets: DatasetsAPI
+  trainings: TrainingsAPI
+  loras: LorasAPI
 }
 
 declare global {

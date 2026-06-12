@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageWrapper from '../components/PageWrapper'
 import RecentSimulationRow from '../components/simulation/RecentSimulationRow'
@@ -18,6 +18,7 @@ export default function RecentSimulations() {
   const [outcomesLoading, setOutcomesLoading] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [selectedSimIds, setSelectedSimIds] = useState<Set<string>>(new Set())
 
   const loadSims = useCallback(async () => {
     if (!profile) return
@@ -178,6 +179,38 @@ export default function RecentSimulations() {
     }
   }
 
+  const toggleSimSelected = useCallback((id: string) => {
+    setSelectedSimIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const selectableSims = useMemo(
+    () => sims.filter((s) => (s.completedCount ?? 0) > 0),
+    [sims],
+  )
+
+  const allSelectableSelected =
+    selectableSims.length > 0 && selectedSimIds.size === selectableSims.length
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedSimIds((prev) => {
+      if (prev.size === selectableSims.length) {
+        return new Set()
+      }
+      return new Set(selectableSims.map((s) => s.id))
+    })
+  }, [selectableSims])
+
+  function handleTrainOnSelected() {
+    if (selectedSimIds.size === 0) return
+    const ids = Array.from(selectedSimIds).join(',')
+    navigate(`/training?simIds=${ids}`)
+  }
+
   return (
     <PageWrapper
       title="Recent simulations"
@@ -216,12 +249,20 @@ export default function RecentSimulations() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 140px 140px 120px 100px',
+            gridTemplateColumns: '32px 1fr 140px 140px 120px 100px',
             padding: '12px 16px',
             background: '#f7f7fc',
             borderBottom: '1px solid #e0e0f0',
           }}
         >
+          <input
+            type="checkbox"
+            checked={allSelectableSelected}
+            disabled={selectableSims.length === 0}
+            onChange={toggleSelectAll}
+            aria-label="Select all"
+            title="Select all completed simulations"
+          />
           <span style={thStyle}>Name</span>
           <span style={thStyle}>Created</span>
           <span style={thStyle}>Outcomes</span>
@@ -263,6 +304,8 @@ export default function RecentSimulations() {
               expanded={expanded.has(sim.id)}
               outcomes={outcomesBySim[sim.id] ?? []}
               outcomesLoading={!!outcomesLoading[sim.id]}
+              selected={selectedSimIds.has(sim.id)}
+              onSelectToggle={() => toggleSimSelected(sim.id)}
               onToggle={() => handleToggle(sim.id)}
               onOpenReport={() => handleOpenReport(sim.id)}
               onOpenOutcome={handleOpenOutcome}
@@ -273,6 +316,72 @@ export default function RecentSimulations() {
           ))
         )}
       </div>
+      {selectedSimIds.size > 0 && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            marginTop: 24,
+            padding: '14px 20px',
+            background: TEAL,
+            color: '#fff',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 4px 16px rgba(8,80,65,0.25)',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: monoFont,
+              fontSize: 11,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {selectedSimIds.size} simulation{selectedSimIds.size === 1 ? '' : 's'} selected
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setSelectedSimIds(new Set())}
+              style={{
+                padding: '8px 14px',
+                background: 'transparent',
+                color: '#fff',
+                border: '1px solid #ffffff66',
+                borderRadius: 4,
+                fontFamily: monoFont,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleTrainOnSelected}
+              style={{
+                padding: '8px 14px',
+                background: '#fff',
+                color: TEAL,
+                border: 'none',
+                borderRadius: 4,
+                fontFamily: monoFont,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Train on selected →
+            </button>
+          </div>
+        </div>
+      )}
     </PageWrapper>
   )
 }

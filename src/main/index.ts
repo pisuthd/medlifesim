@@ -15,6 +15,36 @@ import { registerScenarioGeneratorHandlers } from './scenarioGenerator'
 import { settingsStore, getSystemPrompt } from './toolsStore'
 
 // ============================================
+// Datasets / Training runs / LoRAs
+// ============================================
+import {
+  createDataset,
+  deleteDataset,
+  getDataset,
+  listDatasets,
+  updateDataset,
+  type DatasetEntry,
+} from './datasetStore'
+import {
+  deleteTraining,
+  getTraining,
+  listTrainings,
+  type TrainingRun,
+} from './trainingStore'
+import {
+  deleteLora,
+  getLora,
+  importLoraFromPath,
+  listLoras,
+} from './loraStore'
+import {
+  cancelTraining,
+  pauseTraining,
+  resumeTraining,
+  startTraining,
+} from './finetune'
+
+// ============================================
 // QVAC AI Model Management (QVAC-native flow)
 // ============================================
 import { completion, type ToolCall } from '@qvac/sdk'
@@ -27,6 +57,9 @@ import {
   cancelCurrentRequest,
   unloadCurrent,
   getActiveModelId,
+  getActiveEntry,
+  setPendingLoraPath,
+  getCurrentLoraId,
   buildStatus,
   resetCache,
 } from './qvac'
@@ -44,6 +77,8 @@ interface ModelsStatus {
   }
   lastSelectedId: string | null
   available: ModelEntry[]
+  activeLora: { id: string | null; name: string | null; path: string | null }
+  trainingActive: boolean
 }
 
 let mainWindowRef: BrowserWindow | null = null
@@ -431,6 +466,178 @@ app.whenReady().then(async () => {
     return resetCache(entry)
   })
 
+  // Bind (or unbind) a LoRA adapter to the loaded model. Setting loraId
+  // to null re-loads the base model with no adapter.
+  ipcMain.handle('models:selectLora', async (_, loraId: string | null) => {
+    try {
+      if (loraId === null) {
+        setPendingLoraPath(null, null, null)
+      } else {
+        const lora = getLora(loraId)
+        if (!lora) return { success: false, error: 'LoRA not found' }
+        setPendingLoraPath(lora.loraPath, lora.id, lora.name)
+      }
+      // Re-load the active base model (or fall back to the user's
+      // last-selected entry if nothing is currently loaded) so the
+      // pending lora path is threaded into modelConfig.lora.
+      const target = getActiveEntry() ?? modelStore.getLastSelected()
+      if (!target) return { success: false, error: 'No base model selected' }
+      await cancelCurrentRequest()
+      const prevId = getActiveModelId()
+      if (prevId) await unloadCurrent(prevId)
+      modelStore.setLastSelected(target.id)
+      await ensureModel(target)
+      return { success: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return { success: false, error: message }
+    }
+  })
+
+  // ─── Datasets ──────────────────────────────────────────────────────────
+  ipcMain.handle('datasets:list', () => {
+    return listDatasets()
+  })
+
+  ipcMain.handle('datasets:get', (_, id: string) => {
+    return getDataset(id)
+  })
+
+  ipcMain.handle(
+    'datasets:create',
+    (
+      _,
+      entry: {
+        name: string
+        sources: { simulationIds: string[]; customData: DatasetEntry['sources']['customData'] }
+        profileSlug: string
+      },
+    ) => {
+      return createDataset(entry)
+    },
+  )
+
+  ipcMain.handle(
+    'datasets:update',
+    (
+      _,
+      id: string,
+      patch: {
+        name?: string
+        sources?: { simulationIds: string[]; customData: DatasetEntry['sources']['customData'] }
+      },
+      profileSlug: string,
+    ) => {
+      return updateDataset(id, patch, profileSlug)
+    },
+  )
+
+  ipcMain.handle('datasets:delete', (_, id: string) => {
+    return deleteDataset(id)
+  })
+
+  ipcMain.handle('datasets:importJsonl', async () => {
+    const win = mainWindowRef ?? BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Select a JSONL file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'JSONL', extensions: ['jsonl', 'json'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    })
+    if (r.canceled || r.filePaths.length === 0) return null
+    return r.filePaths[0]
+  })
+
+  // ─── Training runs ─────────────────────────────────────────────────────
+  ipcMain.handle('trainings:list', () => {
+    return listTrainings()
+  })
+
+  ipcMain.handle('trainings:get', (_, id: string) => {
+    return getTraining(id)
+  })
+
+  ipcMain.handle(
+    'trainings:start',
+    (
+      _,
+      payload: {
+        name: string
+        datasetId: string
+        baseModelId: string
+        options: TrainingRun['options']
+      },
+    ) => {
+      return startTraining(payload)
+    },
+  )
+
+  ipcMain.handle('trainings:pause', (_, id: string) => {
+    return { success: pauseTraining(id) }
+  })
+
+  ipcMain.handle('trainings:resume', (_, id: string) => {
+    return { success: resumeTraining(id) }
+  })
+
+  ipcMain.handle('trainings:cancel', (_, id: string) => {
+    return { success: cancelTraining(id) }
+  })
+
+  ipcMain.handle('trainings:delete', (_, id: string) => {
+    return { success: deleteTraining(id) }
+  })
+
+  // ─── LoRA adapters ─────────────────────────────────────────────────────
+  ipcMain.handle('loras:list', () => {
+    return listLoras()
+  })
+
+  ipcMain.handle('loras:get', (_, id: string) => {
+    return getLora(id)
+  })
+
+  ipcMain.handle('loras:delete', async (_, id: string) => {
+    // Protect the LoRA currently bound to the loaded model — the user
+    // must switch back to the base model (or another LoRA) via the
+    // chat input LoRA picker first.
+    if (getCurrentLoraId() === id) {
+      return {
+        success: false,
+        error: 'This LoRA is currently active. Set the chat input LoRA picker to "None" (or to another LoRA) to free it up.',
+      }
+    }
+    return deleteLora(id)
+  })
+
+  ipcMain.handle('loras:import', async () => {
+    const win = mainWindowRef ?? BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Import LoRA adapter (.gguf)',
+      properties: ['openFile'],
+      filters: [
+        { name: 'GGUF', extensions: ['gguf'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    })
+    if (r.canceled || r.filePaths.length === 0) return null
+    const picked = r.filePaths[0]
+    if (!picked.toLowerCase().endsWith('.gguf')) {
+      throw new Error('Selected file is not a .gguf adapter')
+    }
+    // Bind to the currently-active base model; the user can re-pick
+    // another base model later via the Model Selector.
+    const base = getActiveEntry() ?? modelStore.getLastSelected()
+    if (!base) {
+      throw new Error('No base model selected — load a base model before importing a LoRA')
+    }
+    return importLoraFromPath(picked, base.id)
+  })
+
   // ─── AI: legacy shims (back-compat for Chat/Settings/Dashboard) ───────
   // Status is now backed by the new buildStatus() snapshot.
   ipcMain.handle('ai:getStatus', () => {
@@ -444,6 +651,7 @@ app.whenReady().then(async () => {
         : 0,
       downloading: status.active.requestId !== null,
       downloadProgress: 0, // legacy field; the new `models:progress` channel carries real numbers
+      loraName: status.activeLora?.name ?? null,
     }
   })
 

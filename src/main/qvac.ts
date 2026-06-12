@@ -22,6 +22,10 @@ import { modelStore, type ModelEntry, type ModelSourceKind } from './modelStore'
  *  - the currently-loaded modelId (so ai:sendMessage can stream)
  *  - normalized progress emission (models:progress)
  *  - error mapping → { code, message, retryable } for the renderer
+ *  - LoRA-binding plumbing (pendingLoraPath + currentLoraId) so the
+ *    next `loadModel` picks up the user-selected LoRA adapter
+ *  - training-mode lock so the chat / Model Selector disable while a
+ *    fine-tune run is in flight
  */
 
 // ───────────────────────────── module state ─────────────────────────────
@@ -31,6 +35,22 @@ let currentRequestId: string | null = null
 let currentModelId: string | null = null
 let currentEntry: ModelEntry | null = null
 let currentLoadedAt: number | null = null
+
+// LoRA binding state. `pendingLoraPath` is set by the
+// `models:selectLora` IPC and consumed by the next `loadModel` call;
+// `currentLoraId` is the registered LoraEntry.id bound to the
+// currently loaded model and is surfaced on the status payload so
+// the renderer can show "active LoRA" badges and disable its
+// Delete button on the Training page.
+let pendingLoraPath: string | null = null
+let currentLoraId: string | null = null
+let currentLoraName: string | null = null
+
+// Training lock. When a fine-tune run is in flight we set this so
+// `buildStatus()` reports `active.loaded = false`; that flips the
+// chat input disabled (Chat.tsx `!isReady` branch) and the Model
+// Selector cards' `disabled` flag.
+let isTrainingActive = false
 
 // ───────────────────────────── config bootstrap ─────────────────────────
 
@@ -284,7 +304,7 @@ async function loadLocal(
   const op = loadModel({
     modelSrc: entry.source,
     modelType: ModelType.llamacppCompletion,
-    modelConfig: { ctx_size: settingsStore.getCtxSize(), tools: false },
+    modelConfig: buildModelConfig(),
     onProgress: (p) =>
       emitProgress('loading', {
         downloaded: p.downloaded,
@@ -300,6 +320,7 @@ async function loadLocal(
     currentModelId = modelId
     currentEntry = entry
     currentLoadedAt = Date.now()
+    resolveActiveLora()
     emitProgress('loading', {
       downloaded: 1,
       total: 1,
@@ -341,7 +362,7 @@ async function downloadThenLoad(
   const loadOp = loadModel({
     modelSrc: entry.source,
     modelType: ModelType.llamacppCompletion,
-    modelConfig: { ctx_size: settingsStore.getCtxSize(), tools: false },
+    modelConfig: buildModelConfig(),
     onProgress: (p) =>
       emitProgress('loading', {
         downloaded: p.downloaded,
@@ -357,6 +378,7 @@ async function downloadThenLoad(
     currentModelId = modelId
     currentEntry = entry
     currentLoadedAt = Date.now()
+    resolveActiveLora()
     emitProgress('loading', {
       downloaded: 1,
       total: 1,
@@ -391,6 +413,8 @@ export async function unloadCurrent(modelId: string): Promise<void> {
       currentModelId = null
       currentEntry = null
       currentLoadedAt = null
+      currentLoraId = null
+      currentLoraName = null
     }
   } catch (e) {
     console.warn('[qvac] unload failed:', e)
@@ -399,6 +423,110 @@ export async function unloadCurrent(modelId: string): Promise<void> {
 
 export function getActiveModelId(): string | null {
   return currentModelId
+}
+
+/**
+ * Returns the currently-loaded model entry (or null). Used by the
+ * fine-tuning driver to verify the base model is the one the user
+ * intends to train against.
+ */
+export function getActiveEntry(): ModelEntry | null {
+  return currentEntry
+}
+
+/**
+ * Build the per-load `modelConfig` object. Threads the pending
+ * LoRA path (if any) into the SDK's `lora` field so the next
+ * `loadModel` call binds the user-selected adapter. Uses
+ * `lora_apply_mode: 'immediately'` so subsequent `completion()`
+ * calls see the adapter without a follow-up reload.
+ *
+ * The `lora` field is defined on the llamacpp completion engine;
+ * the SDK's `common.d.ts` schema marks it optional. We cast
+ * `modelConfig as any` only at the seam where the lora field
+ * doesn't appear in the public overloads.
+ */
+function buildModelConfig(): Record<string, unknown> {
+  const cfg: Record<string, unknown> = {
+    ctx_size: settingsStore.getCtxSize(),
+    tools: false,
+  }
+  if (pendingLoraPath) {
+    cfg.lora = pendingLoraPath
+    cfg.lora_apply_mode = 'immediately'
+  }
+  return cfg
+}
+
+/**
+ * After a successful load, copy the pending LoRA path into
+ * `currentLoraId` by reverse-resolving the path to its registered
+ * LoraEntry. If no entry is registered for this path, leave
+ * `currentLoraId` as `null` and set `currentLoraName` to the file
+ * basename so the status surface still has something to show.
+ *
+ * Lazy import: the loraStore is only available once the rest of
+ * the app is wired up. We use a dynamic require-equivalent via
+ * top-level import (it's safe to import unconditionally here).
+ */
+function resolveActiveLora(): void {
+  if (!pendingLoraPath) {
+    currentLoraId = null
+    currentLoraName = null
+    return
+  }
+  const path = pendingLoraPath
+  // Defer-resolve the LoraEntry in a microtask so we don't create
+  // a circular import at module-load time.
+  Promise.resolve()
+    .then(async () => {
+      const { getLoraByPath } = await import('./loraStore')
+      const entry = getLoraByPath(path)
+      if (entry) {
+        currentLoraId = entry.id
+        currentLoraName = entry.name
+      } else {
+        currentLoraId = null
+        // Use the file basename as a fallback display name.
+        const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+        currentLoraName = slash >= 0 ? path.slice(slash + 1) : path
+      }
+      pendingLoraPath = null
+    })
+    .catch((err) => {
+      console.warn('[qvac] resolveActiveLora failed', err)
+      pendingLoraPath = null
+    })
+}
+
+/**
+ * Set the LoRA the next `loadModel` call should bind. Pass `null`
+ * to clear (load the base model with no adapter). Called by the
+ * `models:selectLora` IPC handler in `index.ts`.
+ */
+export function setPendingLoraPath(path: string | null, loraId: string | null, loraName: string | null): void {
+  pendingLoraPath = path
+  if (path === null) {
+    currentLoraId = null
+    currentLoraName = null
+  } else {
+    currentLoraId = loraId
+    currentLoraName = loraName
+  }
+}
+
+export function getCurrentLoraId(): string | null {
+  return currentLoraId
+}
+
+/**
+ * Toggle the training-mode lock. While `true`, `buildStatus()`
+ * reports `active.loaded = false` so the chat / Model Selector
+ * disable. Called by `finetune.ts` around the lifecycle of a
+ * training run.
+ */
+export function setTrainingMode(active: boolean): void {
+  isTrainingActive = active
 }
 
 export function buildStatus(): {
@@ -413,18 +541,30 @@ export function buildStatus(): {
   }
   lastSelectedId: string | null
   available: ReturnType<typeof modelStore.getAll>
+  activeLora: { id: string | null; name: string | null; path: string | null }
+  trainingActive: boolean
 } {
+  // `loaded` collapses to `false` while a training run holds the
+  // single loaded model — the chat and the Model Selector both
+  // gate on this and disable themselves accordingly.
+  const loaded = currentModelId !== null && !isTrainingActive
   return {
     active: {
       id: currentEntry?.id ?? null,
       name: currentEntry?.name ?? '',
       source: currentEntry?.source ?? '',
       sourceKind: currentEntry?.sourceKind ?? null,
-      loaded: currentModelId !== null,
+      loaded,
       requestId: currentRequestId,
       loadedAt: currentLoadedAt,
     },
     lastSelectedId: modelStore.getLastSelected()?.id ?? null,
     available: modelStore.getAll(),
+    activeLora: {
+      id: currentLoraId,
+      name: currentLoraName,
+      path: pendingLoraPath,
+    },
+    trainingActive: isTrainingActive,
   }
 }
