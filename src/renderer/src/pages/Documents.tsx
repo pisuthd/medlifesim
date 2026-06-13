@@ -1,15 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
-
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-const LIGHT_BLUE = '#f7f7fc'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
+import { BLUE, TEAL, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
+import SectionLabel from '../components/ui/SectionLabel'
 
 interface DocumentItem {
   id: string
@@ -23,14 +16,6 @@ interface DocumentItem {
   }
   createdAt: string
   updatedAt: string
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
-      {children}
-    </p>
-  )
 }
 
 function DropZone({ onFileAdd, isProcessing }: { onFileAdd: (content: string, name: string, type: 'text' | 'ocr' | 'note') => void; isProcessing: boolean }) {

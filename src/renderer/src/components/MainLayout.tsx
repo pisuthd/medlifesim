@@ -10,10 +10,10 @@ interface Profile {
   createdAt: string
 }
 
-export default function MainLayout({ profile }: { profile: Profile }) {
+export default function MainLayout(_: { profile: Profile }) {
   return (
     <div style={{ display: 'flex' }}>
-      <Sidebar profileName={profile.name} />
+      <Sidebar />
       <main style={{ 
         flex: 1, 
         background: '#f7f7fc',

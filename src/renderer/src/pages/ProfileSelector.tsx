@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
+import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 
 type ProfileType = 'self' | 'family' | 'doctor' | 'community'
 
@@ -18,14 +19,6 @@ interface ProfileSelectorProps {
   onCreateProfile: (profileData: Omit<Profile, 'id' | 'createdAt'>) => void
 }
 
-const BLUE = '#1A1AE8'
-const TEAL = '#3EC4C0'
-const NAVY = '#0a0a5c'
-const MUTED = '#9999bb'
-
-const monoFont = "'Space Mono', monospace"
-const sansFont = "'DM Sans', sans-serif"
-
 const profileTypeOptions = [
   { id: 'self', label: 'For yourself' },
   { id: 'family', label: 'For a family member' },
@@ -36,7 +29,7 @@ const profileTypeOptions = [
 function Wordmark() {
   return (
     <p style={{ fontFamily: monoFont, fontWeight: 700, fontSize: 20, letterSpacing: '0.04em', color: BLUE, margin: 0 }}>
-      <span style={{ color: NAVY }}>MedPsy</span> Doctor
+      <span style={{ color: NAVY }}>MedLife</span>Sim
     </p>
   )
 }
@@ -128,7 +121,7 @@ function CreateProfileForm({
             New profile
           </p>
           <h2 style={{ fontFamily: sansFont, fontSize: 20, fontWeight: 300, color: NAVY, marginBottom: 24, lineHeight: 1.3 }}>
-            Who are you checking<br /><strong style={{ fontWeight: 500 }}>symptoms for?</strong>
+            Who are you creating<br /><strong style={{ fontWeight: 500 }}>this profile for?</strong>
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {profileTypeOptions.map((type, i) => (

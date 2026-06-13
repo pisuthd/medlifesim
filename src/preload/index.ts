@@ -1,15 +1,56 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type {
+  ChatMessage,
+  ModelEntry,
+  ModelLoadProgress,
+  ModelErrorPayload,
+  ModelStatus,
+  SupportedTargetLang,
+  TranslationStatus,
+} from './index.d'
 
 // Custom APIs for renderer
 const api = {
   profiles: {
     getAll: () => ipcRenderer.invoke('profiles:getAll'),
-    add: (profile: { name: string; type: string; age?: number; gender?: string }) => 
+    add: (profile: { name: string; type: string; age?: number; gender?: string }) =>
       ipcRenderer.invoke('profiles:add', profile),
     remove: (id: string) => ipcRenderer.invoke('profiles:remove', id),
   },
-  
+
+  models: {
+    list: (): Promise<ModelEntry[]> => ipcRenderer.invoke('models:list'),
+    add: (entry: {
+      name: string
+      source: string
+      description?: string
+      quantization?: string
+      params?: string
+    }): Promise<ModelEntry> => ipcRenderer.invoke('models:add', entry),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('models:remove', id),
+    select: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('models:select', id),
+    selectLora: (loraId: string | null): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('models:selectLora', loraId),
+    cancel: (opts?: { clearCache?: boolean }): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('models:cancel', opts),
+    resetCache: (id: string): Promise<{ success: boolean; deleted: string[]; error?: string }> =>
+      ipcRenderer.invoke('models:resetCache', id),
+    status: (): Promise<ModelStatus> => ipcRenderer.invoke('models:status'),
+    pickFile: (): Promise<string | null> => ipcRenderer.invoke('models:pickFile'),
+    onProgress: (callback: (progress: ModelLoadProgress) => void) => {
+      const handler = (_: unknown, progress: ModelLoadProgress) => callback(progress)
+      ipcRenderer.on('models:progress', handler)
+      return () => ipcRenderer.removeListener('models:progress', handler)
+    },
+    onError: (callback: (err: ModelErrorPayload) => void) => {
+      const handler = (_: unknown, err: ModelErrorPayload) => callback(err)
+      ipcRenderer.on('models:error', handler)
+      return () => ipcRenderer.removeListener('models:error', handler)
+    },
+  },
+
   ai: {
     getStatus: () => ipcRenderer.invoke('ai:getStatus'),
     load: () => ipcRenderer.invoke('ai:load'),
@@ -17,8 +58,12 @@ const api = {
     reload: () => ipcRenderer.invoke('ai:reload'),
     
     // Chat streaming
-    sendMessage: (profileSlug, sessionSlug, message, history, profile) => 
+    sendMessage: (profileSlug: string, sessionSlug: string, message: string, history: ChatMessage[], profile?: { name: string; type: string; age?: number; gender?: string }) => 
       ipcRenderer.invoke('ai:sendMessage', profileSlug, sessionSlug, message, history, profile),
+    
+    // Scenario generation
+    generateScenario: (profileSlug: string, payload: { prompt: string }) =>
+      ipcRenderer.invoke('ai:generateScenario', profileSlug, payload),
     
     // Event listeners for progress
     onDownloadProgress: (callback: (progress: number) => void) => {
@@ -50,7 +95,7 @@ const api = {
       ipcRenderer.on('ai:streamDone', handler)
       return () => ipcRenderer.removeListener('ai:streamDone', handler)
     },
-    
+
     onError: (callback: (error: string) => void) => {
       const handler = (_: any, error: string) => callback(error)
       ipcRenderer.on('ai:error', handler)
@@ -59,35 +104,136 @@ const api = {
   },
   
   sessions: {
-    list: (profileSlug) => ipcRenderer.invoke('sessions:list', profileSlug),
-    create: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:create', profileSlug, sessionSlug),
-    delete: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:delete', profileSlug, sessionSlug),
-    clearMessages: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:clearMessages', profileSlug, sessionSlug),
-    loadMessages: (profileSlug, sessionSlug) => ipcRenderer.invoke('sessions:loadMessages', profileSlug, sessionSlug),
-    saveMessages: (profileSlug, sessionSlug, messages) => 
+    list: (profileSlug: string) => ipcRenderer.invoke('sessions:list', profileSlug),
+    create: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:create', profileSlug, sessionSlug),
+    delete: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:delete', profileSlug, sessionSlug),
+    clearMessages: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:clearMessages', profileSlug, sessionSlug),
+    loadMessages: (profileSlug: string, sessionSlug: string) => ipcRenderer.invoke('sessions:loadMessages', profileSlug, sessionSlug),
+    saveMessages: (profileSlug: string, sessionSlug: string, messages: ChatMessage[]) => 
       ipcRenderer.invoke('sessions:saveMessages', profileSlug, sessionSlug, messages),
-  },
-  
-  tools: {
-    getAll: () => ipcRenderer.invoke('tools:getAll'),
-    setEnabled: (toolId: string, enabled: boolean) => ipcRenderer.invoke('tools:setEnabled', toolId, enabled),
   },
   
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     setCtxSize: (ctx_size: number) => ipcRenderer.invoke('settings:setCtxSize', ctx_size),
+    setWorkerEnabled: (enabled: boolean) => ipcRenderer.invoke('settings:setWorkerEnabled', enabled),
+    setMaxCards: (maxCards: number) => ipcRenderer.invoke('settings:setMaxCards', maxCards),
   },
   
   documents: {
     list: () => ipcRenderer.invoke('documents:list'),
     get: (docId: string) => ipcRenderer.invoke('documents:get', docId),
-    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) => 
+    add: (doc: { type: 'text' | 'ocr' | 'note'; name: string; content: string; metadata?: Record<string, unknown> }) =>
       ipcRenderer.invoke('documents:add', doc),
     update: (docId: string, updates: any) => ipcRenderer.invoke('documents:update', docId, updates),
     delete: (docId: string) => ipcRenderer.invoke('documents:delete', docId),
     search: (query: string) => ipcRenderer.invoke('documents:search', query),
     setProfile: (profileSlug: string) => ipcRenderer.invoke('documents:setProfile', profileSlug),
     processOcr: (imagePath: string) => ipcRenderer.invoke('documents:processOcr', imagePath),
+  },
+
+  simulations: {
+    list: (profileSlug: string) => ipcRenderer.invoke('simulations:list', profileSlug),
+    get: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:get', profileSlug, simId),
+    create: (profileSlug: string, name: string, description: string, canvas: any) =>
+      ipcRenderer.invoke('simulations:create', profileSlug, name, description, canvas),
+    delete: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:delete', profileSlug, simId),
+    requeue: (profileSlug: string, simId: string, outcomeId?: string) =>
+      ipcRenderer.invoke('simulations:requeue', profileSlug, simId, outcomeId),
+    getOutcome: (profileSlug: string, simId: string, outcomeId: string) =>
+      ipcRenderer.invoke('simulations:getOutcome', profileSlug, simId, outcomeId),
+    listOutcomes: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:listOutcomes', profileSlug, simId),
+    getReport: (profileSlug: string, simId: string) =>
+      ipcRenderer.invoke('simulations:getReport', profileSlug, simId),
+    translateReport: (
+      profileSlug: string,
+      simId: string,
+      targetLang: SupportedTargetLang,
+    ) => ipcRenderer.invoke('reports:translate', profileSlug, simId, targetLang),
+    setModalOpen: (profileSlug: string, isOpen: boolean) =>
+      ipcRenderer.invoke('simulations:setModalOpen', profileSlug, isOpen),
+    exportReport: (
+      profileSlug: string,
+      simId: string,
+      format: 'pdf' | 'json' | 'md' | 'csv',
+      data?: any,
+    ) => ipcRenderer.invoke('reports:export', profileSlug, simId, format, data ?? null),
+    onProgress: (callback: (event: any) => void) => {
+      const handler = (_: unknown, e: any) => callback(e)
+      ipcRenderer.on('simulations:progress', handler)
+      return () => ipcRenderer.removeListener('simulations:progress', handler)
+    },
+  },
+
+  datasets: {
+    list: () => ipcRenderer.invoke('datasets:list'),
+    get: (id: string) => ipcRenderer.invoke('datasets:get', id),
+    create: (entry: any) => ipcRenderer.invoke('datasets:create', entry),
+    update: (id: string, patch: any, profileSlug: string) =>
+      ipcRenderer.invoke('datasets:update', id, patch, profileSlug),
+    delete: (id: string) => ipcRenderer.invoke('datasets:delete', id),
+    importJsonl: (): Promise<string | null> => ipcRenderer.invoke('datasets:importJsonl'),
+  },
+
+  trainings: {
+    list: () => ipcRenderer.invoke('trainings:list'),
+    get: (id: string) => ipcRenderer.invoke('trainings:get', id),
+    start: (payload: any) => ipcRenderer.invoke('trainings:start', payload),
+    pause: (id: string) => ipcRenderer.invoke('trainings:pause', id),
+    resume: (id: string) => ipcRenderer.invoke('trainings:resume', id),
+    cancelRun: (id: string) => ipcRenderer.invoke('trainings:cancel', id),
+    delete: (id: string) => ipcRenderer.invoke('trainings:delete', id),
+    onProgress: (callback: (p: any) => void) => {
+      const handler = (_: unknown, p: any) => callback(p)
+      ipcRenderer.on('trainings:progress', handler)
+      return () => ipcRenderer.removeListener('trainings:progress', handler)
+    },
+  },
+
+  loras: {
+    list: () => ipcRenderer.invoke('loras:list'),
+    get: (id: string) => ipcRenderer.invoke('loras:get', id),
+    delete: (id: string) => ipcRenderer.invoke('loras:delete', id),
+    import: (): Promise<any> => ipcRenderer.invoke('loras:import'),
+  },
+
+  p2p: {
+    status: (): Promise<any> => ipcRenderer.invoke('p2p:status'),
+    providerStart: (): Promise<{ success: boolean; publicKey?: string; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerStart'),
+    providerStop: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerStop'),
+    providerSetEnabled: (enabled: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:providerSetEnabled', enabled),
+    consumerSetEnabled: (enabled: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:consumerSetEnabled', enabled),
+    peersList: (): Promise<{ peers: any[] }> => ipcRenderer.invoke('p2p:peersList'),
+    peersAdd: (input: { name: string; publicKey: string }): Promise<{ success: boolean; peer?: any; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersAdd', input),
+    peersRemove: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersRemove', id),
+    peersConnect: (id: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersConnect', id),
+    peersDisconnect: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('p2p:peersDisconnect'),
+    onStatus: (callback: (s: any) => void) => {
+      const handler = (_: unknown, s: any) => callback(s)
+      ipcRenderer.on('p2p:status', handler)
+      return () => ipcRenderer.removeListener('p2p:status', handler)
+    },
+  },
+
+  translation: {
+    supportedLanguages: (): Promise<Array<{ code: SupportedTargetLang; label: string }>> =>
+      ipcRenderer.invoke('translation:supportedLanguages'),
+    status: (): Promise<TranslationStatus> => ipcRenderer.invoke('translation:status'),
+    load: (lang: SupportedTargetLang): Promise<{ success: boolean; modelId?: string; error?: string }> =>
+      ipcRenderer.invoke('translation:load', lang),
+    unload: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('translation:unload'),
   },
 }
 

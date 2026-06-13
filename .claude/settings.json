@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/projects/medlifesim/**)",
+      "Bash(xargs grep -l \"DownloadAssetOptions\\\\|DownloadProgress\")",
+      "Bash(xargs grep -l \"getModelInfo\\\\|ModelRegistry\")",
+      "Bash(npm run typecheck:node)",
+      "Bash(npm run typecheck:web)",
+      "Bash(npm run lint)",
+      "Bash(grep -E \"^C:\\\\\\\\|error\")",
+      "Bash(npx eslint src/main/modelStore.ts src/main/qvac.ts src/renderer/src/context/AIContext.tsx src/renderer/src/pages/ModelSelector.tsx)",
+      "Bash(npx eslint src/main/modelStore.ts src/main/qvac.ts)",
+      "Bash(npx eslint src/renderer/src/context/AIContext.tsx src/renderer/src/pages/ModelSelector.tsx)",
+      "Bash(npx eslint src/renderer/src/context/AIContext.tsx)",
+      "Bash(npx eslint src/renderer/src/pages/ModelSelector.tsx)",
+      "Bash(cat .eslintrc*)",
+      "Bash(cat eslint.config.*)",
+      "Bash(npx eslint src/main/index.ts src/preload/index.ts src/preload/index.d.ts src/renderer/src/App.tsx src/renderer/src/pages/Chat.tsx)",
+      "Bash(npx eslint src/main/index.ts)",
+      "Bash(npm run build)",
+      "Bash(npm run typecheck)"
+    ]
+  }
+}
