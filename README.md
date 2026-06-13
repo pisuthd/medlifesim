@@ -1,65 +1,66 @@
-# MedLifeSim — Private, On-Device Medical AI
+# MedLifeSim
 
-> A privacy-first desktop app for medical consultations. Chat with a local LLM, upload documents, run counterfactual simulations, fine-tune your own adapter, and translate reports into 18 languages — all on-device, with no data leaving your machine.
+> A privacy-first on-device medical AI sandbox powered by the QVAC MedPsy medical language model.
 
 <!-- Hero image: drop a `docs/images/hero.png` (Dashboard screenshot, ~1280×800) and uncomment the line below. -->
 <!-- ![MedLifeSim hero](docs/images/hero.png) -->
 
+## Why we build MedLifeSim
+
+QVAC MedPsy is a medical language model from Tether AI designed to run on edge devices. We built MedLifeSim to explore what medical AI can become when it's more than just another chat interface.
+
+- **Accessible by design.** Advanced medical AI shouldn't require expensive infrastructure. MedLifeSim runs on everyday hardware, making experimentation possible on a budget desktop or laptop.
+- **More than a chatbot.** Simulations, visual canvases, and structured reports transform conversations into a workspace for exploring health scenarios.
+- **Built to inform, not diagnose.** AI is most useful when helping people understand options, compare interventions, and ask better questions—not replacing clinical judgment.
+- **Expand access.** Make virtual health scenario exploration available to educators, community organizations, caregivers, and smaller teams.
+
 ## What is MedLifeSim?
 
-**MedLifeSim** is a desktop app that turns a local language model into a real medical workflow tool — not a chatbot, but a research and consultation surface that runs entirely on your machine.
+**MedLifeSim** is an Electron-based desktop application and a privacy-first, on-device medical AI sandbox powered by **QVAC MedPsy**, allowing individuals and organizations to explore health scenarios without relying on cloud services or exposing sensitive data.
 
-The model is loaded through the **[QVAC SDK](https://www.npmjs.com/package/@qvac/sdk)**, so the model — and your conversations, documents, simulations, and fine-tunes — never touch a cloud API. Translation runs through **[Bergamot NMT](https://github.com/browsermt/bergamot-translator)** (Mozilla's on-device translator). P2P sharing is opt-in and uses Hyperswarm with a `fallbackToLocal: true` consumer, so a dead peer never breaks your workflow.
+Built around a **Subject → Exposure → Intervention** simulation workflow, MedLifeSim helps users examine how different decisions may shape outcomes across a wide range of contexts—from hospital use cases such as emergency transfusion response, to community challenges like teen substance abuse, school infectious outbreaks, workplace secondhand smoke exposure, and urban lifestyle health risks. 
 
-The app supports **four profiles** (self, family member, doctor, community) so multiple people can share one installation with fully isolated data — separate chat history, separate documents, separate simulation reports, separate LoRA adapters.
-
-**What you can do with it:**
-
-- Chat with the model directly, with a streaming UI and a live status pill for model load / error / training lock.
-- Upload text, OCR'd scans, and free-form notes; the model references them when you chat.
-- Build a **Subject → Exposure → Intervention** scenario on a canvas, enumerate every path, and run each one through the model. Get a structured report with per-path risk, best/worst intervention rankings, and a pre-rendered executive summary.
-- **Translate** any report into 1 of 18 languages on-device (Bergamot, not Google Translate).
-- **Fine-tune** a LoRA adapter on your own simulation outcomes — SFT over JSONL — and bind the result back into the chat. Watch loss and ETA live.
-- **(Opt-in) share** your fine-tuned model with a trusted peer over Hyperswarm DHT. The consumer always falls back to local.
-
-MedLifeSim is **not a substitute for a licensed clinician**. The medical disclaimer ([`src/shared/disclaimer.ts`](src/shared/disclaimer.ts)) is surfaced prominently in the app. It's an assistant that helps you organize information, run scenarios, and explore what-ifs — you make the calls.
+Rather than providing definitive answers, MedLifeSim offers a safe environment to explore possibilities, compare interventions, and better understand real-world health scenarios before they happen.
 
 ---
 
-## Highlight features
+## Highlight Features
 
-- **🩺 On-device AI chat** — QVAC SDK loads the model locally. Streaming responses, model-load progress, retryable error mapping. No cloud.
-- **👥 Multi-profile** — Self / family / doctor / community. Each profile gets its own chat sessions, documents, simulations, and training data. Deleting a profile wipes its directory.
-- **📄 Documents** — Text, OCR'd scans, free-form notes. Semantic search across the profile's document set.
-- **🧪 Counterfactual simulations** — Drag-and-drop canvas (dnd-kit). Subject → Exposure → Intervention path enumeration. The worker runs each path through the model. Reports aggregate best/worst interventions, per-subject risk, and a pre-rendered executive summary.
-- **🌍 18-language report translation** — Bergamot NMT runs locally. Click the translation picker on any report, pick a target language, see it translated in place. The English original is preserved underneath.
-- **🎯 LoRA training** — Supervised fine-tuning over your own simulation outcomes. Choose rank / alpha / epochs / batch size, watch loss + ETA live, and bind the trained adapter back to the chat.
-- **🔗 Opt-in P2P model sharing** — Hyperswarm DHT provider/consumer. Delegate outcomes work to a trusted peer; always falls back to local. Disable entirely in Settings.
-- **🛡️ Strict privacy** — No cloud calls, no telemetry, no analytics SDK, no error reporting service. All inference, translation, OCR, and (optional) P2P run on-device.
+* **Ready-to-use medical models** — Start immediately with **MedPsy 1.7B and 4B** models downloaded directly from Hugging Face, or import your own compatible local models.
+
+* **Organized local workspace** — Create multiple profiles and maintain separate chat sessions, simulations, and training data for each. Everything persists as local files, with a structure inspired by OpenClaw for reliability and simplicity.
+
+* **Scenario canvas and simulation engine** — Build health scenarios using three card types: **Subject → Exposure → Intervention**. Generate possible pathways and sequentially analyze **up to 100 outcomes** entirely on your desktop.
+
+* **Prompt-to-Scenario generation** — Describe a health situation in plain language and let AI automatically generate the corresponding Subject, Exposure, and Intervention cards.
+
+* **Distributed simulation with P2P resource sharing** — Accelerate large simulations by distributing outcome processing across trusted peers within an organization using Hyperswarm.
+
+* **Structured simulation reports** — Compare interventions through reports that summarize outcome pathways, highlight best and worst approaches, estimate subject-level risk, and generate executive summaries. Export reports to PDF, Markdown, JSON, CSV, and more.
+
+* **Translate reports into any language** — Translate reports locally using Bergamot NMT while preserving the original English version for reference.
+
+* **Fine-tune with your own data** — Use LoRA to fine-tune MedPsy with simulation outcomes and private datasets, then apply the adapted model in future conversations and simulations for more personalized results.
+
+* **Privacy by design** — No cloud APIs, telemetry, analytics, or external reporting services. Inference, simulations, translation, and optional distributed processing remain under your control.
 
 ## Quick links
 
-- **Live demo** — *(not yet published; this is a beta)*
-- **Discord / community** — *(not yet set up)*
-- **Issues** — open a GitHub issue
-- **Disclaimer** — [src/shared/disclaimer.ts](src/shared/disclaimer.ts)
+- **v1.0.0-beta.1 (Windows)** — [Download on GitHub Releases](https://github.com/pisuthd/medlifesim/releases/tag/v.1.0.0-beta.1)
+- **Landing page** — [medlifesim.xyz](https://medlifesim.xyz/)
+- **YouTube demo (3 min)** — [Watch on YouTube](https://youtu.be/h1j-_VYcWP8)
 
 ## Tech stack
 
 | Layer | What's used |
 | --- | --- |
 | Runtime | Electron 39 |
-| UI | React 19 + React Router 7 (HashRouter) |
-| Language | TypeScript 5.9 (strict, two tsconfigs: `tsconfig.node.json` for main/preload, `tsconfig.web.json` for renderer) |
+| Frontend UI | React 19 + React Router 7 with TypeScript 5.9 |
 | Bundler | `electron-vite` 5 (Vite 7 under the hood) |
 | Model runtime | `@qvac/sdk` 0.12.2 — `loadModel`, `translate`, P2P, fine-tune |
 | Translation | Bergamot NMT (via QVAC), 18 language pairs |
-| P2P | Hyperswarm (via QVAC), with `fallbackToLocal: true` |
+| P2P | Hyperswarm (via QVAC)  |
 | Canvas | dnd-kit (Subject / Exposure / Intervention drag-and-drop) |
-| Animation | framer-motion |
-| Markdown | react-markdown + remark-gfm (simulation reports) |
-| Icons | lucide-react |
-| Validation | zod |
 
 ---
 
@@ -69,9 +70,17 @@ This walkthrough mirrors the actual user flow: from cold boot to running a trans
 
 ### 1. Install and launch
 
+**Most users — download the prebuilt installer:**
+
+Grab the latest build from the [GitHub Releases page](https://github.com/pisuthd/medlifesim/releases) (Windows installer available; macOS and Linux builds are coming next). Run the installer, and MedLifeSim opens. No extra setup yet — you'll pick a base model in the next step.
+
+**Developers — build from source:**
+
+If you want to hack on MedLifeSim or run an unreleased platform, clone the repo and boot it in dev mode:
+
 ```bash
-git clone https://github.com/pisuthd/medpsy-doctor.git
-cd medpsy-doctor
+git clone https://github.com/pisuthd/medlifesim.git
+cd medlifesim
 npm install
 npm run dev
 ```
@@ -149,8 +158,8 @@ You can leave P2P off entirely. It's an opt-in feature.
 ### Local setup
 
 ```bash
-git clone https://github.com/pisuthd/medpsy-doctor.git
-cd medpsy-doctor
+git clone https://github.com/pisuthd/medlifesim.git
+cd medlifesim
 npm install
 npm run dev
 ```
@@ -180,48 +189,13 @@ npm run dev
 
 ```
 my-doctor-ai/
-├── src/
-│   ├── main/                   # Electron main process
-│   │   ├── qvac.ts             # QVAC SDK chokepoint (load/unload/LoRA/error)
-│   │   ├── translation.ts      # Bergamot NMT runtime
-│   │   ├── p2p.ts              # Hyperswarm provider/consumer
-│   │   ├── finetune.ts         # LoRA / SFT training
-│   │   ├── simulationWorker.ts # Outcomes worker
-│   │   ├── reportExport.ts     # PDF/JSON/MD/CSV report writer
-│   │   ├── ocr.ts              # On-device OCR
-│   │   ├── tools/              # Document & outcome tool handlers
-│   │   ├── sessions.ts         # Chat session persistence
-│   │   ├── modelStore.ts       # Model catalog
-│   │   └── index.ts            # Main entry
-│   │
-│   ├── preload/                # IPC bridge exposed as `window.api`
-│   │   ├── index.ts
-│   │   ├── index.d.ts          # `window.api` type
-│   │   └── simulation.d.ts     # Shared simulation types
-│   │
-│   ├── renderer/               # React app
-│   │   ├── index.html
-│   │   └── src/
-│   │       ├── App.tsx         # Boot state machine + HashRouter
-│   │       ├── context/        # AIContext, ProfileContext, TrainingContext
-│   │       ├── components/     # PageWrapper, Sidebar, ui/ primitives, etc.
-│   │       ├── pages/          # Dashboard, Chat, Sessions, …
-│   │       ├── data/           # Simulation cards, paths, templates
-│   │       ├── utils/          # format, risk, modelDisplay
-│   │       └── theme.ts        # BLUE / TEAL / NAVY / MUTED palette
-│   │
-│   └── shared/                 # Used by main + renderer
-│       ├── outcomeParser.ts
-│       ├── outcomeReport.ts    # Pure aggregator (best/worst interventions)
-│       ├── scenarioPresets.ts
-│       └── disclaimer.ts       # Medical disclaimer text
-│
-├── build/                      # App icons (icns/ico/png)
-├── resources/                  # Runtime resources
+├── src/             # main, preload, renderer, shared
+├── build/           # App icons
+├── resources/       # Runtime resources
 ├── electron.vite.config.ts
-├── electron-builder.yml        # Installer config (NSIS, DMG, AppImage)
-├── tsconfig.node.json          # Main + preload
-├── tsconfig.web.json           # Renderer
+├── electron-builder.yml
+├── tsconfig.node.json
+├── tsconfig.web.json
 └── package.json
 ```
 
@@ -280,9 +254,7 @@ If you have feature requests, open an issue.
 
 ## License
 
-[MIT](LICENSE) © Pisuth D.
-
-> _A `LICENSE` file is not yet committed; this README references MIT as the intended license. The standard MIT text should be added in a follow-up._
+[MIT](LICENSE) © Tamago Labs
 
 ## Acknowledgments
 
