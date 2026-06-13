@@ -5,12 +5,13 @@ import PageWrapper from '../components/PageWrapper'
 import TranslationPicker from '../components/TranslationPicker'
 import { useProfile } from '../context/ProfileContext'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../theme'
+import StatusPill, { STATUS_COLOR, STATUS_LABEL } from '../components/ui/StatusPill'
+import { riskColor } from '../utils/risk'
 import type { ParsedOutcomeReport } from '../../../shared/outcomeParser'
 import type { ReportAggregate } from '../../../shared/outcomeReport'
 import type {
   SimulationOutcome,
   SimulationParent,
-  SimulationStatus,
 } from '../../../preload/simulation'
 import type { SupportedTargetLang } from '../../../preload/index.d'
 import { MEDLIFESIM_DISCLAIMER } from '../../../shared/disclaimer'
@@ -22,32 +23,8 @@ interface ReportResponse {
   aggregate: ReportAggregate
 }
 
-const STATUS_COLOR: Record<SimulationStatus, string> = {
-  queued: MUTED,
-  processing: BLUE,
-  completed: TEAL,
-  partial: '#cc8a00',
-  error: '#c83030',
-}
-
-const STATUS_LABEL: Record<SimulationStatus, string> = {
-  queued: 'Queued',
-  processing: 'Processing',
-  completed: 'Completed',
-  partial: 'Partial',
-  error: 'Error',
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
-}
-
-function riskColor(risk: number | null): string {
-  if (risk === null) return MUTED
-  if (risk < 25) return TEAL
-  if (risk < 50) return '#3ec480'
-  if (risk < 75) return '#cc8a00'
-  return '#c83030'
 }
 
 export default function SimulationReport() {
@@ -445,22 +422,7 @@ function ReportBody({
               gap: 6,
             }}
           >
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '3px 10px',
-                background: statusColor + '22',
-                color: statusColor,
-                borderRadius: 999,
-                fontFamily: monoFont,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {statusLabel}
-            </span>
+            <StatusPill color={statusColor}>{statusLabel}</StatusPill>
             <span
               style={{
                 fontFamily: monoFont,

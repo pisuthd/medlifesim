@@ -4,26 +4,13 @@ import { motion } from 'framer-motion'
 import { useProfile } from '../context/ProfileContext'
 import PageWrapper from '../components/PageWrapper'
 import { TEAL, MUTED, monoFont, sansFont } from '../theme'
+import { relativeDate } from '../utils/format'
 
 interface Session {
   slug: string
   name: string
   createdAt: string
   messageCount: number
-}
-
-function formatDate(isoString: string): string {
-  const date = new Date(isoString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 14) return '1 week ago'
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString()
 }
 
 export default function Sessions() {
@@ -128,7 +115,7 @@ export default function Sessions() {
                 >
                   <span style={{ fontFamily: sansFont, fontSize: 14, color: '#1a1a2e', fontWeight: 500 }}>{session.name}</span>
                 </div>
-                <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{formatDate(session.createdAt)}</span>
+                <span style={{ fontFamily: monoFont, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{relativeDate(session.createdAt)}</span>
                 <span style={{ fontFamily: monoFont, fontSize: 12, color: MUTED, textAlign: 'right' }}>{session.messageCount}</span>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                   {session.slug === 'main' && (

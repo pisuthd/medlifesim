@@ -4,6 +4,7 @@ import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
 import { useAI } from '../../context/AIContext'
 import { SCENARIO_PRESETS } from '../../../../shared/scenarioPresets'
 import type { SimCardTemplate } from '../../types/simulation'
+import Spinner from '../ui/Spinner'
 
 /**
  * F.15: Prompt-to-Scenario modal. The user describes a scenario in
@@ -652,7 +653,7 @@ export default function PromptToScenarioModal({
                 </span>
               ) : (
                 <>
-                  <Spinner />
+                  <Spinner size={14} />
                   <span
                     style={{
                       fontFamily: monoFont,
@@ -732,22 +733,6 @@ export default function PromptToScenarioModal({
         </footer>
       </motion.div>
     </motion.div>
-  )
-}
-
-function Spinner() {
-  return (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
-      style={{
-        width: 14,
-        height: 14,
-        borderRadius: '50%',
-        border: '2px solid ' + BLUE,
-        borderTopColor: 'transparent',
-      }}
-    />
   )
 }
 

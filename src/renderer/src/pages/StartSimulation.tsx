@@ -22,6 +22,7 @@ import {
 import { canEnumerate, enumeratePaths } from '../data/simulationPaths'
 import { useProfile } from '../context/ProfileContext'
 import { BLUE, MUTED, monoFont } from '../theme'
+import Spinner from '../components/ui/Spinner'
 import {
   EMPTY_CANVAS,
   type CanvasCard,
@@ -871,20 +872,4 @@ function defaultName(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `Scenario · ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-function Spinner() {
-  return (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
-      style={{
-        width: 12,
-        height: 12,
-        borderRadius: '50%',
-        border: '2px solid ' + BLUE,
-        borderTopColor: 'transparent',
-      }}
-    />
-  )
 }

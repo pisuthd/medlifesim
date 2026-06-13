@@ -5,10 +5,10 @@ import { BLUE, TEAL, NAVY, MUTED, monoFont, sansFont } from '../theme'
 const navItems = [
   { path: '/chat', label: 'Chat', icon: MessageCircle, category: 'chat' },
   { path: '/sessions', label: 'Sessions', icon: History, category: 'chat' },
+  { path: '/training', label: 'Training', icon: Sliders, category: 'chat' },
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, category: 'account' },
   { path: '/start-simulation', label: 'New Simulation', icon: Play, category: 'account' },
   { path: '/recent-simulations', label: 'Recent Simulations', icon: FolderOpen, category: 'account' },
-  { path: '/training', label: 'Training', icon: Sliders, category: 'account' },
   { path: '/settings', label: 'Settings', icon: Settings, category: 'settings' },
 ]
 

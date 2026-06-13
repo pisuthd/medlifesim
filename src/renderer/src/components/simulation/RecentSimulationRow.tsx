@@ -1,27 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../../theme'
+import StatusPill, { STATUS_COLOR, STATUS_LABEL } from '../ui/StatusPill'
+import { relativeDate } from '../../utils/format'
 import type {
   PathStatus,
   SimulationOutcome,
   SimulationParent,
-  SimulationStatus,
 } from '../../../../preload/simulation'
-
-const STATUS_COLOR: Record<SimulationStatus, string> = {
-  queued: MUTED,
-  processing: BLUE,
-  completed: TEAL,
-  partial: '#cc8a00',
-  error: '#c83030',
-}
-
-const STATUS_LABEL: Record<SimulationStatus, string> = {
-  queued: 'Queued',
-  processing: 'Processing',
-  completed: 'Completed',
-  partial: 'Partial',
-  error: 'Error',
-}
 
 const OUTCOME_STATUS_COLOR: Record<PathStatus, string> = {
   pending: MUTED,
@@ -228,7 +213,7 @@ export default function RecentSimulationRow({
             letterSpacing: '0.06em',
           }}
         >
-          {formatDate(sim.createdAt)}
+          {relativeDate(sim.createdAt)}
         </span>
         <span
           style={{
@@ -244,24 +229,7 @@ export default function RecentSimulationRow({
             </span>
           )}
         </span>
-        <span
-          style={{
-            display: 'inline-block',
-            padding: '3px 10px',
-            background: color + '22',
-            color,
-            borderRadius: 999,
-            fontFamily: monoFont,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            textAlign: 'center',
-            width: 'fit-content',
-          }}
-        >
-          {label}
-        </span>
+        <StatusPill color={color}>{label}</StatusPill>
         <div
           style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}
           onClick={(e) => e.stopPropagation()}
@@ -397,17 +365,4 @@ export default function RecentSimulationRow({
       </AnimatePresence>
     </div>
   )
-}
-
-function formatDate(isoString: string): string {
-  const date = new Date(isoString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 14) return '1 week ago'
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString()
 }
