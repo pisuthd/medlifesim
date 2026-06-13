@@ -1,11 +1,155 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useProfile } from '../context/ProfileContext'
 import { useAI } from '../context/AIContext'
 import PageWrapper from '../components/PageWrapper'
 import LoRAPicker from '../components/LoRAPicker'
 import { BLUE, NAVY, MUTED, LIGHT_BLUE, monoFont, sansFont } from '../theme'
+
+/**
+ * Inline-style overrides for the assistant's finalized message
+ * content. The local LLM frequently formats its replies as
+ * markdown (bold for drug names, lists for step-by-step
+ * instructions, headings for section breaks, code for dosages,
+ * etc.) — we only render the *finalized* message (i.e. once the
+ * stream completes) as markdown. The live `streamingContent`
+ * stays as plain text so the UI doesn't re-parse on every token.
+ */
+const markdownComponents = {
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p style={{ margin: '8px 0', fontSize: 14, lineHeight: 1.5 }}>{children}</p>
+  ),
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 style={{ fontSize: 18, fontWeight: 700, margin: '12px 0 6px', color: NAVY }}>{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 style={{ fontSize: 16, fontWeight: 700, margin: '10px 0 4px', color: NAVY }}>{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 style={{ fontSize: 15, fontWeight: 700, margin: '8px 0 4px', color: NAVY }}>{children}</h3>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul style={{ margin: '6px 0', paddingLeft: 20 }}>{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol style={{ margin: '6px 0', paddingLeft: 20 }}>{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li style={{ margin: '2px 0', fontSize: 14, lineHeight: 1.5 }}>{children}</li>
+  ),
+  // Inline vs block code: react-markdown tags block fences with
+  // `className="language-xxx"`, inline code has no language class.
+  code: ({
+    className,
+    children,
+    ...rest
+  }: {
+    className?: string
+    children?: React.ReactNode
+  } & React.HTMLAttributes<HTMLElement>) => {
+    const isBlock = className?.startsWith('language-')
+    if (isBlock) {
+      return (
+        <code
+          className={className}
+          style={{
+            display: 'block',
+            fontFamily: monoFont,
+            fontSize: 13,
+            background: '#f0f0f5',
+            padding: 8,
+            borderRadius: 4,
+            whiteSpace: 'pre-wrap',
+            overflowX: 'auto',
+            color: NAVY,
+          }}
+          {...rest}
+        >
+          {children}
+        </code>
+      )
+    }
+    return (
+      <code
+        className={className}
+        style={{
+          fontFamily: monoFont,
+          fontSize: 13,
+          background: '#f0f0f5',
+          padding: '1px 5px',
+          borderRadius: 3,
+          color: NAVY,
+        }}
+        {...rest}
+      >
+        {children}
+      </code>
+    )
+  },
+  pre: ({ children }: { children?: React.ReactNode }) => (
+    <pre style={{ margin: '6px 0', overflowX: 'auto' }}>{children}</pre>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong style={{ fontWeight: 700 }}>{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => (
+    <em style={{ fontStyle: 'italic' }}>{children}</em>
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      style={{ color: BLUE, textDecoration: 'underline' }}
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote
+      style={{
+        borderLeft: `3px solid ${MUTED}`,
+        paddingLeft: 12,
+        margin: '6px 0',
+        color: MUTED,
+      }}
+    >
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e0e0f0', margin: '12px 0' }} />,
+  table: ({ children }: { children?: React.ReactNode }) => (
+    <table
+      style={{
+        borderCollapse: 'collapse',
+        margin: '8px 0',
+        fontSize: 13,
+        width: '100%',
+      }}
+    >
+      {children}
+    </table>
+  ),
+  th: ({ children }: { children?: React.ReactNode }) => (
+    <th
+      style={{
+        border: '1px solid #e0e0f0',
+        padding: '6px 8px',
+        background: '#f7f7fc',
+        textAlign: 'left',
+        fontWeight: 700,
+      }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }: { children?: React.ReactNode }) => (
+    <td style={{ border: '1px solid #e0e0f0', padding: '6px 8px' }}>{children}</td>
+  ),
+}
 
 interface ChatMessage {
   id: string
@@ -334,7 +478,24 @@ export default function Chat() {
                   border: message.role === 'user' ? 'none' : '1px solid #e0e0f0',
                 }}
               >
-                <p style={{ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>{message.content.trimStart()}</p>
+                {message.role === 'assistant' ? (
+                  // Once the stream completes, the content is finalised
+                  // and we render it as markdown so the model's
+                  // formatting (lists, **bold** drug names, code for
+                  // dosages, tables, etc.) shows up properly. The live
+                  // `streamingContent` block below stays plain text so
+                  // we don't re-parse on every token.
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {message.content.trimStart()}
+                  </ReactMarkdown>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                    {message.content.trimStart()}
+                  </p>
+                )}
               </div>
             </motion.div>
           ))}

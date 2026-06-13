@@ -57,7 +57,8 @@
       "Bash(done)",
       "Bash(grep -n -B2 -A5 \"lora\" c:/projects/my-doctor-ai/node_modules/@qvac/sdk/dist/client/api/*.js c:/projects/my-doctor-ai/node_modules/@qvac/sdk/dist/client/api/*.d.ts)",
       "Bash(xargs ls -la)",
-      "Bash(ls c:/projects/my-doctor-ai/src/renderer/src/theme*)"
+      "Bash(ls c:/projects/my-doctor-ai/src/renderer/src/theme*)",
+      "Bash(ls README*)"
     ],
     "additionalDirectories": [
       "\\tmp"
