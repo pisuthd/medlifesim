@@ -1,5 +1,5 @@
-appId: com.medpsy.doctor
-productName: MedPsy Doctor
+appId: com.medlife.sim
+productName: MedLifeSim
 directories:
   buildResources: build
 files:
@@ -17,7 +17,7 @@ extraResources:
   - from: "node_modules/bare-runtime"
     to: "bare-runtime"
 win:
-  executableName: MedPsyDoctor
+  executableName: MedLifeSim
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

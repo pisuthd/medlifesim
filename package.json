@@ -1,10 +1,10 @@
 {
   "name": "medlifesim",
   "version": "1.0.0-beta.1",
-  "description": "Private & On-Device AI Health Assistant - Chat with AI, upload documents, enable tools for medical consultations",
+  "description": "A sandbox for real-world health scenarios powered by QVAC MedPsy",
   "main": "./out/main/index.js",
   "author": "Pisuth D.",
-  "homepage": "https://github.com/pisuthd/medpsy-doctor",
+  "homepage": "https://github.com/pisuthd/medlifesim",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -27,7 +27,8 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@qvac/sdk": "0.12.2",
-    "@tailwindcss/vite": "^4.3.0",
+    "@tailwindcss/vite": "^4.3.0", 
+    "bare-rpc": "^1.3.3",
     "buffer": "6.0.3",
     "framer-motion": "^12.39.0",
     "lucide-react": "^1.17.0",
@@ -38,6 +39,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+   "bare-pack": "^2.0.1",
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
