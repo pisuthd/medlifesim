@@ -2,14 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAI } from '../../context/AIContext'
 import { BLUE, NAVY, MUTED, monoFont, sansFont } from '../../theme'
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontFamily: monoFont, fontSize: 11, letterSpacing: '0.14em', color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>
-      {children}
-    </p>
-  )
-}
+import SectionLabel from '../ui/SectionLabel'
 
 const CTX_SIZES = [2048, 4096, 8192]
 const MAX_CARDS_OPTIONS = [6, 12, 24]

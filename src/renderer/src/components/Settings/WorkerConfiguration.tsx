@@ -1,23 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BLUE, MUTED, NAVY, monoFont, sansFont } from '../../theme'
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      style={{
-        fontFamily: monoFont,
-        fontSize: 11,
-        letterSpacing: '0.14em',
-        color: MUTED,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </p>
-  )
-}
+import SectionLabel from '../ui/SectionLabel'
 
 export default function WorkerConfiguration() {
   const [workerEnabled, setWorkerEnabled] = useState(true)

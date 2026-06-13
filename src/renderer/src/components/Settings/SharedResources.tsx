@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Plus, Trash2, X } from 'lucide-react'
 import { BLUE, MUTED, NAVY, TEAL, monoFont, sansFont } from '../../theme'
+import SectionLabel from '../ui/SectionLabel'
+import Pill from '../ui/Pill'
+import MonoButton from '../ui/MonoButton'
 
 /**
  * Settings → Shared Resources — the P2P tab.
@@ -46,111 +49,6 @@ interface P2PStatus {
 }
 
 const HEX_KEY_RE = /^[0-9a-f]{64}$/
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      style={{
-        fontFamily: monoFont,
-        fontSize: 11,
-        letterSpacing: '0.14em',
-        color: MUTED,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </p>
-  )
-}
-
-function Pill({
-  tone,
-  children,
-}: {
-  tone: 'idle' | 'busy' | 'ok' | 'error'
-  children: React.ReactNode
-}) {
-  const colors: Record<typeof tone, { bg: string; fg: string; border: string }> = {
-    idle: { bg: '#f3f3f8', fg: MUTED, border: '#e0e0f0' },
-    busy: { bg: '#e6e6ff', fg: BLUE, border: '#d0d0ff' },
-    ok: { bg: '#d6f5f3', fg: '#1a7a76', border: '#a8e6e2' },
-    error: { bg: '#fbe6e6', fg: '#a82020', border: '#f0b0b0' },
-  }
-  const c = colors[tone]
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '3px 10px',
-        background: c.bg,
-        color: c.fg,
-        border: `1px solid ${c.border}`,
-        borderRadius: 999,
-        fontFamily: monoFont,
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: '0.10em',
-        textTransform: 'uppercase',
-      }}
-    >
-      {children}
-    </span>
-  )
-}
-
-function MonoButton({
-  onClick,
-  disabled,
-  variant = 'default',
-  children,
-}: {
-  onClick: () => void
-  disabled?: boolean
-  variant?: 'default' | 'primary' | 'danger'
-  children: React.ReactNode
-}) {
-  const styles: Record<typeof variant, React.CSSProperties> = {
-    default: {
-      background: '#fff',
-      color: NAVY,
-      border: '1px solid #e0e0f0',
-    },
-    primary: {
-      background: TEAL,
-      color: '#fff',
-      border: '1px solid transparent',
-    },
-    danger: {
-      background: '#fff',
-      color: '#a82020',
-      border: '1px solid #f0d0d0',
-    },
-  }
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      whileHover={disabled ? undefined : { scale: 1.02 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      style={{
-        padding: '6px 14px',
-        ...styles[variant],
-        borderRadius: 6,
-        fontFamily: monoFont,
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: '0.10em',
-        textTransform: 'uppercase',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      {children}
-    </motion.button>
-  )
-}
 
 function truncateKey(publicKey: string): string {
   if (publicKey.length < 20) return publicKey
