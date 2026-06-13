@@ -58,8 +58,7 @@ The canvas has three columns of cards:
   - exposure: the source of risk (dose, duration, setting, etc.)
   - intervention: how to reduce harm (type, intensity, compliance, etc.)
 
-Each line is ONE card. Output as many cards as the scenario needs
-(typically 5-10). No prose, no markdown, no code fences, no
+Each line is ONE card. Output as many cards as the scenario needs. No prose, no markdown, no code fences, no
 commentary, no summary text. Just the JSON lines, then stop.
 
 Each card line is one of these three shapes — pick whichever
@@ -72,8 +71,7 @@ Intervention:    {"category":"intervention","title":"...","interventionFields":{
 The "category" field must be exactly one of: subject, exposure, or
 intervention. Never write a pipe (|) in the category value.
 
-Aim for at least 1 exposure + 1-2 subject + 1-2 intervention, then
-add more cards if the scenario benefits from it.`
+Aim for at least 1 exposure + 2 subject + 2 intervention.`
 }
 
 export type GenerateScenarioResult =

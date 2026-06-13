@@ -9,10 +9,11 @@ import Spinner from '../ui/Spinner'
 /**
  * F.15: Prompt-to-Scenario modal. The user describes a scenario in
  * free text (or accepts a preset) and the local model emits cards
- * as JSON Lines — one `{"category":"...","title":"...","<category>Fields":{...}}`
- * per line, no prose. The main process streams the model's text
- * over `ai:streamToken`; this modal buffers the deltas, splits on
- * newlines, and emits one `onCardParsed(card)` per valid card.
+ * as JSONL — one `{"category":"...","title":"...","<category>Fields":{...}}`
+ * per card, no prose. The main process streams the model's text
+ * over `ai:streamToken`; this modal buffers the deltas, brace-walks
+ * the buffer for complete card objects, and emits one
+ * `onCardParsed(card)` per valid card.
  *
  * **Auto-close on first card**: as soon as the first valid card
  * arrives, the modal calls `onCancel()` to hide the prompt UI so
@@ -24,7 +25,7 @@ import Spinner from '../ui/Spinner'
  *   1. user opens modal (`open=true`, `keepMounted=true`)
  *   2. user types prompt, clicks Generate → `handleGenerate` runs
  *   3. IPC `ai:generateScenario` fires; main process streams deltas
- *   4. each delta → buffer + line-split → parse → `onCardParsed`
+ *   4. each delta → buffer + brace-walk → parse → `onCardParsed`
  *   5. on first valid card → `onCancel()` → modal hides UI
  *   6. more cards continue to stream in the background → more
  *      `onCardParsed` calls
@@ -80,31 +81,63 @@ function xForCategory(category: CardCategory): number {
 }
 
 /**
- * Parse a chunk of streamed text into zero or more cards. Walks the
- * chunk with brace-counting, extracting every balanced `{...}` JSON
- * object it finds. Handles two model quirks the local 1.7B exhibits:
- *   - Multiple cards on a single line (`}{}{` chain without `\n`).
- *   - Junk after the balanced `}` (e.g. a stray `, "subtitle":"..."`
- *     at the wrong level) is silently skipped.
+ * Brace-walk `buffer` and extract every complete JSON object that
+ * looks like a scenario card
+ * (`{"category":"...","title":"...","<category>Fields":{...}}`).
  *
- * Two formats are accepted per object:
- *   - Tool-calling leftover: `{"name":"add_canvas_card","arguments":{...}}`
- *   - Clean JSONL:           `{"category":"...","title":"...","<category>Fields":{...}}`
+ * Returns:
+ *   - `cards`: the parsed cards, in order
+ *   - `consumed`: the number of leading characters that have been
+ *     fully processed. The caller should slice the buffer by this
+ *     amount before the next call.
+ *
+ * Edge cases handled:
+ *   - JSON that spans multiple newlines (the depth counter doesn't
+ *     care about `\n`).
+ *   - Multiple cards concatenated without a separator (`}{}{`).
+ *   - Junk between or before cards (whitespace, stray `}`s, prose
+ *     fragments) — we scan past it to the next `{`.
+ *   - A `{` or `}` inside a quoted string value (the walker tracks
+ *     string state and skips braces while inside `"..."`).
+ *   - Incomplete JSON at the end of the buffer (returns `consumed`
+ *     stopping before the incomplete tail; the tail is left in
+ *     the buffer for the next call).
+ *   - Malformed JSON at a balanced `{...}` (e.g. trailing comma)
+ *     — skipped, the walker advances to the next `{`.
  */
-function tryParseCardsFromLine(chunk: string): SimCardTemplate[] {
+function extractCardsFromBuffer(
+  buffer: string
+): { cards: SimCardTemplate[]; consumed: number } {
   const cards: SimCardTemplate[] = []
-  let remaining = chunk
+  let pos = 0
+  let lastConsumedEnd = 0
 
-  while (true) {
-    const trimmed = remaining.trim()
-    if (!trimmed.startsWith('{')) break
+  // Skip leading junk (whitespace, stray `}`, commas, prose
+  // fragments) up to the first `{`. We consume this prefix so the
+  // next call to this function doesn't re-walk it.
+  while (pos < buffer.length && buffer[pos] !== '{') pos++
+  lastConsumedEnd = pos
 
-    // Brace-count from the first `{` to find the matching `}`.
+  while (pos < buffer.length && buffer[pos] === '{') {
+    const start = pos
     let depth = 0
     let endIdx = -1
-    for (let i = 0; i < trimmed.length; i++) {
-      if (trimmed[i] === '{') depth++
-      else if (trimmed[i] === '}') {
+    let inString = false
+    let escape = false
+
+    for (let i = pos; i < buffer.length; i++) {
+      const ch = buffer[i]
+      if (inString) {
+        if (escape) escape = false
+        else if (ch === '\\') escape = true
+        else if (ch === '"') inString = false
+        continue
+      }
+      if (ch === '"') {
+        inString = true
+      } else if (ch === '{') {
+        depth++
+      } else if (ch === '}') {
         depth--
         if (depth === 0) {
           endIdx = i + 1
@@ -112,67 +145,73 @@ function tryParseCardsFromLine(chunk: string): SimCardTemplate[] {
         }
       }
     }
-    if (endIdx === -1) break
+    if (endIdx === -1) break // Incomplete, wait for more tokens
 
+    const objStr = buffer.slice(start, endIdx)
     let parsed: any
     try {
-      parsed = JSON.parse(trimmed.slice(0, endIdx))
+      parsed = JSON.parse(objStr)
     } catch {
-      // Bail out of the loop on a parse error — don't try to
-      // extract more from the same offset. (A new line in the
-      // next delta will start a fresh attempt.)
-      break
+      // Malformed JSON with balanced braces (e.g. trailing comma).
+      // Skip past this object and keep looking for valid cards.
+      pos = endIdx
+      while (pos < buffer.length && buffer[pos] !== '{') pos++
+      lastConsumedEnd = pos
+      continue
     }
-    if (parsed && typeof parsed === 'object') {
-      // Accept the tool-calling wrapper format and the flat format.
-      const card =
-        parsed.arguments && typeof parsed.arguments === 'object' ? parsed.arguments : parsed
-      if (VALID_CATEGORIES.includes(card.category)) {
-        // Normalise `comorbidities` to an array of trimmed, non-
-        // empty strings. The local 1.7B model emits a single
-        // string (per the system prompt's "comma-separated"
-        // instruction), but the rest of the app — `CanvasCard`'s
-        // edit form, `simulationWorker` — treat it as `string[]`
-        // and call `.join(', ')`. Coercing at the entry point
-        // keeps the rest of the pipeline simple.
-        const normalisedSubjectFields =
-          card.subjectFields && typeof card.subjectFields === 'object'
-            ? {
-                ...card.subjectFields,
-                comorbidities: Array.isArray(card.subjectFields.comorbidities)
-                  ? card.subjectFields.comorbidities
-                      .map((s: unknown) => String(s).trim())
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      VALID_CATEGORIES.includes(parsed.category)
+    ) {
+      // Normalise `comorbidities` to an array of trimmed, non-
+      // empty strings. The local 1.7B model emits a single
+      // string (per the system prompt's "comma-separated"
+      // instruction), but the rest of the app — `CanvasCard`'s
+      // edit form, `simulationWorker` — treat it as `string[]`
+      // and call `.join(', ')`. Coercing at the entry point
+      // keeps the rest of the pipeline simple.
+      const normalisedSubjectFields =
+        parsed.subjectFields && typeof parsed.subjectFields === 'object'
+          ? {
+              ...parsed.subjectFields,
+              comorbidities: Array.isArray(parsed.subjectFields.comorbidities)
+                ? parsed.subjectFields.comorbidities
+                    .map((s: unknown) => String(s).trim())
+                    .filter(Boolean)
+                : typeof parsed.subjectFields.comorbidities === 'string'
+                  ? parsed.subjectFields.comorbidities
+                      .split(',')
+                      .map((s: string) => s.trim())
                       .filter(Boolean)
-                  : typeof card.subjectFields.comorbidities === 'string'
-                    ? card.subjectFields.comorbidities
-                        .split(',')
-                        .map((s: string) => s.trim())
-                        .filter(Boolean)
-                    : undefined,
-              }
-            : card.subjectFields
+                  : undefined,
+            }
+          : parsed.subjectFields
 
-        const id = `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-        cards.push({
-          id,
-          category: card.category,
-          title:
-            typeof card.title === 'string' && card.title.trim()
-              ? card.title.trim()
-              : `Untitled ${card.category} card`,
-          subtitle: typeof card.subtitle === 'string' ? card.subtitle : undefined,
-          subjectFields: normalisedSubjectFields,
-          exposureFields: card.exposureFields,
-          interventionFields: card.interventionFields,
-        } as SimCardTemplate)
-      }
+      const id = `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+      cards.push({
+        id,
+        category: parsed.category,
+        title:
+          typeof parsed.title === 'string' && parsed.title.trim()
+            ? parsed.title.trim()
+            : `Untitled ${parsed.category} card`,
+        subtitle: typeof parsed.subtitle === 'string' ? parsed.subtitle : undefined,
+        subjectFields: normalisedSubjectFields,
+        exposureFields: parsed.exposureFields,
+        interventionFields: parsed.interventionFields,
+      } as SimCardTemplate)
     }
 
-    // Advance past the consumed object and loop for the next one.
-    remaining = trimmed.slice(endIdx)
+    // Walked past this object — advance to the next `{`,
+    // skipping any junk in between (whitespace, prose, etc.).
+    pos = endIdx
+    while (pos < buffer.length && buffer[pos] !== '{') pos++
+    lastConsumedEnd = pos
   }
 
-  return cards
+  return { cards, consumed: lastConsumedEnd }
 }
 
 export default function PromptToScenarioModal({
@@ -271,28 +310,25 @@ export default function PromptToScenarioModal({
       if (open) setStreamedContent((prev) => prev + token)
 
       bufferRef.current += token
-      const lines = bufferRef.current.split('\n')
-      bufferRef.current = lines.pop() ?? ''
-      for (const line of lines) {
-        if (cardsParsedRef.current >= maxCardsRef.current) continue
-        // One line can carry multiple concatenated cards
-        // (e.g. `}{}{` chains when the model forgets the `\n`).
-        // The parser brace-walks and returns every balanced
-        // object it finds.
-        const parsedCards = tryParseCardsFromLine(line)
-        for (const card of parsedCards) {
-          if (cardsParsedRef.current >= maxCardsRef.current) break
-          cardsParsedRef.current += 1
-          totalCardsThisRunRef.current += 1
-          onCardParsed(card)
+      // Brace-walk the entire buffer — the model frequently emits
+      // cards that span multiple newlines, so we can't rely on
+      // `\n` boundaries. The parser tracks how much of the buffer
+      // it consumed so we can drop it and avoid re-walking the
+      // same bytes on the next token.
+      const { cards, consumed } = extractCardsFromBuffer(bufferRef.current)
+      if (consumed > 0) bufferRef.current = bufferRef.current.slice(consumed)
+      for (const card of cards) {
+        if (cardsParsedRef.current >= maxCardsRef.current) break
+        cardsParsedRef.current += 1
+        totalCardsThisRunRef.current += 1
+        onCardParsed(card)
 
-          // First valid card → auto-close the prompt UI so the
-          // user can watch the rest of the cards populate the
-          // canvas behind it.
-          if (!firstCardSeenRef.current) {
-            firstCardSeenRef.current = true
-            onCancel()
-          }
+        // First valid card → auto-close the prompt UI so the
+        // user can watch the rest of the cards populate the
+        // canvas behind it.
+        if (!firstCardSeenRef.current) {
+          firstCardSeenRef.current = true
+          onCancel()
         }
       }
     })
@@ -302,12 +338,15 @@ export default function PromptToScenarioModal({
     })
 
     const offDone = window.api.ai.onStreamDone(() => {
-      // Final flush: parse any remaining buffer fragment. A
+      // Final flush: drain whatever's left in the buffer. A
       // trailing fragment can still hold one or more concatenated
-      // cards if the model never emitted the last `\n`.
-      if (bufferRef.current.trim() && cardsParsedRef.current < maxCardsRef.current) {
-        const parsedCards = tryParseCardsFromLine(bufferRef.current)
-        for (const card of parsedCards) {
+      // cards if the model never emitted the last `\n` — the
+      // brace-walker handles multi-line JSON, so we just call
+      // the same parser as the streaming path.
+      if (bufferRef.current && cardsParsedRef.current < maxCardsRef.current) {
+        const { cards, consumed } = extractCardsFromBuffer(bufferRef.current)
+        if (consumed > 0) bufferRef.current = bufferRef.current.slice(consumed)
+        for (const card of cards) {
           if (cardsParsedRef.current >= maxCardsRef.current) break
           cardsParsedRef.current += 1
           totalCardsThisRunRef.current += 1
