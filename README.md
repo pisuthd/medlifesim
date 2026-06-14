@@ -240,7 +240,7 @@ npm run dev
 
 ### Environment variables
 
-**None required.** MedLifeSim is fully on-device — there is no API key, no cloud endpoint, no `.env` file. The QVAC SDK handles model download and caching via its own cache directory (configured in `src/main/qvac.ts`). If you proxy a model source through your own server, the SDK supports a `modelSrc` URL — see `@qvac/sdk` docs.
+**None required.** MedLifeSim is fully on-device — there is no API key, no cloud endpoint, no `.env` file. The QVAC SDK handles model download and caching via its own cache directory.
 
 ### npm scripts
 
