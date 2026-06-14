@@ -30,7 +30,7 @@ Rather than providing definitive answers, MedLifeSim offers a safe environment t
 
 * **Organized local workspace** — Create multiple profiles and maintain separate chat sessions, simulations, and training data for each. Everything persists as local files, with a structure inspired by OpenClaw for reliability and simplicity.
 
-* **Scenario canvas and simulation engine** — Build health scenarios using three card types: **Subject → Exposure → Intervention**. Generate possible pathways and sequentially analyze **up to 100 outcomes** entirely on your desktop.
+* **Scenario canvas and simulation engine** — Compose health scenarios on a visual canvas, generate every possible pathway, and sequentially analyze **up to 100 outcomes** entirely on your desktop.
 
 * **Prompt-to-Scenario generation** — Describe a health situation in plain language and let AI automatically generate the corresponding Subject, Exposure, and Intervention cards.
 
@@ -43,6 +43,41 @@ Rather than providing definitive answers, MedLifeSim offers a safe environment t
 * **Fine-tune with your own data** — Use LoRA to fine-tune MedPsy with simulation outcomes and private datasets, then apply the adapted model in future conversations and simulations for more personalized results.
 
 * **Privacy by design** — No cloud APIs, telemetry, analytics, or external reporting services. Inference, simulations, translation, and optional distributed processing remain under your control.
+
+## Example use cases
+
+> **Scenario in this section:** *Hospital · Emergency Transfusion* — a post-adverse-event rescue simulation for incompatible blood transfusion scenarios. Two patient populations (trauma, emergency), 4 rescue interventions, 8 paths total. This is the same template shipped in the app; the numbers below come from one real run.
+
+### What you explore
+
+After a patient receives the wrong blood type, every minute of decision-making matters. The canvas maps 4 rescue options — *no rescue*, *IV fluid resuscitation*, *exchange transfusion*, and *organ support* — against 2 patient populations, producing 8 paths that each go through the model. The point is to see which rescue actually minimizes risk, and for whom.
+
+### What the report shows
+
+A completed run returns a structured report with four sections:
+
+1. **Executive Summary** — auto-derived. The single sentence that matters: which intervention minimizes risk on average, which maximizes it, and which patient group is most exposed.
+2. **Comparison Dashboard** — every path side-by-side. Risk % and Severe % per `Subject → Exposure → Intervention` row.
+3. **Risk Breakdown** — average risk by intervention, average risk by subject. A quick visual for "who is most at risk and which rescue works best."
+4. **Per-Subject Response** — for each subject, every path written out in plain language: the narrative of what happens, the key drivers, and a bulleted list of recommendations.
+
+### Sample output
+
+```text
+Best intervention:   IV Fluid Resuscitation   15% avg risk   (n=2)
+Worst intervention:  Exchange Transfusion     53.8% avg risk (n=2)
+Lowest-risk subject:  Trauma Patients          18.3%
+Highest-risk subject: Emergency Patients       43.3%
+```
+
+The interesting story is in the **per-path** breakdown. For the lowest-risk path — *Trauma Patients + Incompatible Blood Transfusion + IV Fluid Resuscitation* (5–20% risk) — the model flags the key drivers as *blood bank protocol noncompliance*, *ER time pressure*, and *rushed patient care*, and recommends:
+
+- Mandatory blood typing/crossmatching at bedside
+- Use of O-negative blood or compatible alternatives in trauma
+- Activation of emergency transfusion protocol
+- Staff education on ABO incompatibility consequences
+
+The same structure repeats for every other path. So instead of one number, you get 8 small narratives, each with its own drivers and a concrete checklist of recommendations to share with a clinical team or use as a teaching artifact. Reports export to PDF, Markdown, JSON, and CSV.
 
 ## Quick links
 
@@ -229,13 +264,61 @@ my-doctor-ai/
 
 **QVAC SDK chokepoint.** [`src/main/qvac.ts`](src/main/qvac.ts) is the only file that imports `@qvac/sdk` on the main side. Errors are normalized to `{code, message, retryable}` so the UI can show a single error pill. Training-mode lock blocks model swaps while a fine-tune is in flight.
 
-### Privacy
+### Privacy and Local-First
 
-- **No cloud calls.** All inference, translation, OCR, and (optional) P2P run on-device. The renderer never makes outbound network requests of its own.
+MedLifeSim does not use any remote APIs for AI inference — every model call runs on-device.
+
+- **No cloud calls.** All inference, translation, and (optional) P2P run on-device. The renderer never makes outbound network requests of its own.
 - **Models cached locally.** Downloaded once via QVAC SDK; subsequent loads are offline.
-- **P2P is opt-in.** Provider/consumer roles in Settings are off by default. The consumer's `fallbackToLocal: true` means a dead peer never breaks your workflow.
+- **P2P is opt-in.** Provider/consumer roles in Settings are off by default.
 - **Per-profile isolation.** Chat history, documents, simulations, and training data are scoped to a profile. Switching profiles loads a different directory; deleting a profile wipes it.
 - **No telemetry.** There is no analytics SDK, no error reporting service, no remote config.
+
+---
+
+## Performance audit log
+
+MedLifeSim's QVAC SDK chokepoint ([`src/main/qvac.ts`](src/main/qvac.ts)) emits a structured audit log for every model load/unload and every inference call. Below is one full demo run with **MedPsy 1.7B** on a consumer Windows desktop with GPU acceleration.
+
+### Model load 
+
+```text
+[sdk:client] ≡ƒôª Initializing SDK config
+[sdk:client] ≡ƒô▒ Runtime context: { runtime: 'node', platform: 'win32' }
+[sdk:server] Γ£à Cache directory set to: C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache
+[sdk:client] Γ£à Initialization complete
+[sdk:server] [request-lifecycle] begin requestId=047fb155-2498-4dcb-9e46-5ad5f92131c9 kind=downloadAsset modelId=- state=running
+[sdk:server] Loading from HTTP URL: https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true
+[sdk:server] Γ£à Using cached HTTP model: C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache/b615104e1b3947be_medpsy-1.7b-q8_0.gguf
+[sdk:server] Loaded Model to C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache/b615104e1b3947be_medpsy-1.7b-q8_0.gguf
+[sdk:server] [request-lifecycle] end requestId=047fb155-2498-4dcb-9e46-5ad5f92131c9 kind=downloadAsset modelId=- state=completed durationMs=731
+[sdk:server] [request-lifecycle] begin requestId=e4061c0e-1a8a-4d4b-8f63-f4646e0f39c5 kind=loadModel modelId=- state=running
+[sdk:server] Loading from HTTP URL: https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true
+[sdk:server] Γ£à Using cached HTTP model: C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache/b615104e1b3947be_medpsy-1.7b-q8_0.gguf
+[sdk:server] Loaded Model to C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache/b615104e1b3947be_medpsy-1.7b-q8_0.gguf
+[sdk:server] llamacpp-completion: Loading model 918cace3f72353a7...
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+[sdk:server] llamacpp-completion model 918cace3f72353a7 loaded
+[sdk:server] Local model registered: 918cace3f72353a7 -> C:\Users\pisut\AppData\Roaming\medlifesim\qvac-cache/b615104e1b3947be_medpsy-1.7b-q8_0.gguf
+[sdk:server] [request-lifecycle] end requestId=e4061c0e-1a8a-4d4b-8f63-f4646e0f39c5 kind=loadModel modelId=- state=completed durationMs=15544
+[qvac] URL model loaded: 918cace3f72353a7 ( https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q8_0.gguf?download=true )
+```
+
+### Inference performance
+
+```text
+[AI] completionStats {"type":"completionStats","seq":965,"stats":{"timeToFirstToken":1509.605,"tokensPerSecond":8.340257313756641,"cacheTokens":1532,"promptTokens":235,"generatedTokens":967,"backendDevice":"gpu"}}
+```
+
+Every chat completion in the app emits the same `completionStats` event into the audit log; every model load/unload emits a `request-lifecycle` block with `kind`, `state`, and `durationMs`.
 
 ---
 
@@ -255,14 +338,3 @@ If you have feature requests, open an issue.
 ## License
 
 [MIT](LICENSE) © Tamago Labs
-
-## Acknowledgments
-
-- [QVAC SDK](https://www.npmjs.com/package/@qvac/sdk) — local model runtime, translation, P2P, fine-tuning.
-- [Bergamot](https://github.com/browsermt/bergamot-translator) (Mozilla) — on-device neural machine translation.
-- [Hyperswarm](https://github.com/hyperswarm/hyperswarm) — DHT for the optional P2P layer.
-- [dnd-kit](https://dndkit.com/) — drag & drop for the simulation canvas.
-- [framer-motion](https://www.framer.com/motion/) — UI animation.
-- [lucide-react](https://lucide.dev/) — icons.
-- [react-markdown](https://github.com/remarkjs/react-markdown) + [remark-gfm](https://github.com/remarkjs/remark-gfm) — Markdown rendering in simulation reports.
-- The open-source model community, without whom none of this is possible.
