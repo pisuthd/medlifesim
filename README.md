@@ -205,6 +205,8 @@ Once all paths are complete, click **Report** on a simulation row to open the **
 
 The simulation report has a translation picker in the page header. Pick a target language and MedLifeSim will load the Bergamot model for that language pair and translate the report in place. The English original stays underneath; you can flip back any time.
 
+<img width="752" height="440" alt="Screenshot 2026-06-14 093917" src="https://github.com/user-attachments/assets/83dd8908-d984-4d28-bd5c-3794aab7ca6e" />
+
 Eighteen language pairs are supported: Arabic, German, Greek, Spanish, French, Hebrew, Hindi, Italian, Japanese, Korean, Dutch, Polish, Portuguese, Russian, Swedish, Turkish, Vietnamese, Chinese. All run on-device — no cloud translation API.
 
 ### 7. Train a LoRA (optional)
