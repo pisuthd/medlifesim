@@ -2,9 +2,6 @@
 
 > A privacy-first on-device medical AI sandbox powered by the QVAC MedPsy medical language model.
 
-<!-- Hero image: drop a `docs/images/hero.png` (Dashboard screenshot, ~1280×800) and uncomment the line below. -->
-<!-- ![MedLifeSim hero](docs/images/hero.png) -->
-
 ## Why we build MedLifeSim
 
 QVAC MedPsy is a medical language model from Tether AI designed to run on edge devices. We built MedLifeSim to explore what medical AI can become when it's more than just another chat interface.
@@ -44,41 +41,6 @@ Rather than providing definitive answers, MedLifeSim offers a safe environment t
 
 * **Privacy by design** — No cloud APIs, telemetry, analytics, or external reporting services. Inference, simulations, translation, and optional distributed processing remain under your control.
 
-## Example use cases
-
-> **Scenario in this section:** *Hospital · Emergency Transfusion* — a post-adverse-event rescue simulation for incompatible blood transfusion scenarios. Two patient populations (trauma, emergency), 4 rescue interventions, 8 paths total. This is the same template shipped in the app; the numbers below come from one real run.
-
-### What you explore
-
-After a patient receives the wrong blood type, every minute of decision-making matters. The canvas maps 4 rescue options — *no rescue*, *IV fluid resuscitation*, *exchange transfusion*, and *organ support* — against 2 patient populations, producing 8 paths that each go through the model. The point is to see which rescue actually minimizes risk, and for whom.
-
-### What the report shows
-
-A completed run returns a structured report with four sections:
-
-1. **Executive Summary** — auto-derived. The single sentence that matters: which intervention minimizes risk on average, which maximizes it, and which patient group is most exposed.
-2. **Comparison Dashboard** — every path side-by-side. Risk % and Severe % per `Subject → Exposure → Intervention` row.
-3. **Risk Breakdown** — average risk by intervention, average risk by subject. A quick visual for "who is most at risk and which rescue works best."
-4. **Per-Subject Response** — for each subject, every path written out in plain language: the narrative of what happens, the key drivers, and a bulleted list of recommendations.
-
-### Sample output
-
-```text
-Best intervention:   IV Fluid Resuscitation   15% avg risk   (n=2)
-Worst intervention:  Exchange Transfusion     53.8% avg risk (n=2)
-Lowest-risk subject:  Trauma Patients          18.3%
-Highest-risk subject: Emergency Patients       43.3%
-```
-
-The interesting story is in the **per-path** breakdown. For the lowest-risk path — *Trauma Patients + Incompatible Blood Transfusion + IV Fluid Resuscitation* (5–20% risk) — the model flags the key drivers as *blood bank protocol noncompliance*, *ER time pressure*, and *rushed patient care*, and recommends:
-
-- Mandatory blood typing/crossmatching at bedside
-- Use of O-negative blood or compatible alternatives in trauma
-- Activation of emergency transfusion protocol
-- Staff education on ABO incompatibility consequences
-
-The same structure repeats for every other path. So instead of one number, you get 8 small narratives, each with its own drivers and a concrete checklist of recommendations to share with a clinical team or use as a teaching artifact. Reports export to PDF, Markdown, JSON, and CSV.
-
 ## Quick links
 
 - **v1.0.0-beta.1 (Windows)** — [Download on GitHub Releases](https://github.com/pisuthd/medlifesim/releases/tag/v.1.0.0-beta.1)
@@ -99,9 +61,70 @@ The same structure repeats for every other path. So instead of one number, you g
 
 ---
 
-## Quick start
+## The Workflow
 
-This walkthrough mirrors the actual user flow: from cold boot to running a translated simulation report.
+<img width="799" height="473" alt="Screenshot 2026-06-13 212824" src="https://github.com/user-attachments/assets/38c4ef6b-3739-4ff3-a025-871d8be2cee3" />
+
+MedLifeSim is built around a simple but expressive framework: **Subject → Exposure → Intervention**.
+
+Each simulation begins by defining who is affected, what they are exposed to, and how we choose to respond. By connecting these three elements, MedLifeSim can generate and evaluate multiple pathways to explore how different interventions may influence outcomes.
+
+- **Subject** represents the population or individuals involved — such as school children, emergency patients, elderly caregivers, at-risk teens, pregnant individuals, or urban workers.
+- **Exposure** describes the condition, event, or risk factor affecting them — including respiratory outbreaks, secondhand smoke, peer drug access, sedentary lifestyles, incompatible blood transfusions, and environmental pollution.
+- **Intervention** captures the actions taken in response — ranging from vaccination programs and education campaigns to hospital rescue procedures, workplace policies, and supportive care.
+
+This workflow allows MedLifeSim to support scenarios across diverse settings, from emergency departments and hospitals to schools, workplaces, households, and community health programs.
+
+Rather than producing a single answer, it systematically compares possible pathways and helps users understand the trade-offs between different approaches.
+
+---
+
+## Example use cases
+
+MedLifeSim demonstrates how medical AI can be used to simulate health scenarios without the cost, time, or ethical constraints of running full-scale real-world studies. It enables safe exploration of interventions, outcomes, and risk pathways before decisions are made in real environments.
+
+These simulations can be applied across clinical, community, and environmental contexts:
+
+- Smoking-risk assessment in workplace environments  
+- Teen substance-abuse prevention in semi-urban communities  
+- Respiratory outbreak response in schools  
+- Urban metabolic decline analysis  
+- Emergency hospital intervention simulations  
+
+---
+
+## Example: Emergency Transfusion Scenario
+
+In a hospital setting, MedLifeSim can simulate outcomes after an incompatible blood transfusion and compare intervention strategies in real time.
+
+### Scenario setup  
+Subject groups: Trauma patients, Emergency patients  
+Interventions: No rescue, IV fluid resuscitation, exchange transfusion, organ support  
+
+### What the simulation produces
+- Comparative risk across all intervention paths  
+- Best and worst-performing interventions  
+- Per-subject outcome breakdowns  
+- Actionable recommendations for response planning  
+
+### Output
+
+```text
+Best intervention:   IV Fluid Resuscitation   15% avg risk   (n=2)
+Worst intervention:  Exchange Transfusion     53.8% avg risk (n=2)
+Lowest-risk subject:  Trauma Patients          18.3%
+Highest-risk subject: Emergency Patients       43.3%
+```
+
+Each path is expanded into a structured narrative describing:
+
+- key risk drivers
+- failure points in the response chain
+- recommended interventions for mitigation
+
+---
+
+## Quick start
 
 ### 1. Install and launch
 
@@ -109,9 +132,9 @@ This walkthrough mirrors the actual user flow: from cold boot to running a trans
 
 Grab the latest build from the [GitHub Releases page](https://github.com/pisuthd/medlifesim/releases) (Windows installer available; macOS and Linux builds are coming next). Run the installer, and MedLifeSim opens. No extra setup yet — you'll pick a base model in the next step.
 
-**Developers — build from source:**
+**Build from source:**
 
-If you want to hack on MedLifeSim or run an unreleased platform, clone the repo and boot it in dev mode:
+Clone the repository and run the app in development mode:
 
 ```bash
 git clone https://github.com/pisuthd/medlifesim.git
@@ -120,71 +143,85 @@ npm install
 npm run dev
 ```
 
-`npm run dev` boots `electron-vite` in dev mode: the renderer has Vite HMR, the main process restarts on change, preload scripts reload too. The app window opens automatically.
+Create production builds for your platform:
 
-> 📷 *Screenshot: the splash → ModelSelector on first run. Drop `docs/images/01-model-selector.png` here.*
+```bash
+npm run build:unpack // Build unpacked Electron app (no installer)
+npm run build:win // Windows installer
+npm run build:mac // macOS DMG package
+npm run build:linux // Linux builds (AppImage / snap / deb)
+```
 
-### 2. Pick a base model
+<img width="119" height="224" alt="Screenshot 2026-06-13 212337" src="https://github.com/user-attachments/assets/38fee9bb-e9c8-41f8-8b39-ef5883e31137" />
 
-The first time you launch, you'll land on the **Model Selector** with the QVAC catalog preloaded. Pick a base model that fits your hardware — smaller models load faster and run on lighter GPUs. The app downloads and loads it locally; you'll see a progress bar with download vs. load phases.
+### 2. Pick a model
 
-> 📷 *Screenshot: the loading screen with the progress bar. Drop `docs/images/02-loading.png` here.*
+When you launch MedLifeSim, you'll land on the **Model Selector** with the QVAC catalog preloaded. Choose a model based on your hardware — smaller models load faster and run on lighter devices.
 
-If you already have a GGUF model, you can add it from a local file via **Add custom model** — MedLifeSim caches it under the QVAC cache directory for offline reuse.
+The app downloads and loads the model locally, with a progress indicator showing both download and initialization stages.
+
+<img width="550" height="404" alt="Screenshot 2026-06-13 212310" src="https://github.com/user-attachments/assets/1c27a2bd-2325-42ce-92c1-2cd7eae6b143" />
 
 ### 3. Pick a profile
 
 Once a model is loaded, the app routes you to the **Profile Selector**. Create a new profile (self, family, doctor, or community) or pick an existing one. Each profile is a fully isolated workspace.
 
-> 📷 *Screenshot: profile selector with the 4 profile types. Drop `docs/images/03-profile.png` here.*
+After this, the app remembers your choice and goes straight to the **Dashboard**.
 
-After this, the app remembers your choice and goes straight to the **Dashboard** on subsequent launches.
+<img width="944" height="501" alt="Screenshot 2026-06-13 212503" src="https://github.com/user-attachments/assets/62caf592-35f9-46e8-8238-1cd0d0f6f4b8" />
 
 ### 4. Start chatting
 
-The **Dashboard** shows the loaded model, status, uptime, and two recent-activity tables (simulations + chat sessions). Click **Start chatting** to enter the Chat page.
+Click **Start chatting** to enter the Chat page. The chat streams responses token-by-token, and your history is saved per profile.
 
-The chat streams responses token-by-token. Your history is saved per profile. To attach documents, drop them into the chat input — MedLifeSim will OCR scans locally and add the recognized text to the document store.
+Before starting a conversation, you can choose between:
+- **Base model** — the original QVAC MedPsy model
+- **Fine-tuned model** — a customized version trained on your simulation or private data (details in the Fine-tuning section)
 
-> 📷 *Screenshot: a chat session with a streaming response and a document attached. Drop `docs/images/04-chat.png` here.*
+Each option affects how the model responds during chat and simulation workflows.
+
+<img width="774" height="469" alt="Screenshot 2026-06-14 082148" src="https://github.com/user-attachments/assets/e724637b-275a-4464-8814-ffa5153c981c" />
 
 ### 5. Run a simulation
 
-Go to **Simulations → New simulation**. You'll land on a **canvas** with three column groups: **Subject**, **Exposure**, **Intervention**. Drag cards from the right-hand library into each group, then connect them to form paths.
+<img width="596" height="331" alt="Screenshot 2026-06-13 213743" src="https://github.com/user-attachments/assets/396c595b-7e3c-44b9-848e-c37540534210" />
 
-> 📷 *Screenshot: the simulation canvas with cards placed. Drop `docs/images/05-canvas.png` here.*
+Go to **New simulation**. You'll enter the **canvas view**, where you can build a simulation in two ways:
 
-When you're happy, click **Run all paths**. MedLifeSim enumerates every Subject → Exposure → Intervention combination, kicks off a worker per path, and emits progress events in real time. You can watch the recent-simulations table fill in.
+- **Manual mode:** Drag and drop cards into the three columns — **Subject**, **Exposure**, and **Intervention** — then connect them to define paths.
+- **Prompt-to-generation:** Describe a health scenario in natural language, and MedLifeSim will automatically generate the relevant Subject, Exposure, and Intervention cards for you.
 
-> 📷 *Screenshot: the recent-simulations table with a row in 'Processing' state. Drop `docs/images/06-progress.png` here.*
+<img width="539" height="373" alt="Screenshot 2026-06-13 213111" src="https://github.com/user-attachments/assets/3ea97c28-7ae1-46f9-87be-3b9940aefe56" />
 
-When all paths complete, click **Report** on a row to open the **Simulation Report** — a structured page with per-path risk, the executive summary, and a comparison table of interventions ranked by average risk.
+The canvas lets you visually compose and refine the simulation structure before execution.
+
+When you're ready, click **Preview**. MedLifeSim enumerates every valid Subject → Exposure → Intervention combination, then submit to executes each path in parallel, and streams progress updates in real time. You can watch the recent-simulations table update as results are processed.
+
+<img width="752" height="356" alt="Screenshot 2026-06-14 083038" src="https://github.com/user-attachments/assets/41ce155e-720b-445d-8cf8-62682b8eb905" />
+
+Once all paths are complete, click **Report** on a simulation row to open the **Simulation Report** — a structured view showing per-path risk analysis, an executive summary, and a comparison of interventions ranked by average risk.
 
 ### 6. Translate the report
 
-The simulation report has a translation picker in the page header. Pick a target language (e.g. Spanish, Thai, Vietnamese, Japanese) and MedLifeSim will load the Bergamot model for that language pair and translate the report in place. The English original stays underneath; you can flip back any time.
-
-> 📷 *Screenshot: a report translated into Spanish with the picker open. Drop `docs/images/07-translated.png` here.*
+The simulation report has a translation picker in the page header. Pick a target language and MedLifeSim will load the Bergamot model for that language pair and translate the report in place. The English original stays underneath; you can flip back any time.
 
 Eighteen language pairs are supported: Arabic, German, Greek, Spanish, French, Hebrew, Hindi, Italian, Japanese, Korean, Dutch, Polish, Portuguese, Russian, Swedish, Turkish, Vietnamese, Chinese. All run on-device — no cloud translation API.
 
 ### 7. Train a LoRA (optional)
 
-If you want to specialize the model for your own patterns, head to **Training**. Create a dataset from your completed simulations, pick a base model and LoRA hyperparameters (rank, alpha, epochs, batch size), and start a fine-tune run. MedLifeSim runs SFT over JSONL with live loss + ETA.
+If you want to specialize the model for your own patterns, go to **Training**. You can generate a dataset from your completed simulations, select a base model, and start a fine-tuning run.
 
-> 📷 *Screenshot: the training page mid-run with the live loss chart. Drop `docs/images/08-training.png` here.*
+MedLifeSim performs LoRA-based SFT training on JSONL data, with real-time metrics such as training loss and estimated time remaining.
 
-When the run finishes, the new adapter is registered in the LoRA catalog. Switch to it from the **Model Selector** → **LoRA** picker in the Chat page.
+Once the run is complete, the trained adapter is registered in the LoRA catalog. You can then switch to it from the input in the Chat page.
 
 ### 8. Share peer-to-peer (opt-in)
 
-If you want to offload outcomes work to a trusted peer — say, a colleague with a beefier GPU — go to **Settings → Shared Resources → P2P**. Flip the **Provider** toggle to expose your fine-tuned model on Hyperswarm. On the consumer side, add the peer's public key, connect, and MedLifeSim will delegate outcomes work to them.
+If you want to offload simulation work to trusted peers, go to **Settings → Shared Resources**.
 
-The consumer's `fallbackToLocal: true` means a dead peer never breaks your workflow. If the peer is unreachable, the work just runs locally.
+To share your resources, enable the **Provider** toggle. This will expose your resource over Hyperswarm and generate a public key that can be shared with others on the same network.
 
-> 📷 *Screenshot: the P2P settings panel with a connected peer. Drop `docs/images/09-p2p.png` here.*
-
-You can leave P2P off entirely. It's an opt-in feature.
+On the consumer side, add the provider’s public key to connect. Once connected, MedLifeSim can delegate supported simulation workloads to that peer.
 
 ---
 
@@ -233,36 +270,6 @@ my-doctor-ai/
 ├── tsconfig.web.json
 └── package.json
 ```
-
-### Architecture
-
-**Boot state machine** (in [`src/renderer/src/App.tsx`](src/renderer/src/App.tsx)):
-
-```
-              ┌──────────┐
-              │ loading  │  splash
-              └────┬─────┘
-                   │ window.api.models.status() returns no active
-              ┌────▼─────┐
-              │  model   │  ModelSelector (first run)
-              └────┬─────┘
-                   │ user picks
-              ┌────▼──────────┐
-              │ model-loading │  LoadingScreen with progress bar
-              └────┬──────────┘
-                   │ models:progress reaches 100%
-              ┌────▼──────┐
-              │  profile  │  ProfileSelector (self/family/doctor/community)
-              └────┬──────┘
-                   │ user picks
-              ┌────▼─────┐
-              │   main   │  Dashboard / Chat / Simulations / …
-              └──────────┘
-```
-
-**IPC bridge.** The main process owns all state. The renderer talks to it through `window.api.*`, declared in [`src/preload/index.d.ts`](src/preload/index.d.ts). Every channel goes through the typed surface — no `ipcRenderer` calls in the renderer. Live channels (`models:progress`, `p2p.onStatus`, `simulations.onProgress`, `ai:streamToken`, …) are subscribed to in the relevant context provider (`AIContext`, `TrainingContext`) or page hook.
-
-**QVAC SDK chokepoint.** [`src/main/qvac.ts`](src/main/qvac.ts) is the only file that imports `@qvac/sdk` on the main side. Errors are normalized to `{code, message, retryable}` so the UI can show a single error pill. Training-mode lock blocks model swaps while a fine-tune is in flight.
 
 ### Privacy and Local-First
 
@@ -321,19 +328,6 @@ common_init_result: added <|file_sep|> logit bias = -inf
 Every chat completion in the app emits the same `completionStats` event into the audit log; every model load/unload emits a `request-lifecycle` block with `kind`, `state`, and `durationMs`.
 
 ---
-
-## Roadmap
-
-MedLifeSim is at **v1.0.0-beta.1** and the core flows (chat, simulations, translation, training, P2P) are working.
-
-**Next up:**
-
-- Screenshot catalog for the README (the `📷` placeholders above).
-- A downloadable portable build for each platform (no installer required).
-- Export / import profile bundles — share your simulation reports and LoRAs with a colleague.
-- A search/command palette (Ctrl/Cmd-K) for jumping to any page or simulation.
-
-If you have feature requests, open an issue.
 
 ## License
 
